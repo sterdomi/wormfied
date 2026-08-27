@@ -2,9 +2,13 @@ import { loadLevelImages, type LevelImages } from '../engine/assetLoader';
 import { setupCanvas } from '../engine/canvas';
 import { createGameLoop } from '../engine/gameLoop';
 import { setupInput } from '../engine/input';
+import { ENEMY_LINE_TOUCH_RADIUS, enemyTouchesLine } from '../game/collision';
 import { advanceDrawing, beginDrawing, EdgeTrigger, type DrawSession } from '../game/drawing';
+import { createEnemy, type Enemy } from '../game/enemy';
+import { moveEnemy, randomDirection } from '../game/enemyMovement';
 import { createRectangularField, type Point } from '../game/field';
 import { createForegroundLayer, type ForegroundLayer } from '../game/foregroundLayer';
+import { closestPointOnPerimeter } from '../game/geometry';
 import { LEVEL_1 } from '../game/level';
 import { type DrawnLine } from '../game/line';
 import { Player } from '../game/player';
@@ -24,7 +28,9 @@ const COLOR_HUD = '#e5e9f0';
 // Auf dem Rand angedockt = rot; ins Feld gefahren und am Zeichnen = grün.
 const COLOR_ON_EDGE = '#bf616a';
 const COLOR_DRAWING = '#a3be8c';
+const COLOR_ENEMY = '#b48ead';
 const PLAYER_RADIUS = 7;
+const ENEMY_RADIUS = 11;
 
 const foundCanvas = document.querySelector<HTMLCanvasElement>('#game');
 if (!foundCanvas) {
@@ -63,6 +69,7 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
   let fieldHeight = 1;
   let foreground: ForegroundLayer = createForegroundLayer(assets.foreground, 1, 1);
   let scoring: Scoring = createScoring(0);
+  let enemy: Enemy = createEnemy({ x: 0, y: 0 });
 
   function rebuildField(width: number, height: number): void {
     fieldWidth = Math.max(1, width - FIELD_MARGIN * 2);
@@ -78,6 +85,8 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
     // Erobert-Anzeige) zurück, weil das Feld wieder komplett ist.
     scoring = createScoring(polygonArea(field));
     hud.setClaimedPercentage(0);
+    // Gegner in die Feldmitte setzen (Levelstart bzw. Resize).
+    enemy = createEnemy({ x: fieldWidth / 2, y: fieldHeight / 2 }, randomDirection());
   }
 
   /**
@@ -87,7 +96,8 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
    * Prozentanzeige nachziehen.
    */
   function handleCompletedLine(linePoints: Point[]): void {
-    const result = applyCompletedLine(field, linePoints);
+    // Die Seite MIT dem Gegner bleibt aktives Feld; die andere gilt als erobert.
+    const result = applyCompletedLine(field, linePoints, enemy.position);
     field = result.active;
     player.segmentIndex = result.playerSegmentIndex;
     player.segmentProgress = result.playerSegmentProgress;
@@ -96,6 +106,28 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
 
     scoring.claimedArea += result.claimedArea;
     hud.setClaimedPercentage(getClaimedPercentage(scoring.claimedArea, scoring.totalFieldArea));
+  }
+
+  /**
+   * Der Gegner hat die aktive Linie berührt. Minimale Konsequenz (kein Leben-/
+   * Punktesystem): Linie verwerfen, Spieler zurück an den Startpunkt der Linie
+   * auf dem Rand.
+   */
+  function handleEnemyCollision(): void {
+    if (!session) return;
+    const start = session.line.points[0];
+    const snap = closestPointOnPerimeter(field, start);
+    player.segmentIndex = snap.segmentIndex;
+    player.segmentProgress = snap.progress;
+    player.position = { x: snap.point.x, y: snap.point.y };
+    player.mode = 'onEdge';
+    session = null;
+    // TODO(später): bei Kollision müsste der Foreground eigentlich auf den Stand
+    // vor Beginn der Linie zurückgesetzt werden (z.B. durch Neuzeichnen des
+    // Foreground-Bilds), aktuell bleibt der Pfad optisch ausgeschnitten.
+    console.log(
+      'Gegner hat die aktive Linie berührt – Linie verworfen, Spieler zurück auf den Rand.',
+    );
   }
 
   const view = setupCanvas(canvas, { onResize: rebuildField });
@@ -136,8 +168,19 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
     carve = carve || session?.hasLeftEdge === true;
     if (carve && (prevPos.x !== player.position.x || prevPos.y !== player.position.y)) {
       // Pfadbasiertes Ausschneiden (Übergangslösung, siehe foregroundLayer.ts):
-      // Instruktion 5 ersetzt das durch polygon-exaktes Ausschneiden.
+      // Instruktion 5 ergänzt das um polygon-exaktes Flächen-Ausschneiden.
       foreground.carvePath(prevPos.x, prevPos.y, player.position.x, player.position.y);
+    }
+
+    // Gegner bewegen (jeden Frame), danach Kollision mit der aktiven Linie
+    // prüfen – nur relevant, solange der Spieler zeichnet.
+    moveEnemy(enemy, field, dt);
+    if (
+      player.mode === 'drawing' &&
+      session &&
+      enemyTouchesLine(enemy.position, session.line, ENEMY_LINE_TOUCH_RADIUS, player.position)
+    ) {
+      handleEnemyCollision();
     }
   }
 
@@ -167,6 +210,15 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
     ctx.beginPath();
     field.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
     ctx.closePath();
+    ctx.stroke();
+
+    // Gegner (Platzhalter-Kreis – später das eigentliche Wurm-/Drachen-Design).
+    ctx.beginPath();
+    ctx.arc(enemy.position.x, enemy.position.y, ENEMY_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = COLOR_ENEMY;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = COLOR_BACKDROP;
     ctx.stroke();
 
     // Aktuell gezeichnete Linie (grün): aufgezeichnete Punkte + live bis zum Spieler.

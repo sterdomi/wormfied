@@ -185,10 +185,10 @@ export function advanceDrawing(
     // nächstgelegenen Randpunkt ergänzen, dann die Linie normal abschliessen
     // (der Aufrufer splittet daraufhin das Feld).
     //
-    // TODO(Instruktion 6): Sobald Gegner/Gefahr existieren, wird vorzeitiges
-    // Loslassen vermutlich anders behandelt (z.B. Linie bricht ab ohne Fläche
-    // zu erobern, oder kostet ein Leben) – aktuelle Regel ist ein Platzhalter
-    // ohne Risiko.
+    // TODO(später): Der Gegner existiert inzwischen; das eigentliche Abbrechen
+    // bzw. Bestrafen (Linie bricht ab ohne Fläche zu erobern, oder kostet ein
+    // Leben) hängt am Leben-/Schild-System der nächsten Instruktion. Bis dahin
+    // ist diese Regel ein Platzhalter ohne Risiko.
     appendPoint(session.line, snap.point, 0);
     player.position = { x: snap.point.x, y: snap.point.y };
     player.segmentIndex = snap.segmentIndex;

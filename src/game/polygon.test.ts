@@ -3,6 +3,7 @@ import { createRectangularField } from './field';
 import {
   applyCompletedLine,
   determineClaimedRegion,
+  isPointInPolygon,
   polygonArea,
   simplifyPolygon,
   splitFieldByLine,
@@ -122,12 +123,69 @@ describe('splitPolygonByLine', () => {
   });
 });
 
+describe('isPointInPolygon', () => {
+  const rect = createRectangularField(800, 600);
+
+  it('erkennt Punkte im Inneren', () => {
+    expect(isPointInPolygon({ x: 400, y: 300 }, rect)).toBe(true);
+    expect(isPointInPolygon({ x: 10, y: 10 }, rect)).toBe(true);
+  });
+
+  it('erkennt Punkte ausserhalb', () => {
+    expect(isPointInPolygon({ x: -5, y: 300 }, rect)).toBe(false);
+    expect(isPointInPolygon({ x: 400, y: 900 }, rect)).toBe(false);
+  });
+
+  it('funktioniert für ein nicht-konvexes L-Polygon (Punkt in der Kerbe = aussen)', () => {
+    const shape = [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 100, y: 100 },
+      { x: 60, y: 100 },
+      { x: 60, y: 40 },
+      { x: 0, y: 40 },
+    ];
+    expect(isPointInPolygon({ x: 20, y: 20 }, shape)).toBe(true);
+    expect(isPointInPolygon({ x: 80, y: 80 }, shape)).toBe(true);
+    expect(isPointInPolygon({ x: 20, y: 80 }, shape)).toBe(false);
+  });
+});
+
 describe('determineClaimedRegion', () => {
-  it('liefert das kleinere Polygon zurück', () => {
+  it('ohne Gegner: liefert das kleinere Polygon zurück', () => {
     const small = createRectangularField(10, 10); // 100
     const big = createRectangularField(100, 100); // 10000
     expect(determineClaimedRegion(big, small)).toBe(small);
     expect(determineClaimedRegion(small, big)).toBe(small);
+  });
+
+  // Zwei nebeneinanderliegende Polygone: links schmal (60000), rechts breit (420000).
+  const leftSmall = [
+    { x: 0, y: 0 },
+    { x: 100, y: 0 },
+    { x: 100, y: 600 },
+    { x: 0, y: 600 },
+  ];
+  const rightBig = [
+    { x: 100, y: 0 },
+    { x: 800, y: 0 },
+    { x: 800, y: 600 },
+    { x: 100, y: 600 },
+  ];
+
+  it('mit Gegner: erobert das Polygon OHNE Gegner – auch wenn es das grössere ist', () => {
+    const enemyInSmall = { x: 50, y: 300 };
+    expect(determineClaimedRegion(rightBig, leftSmall, enemyInSmall)).toBe(rightBig);
+    expect(determineClaimedRegion(leftSmall, rightBig, enemyInSmall)).toBe(rightBig);
+  });
+
+  it('mit Gegner: das Polygon mit dem Gegner bleibt aktiv (wird nicht erobert)', () => {
+    const enemyInBig = { x: 400, y: 300 };
+    expect(determineClaimedRegion(rightBig, leftSmall, enemyInBig)).toBe(leftSmall);
+  });
+
+  it('Randfall: Gegner in keinem der Polygone → Fallback auf das kleinere', () => {
+    expect(determineClaimedRegion(rightBig, leftSmall, { x: 9999, y: 9999 })).toBe(leftSmall);
   });
 });
 

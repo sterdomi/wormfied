@@ -2,6 +2,24 @@ import { segmentLength, type Point } from './field';
 import { closestPointOnPerimeter } from './geometry';
 
 /**
+ * Ray-Casting-Punkt-in-Polygon-Test. Punkte exakt auf einer Kante liefern kein
+ * definiertes Ergebnis (Randfall) – die Aufrufer behandeln das explizit.
+ */
+export function isPointInPolygon(point: Point, polygon: Point[]): boolean {
+  let inside = false;
+  const n = polygon.length;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const a = polygon[i];
+    const b = polygon[j];
+    const straddlesY = a.y > point.y !== b.y > point.y;
+    if (straddlesY && point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+/**
  * Absolute Fläche eines geschlossenen Polygons (Gauss- / Shoelace-Formel).
  * Unabhängig von der Umlaufrichtung.
  */
@@ -107,13 +125,23 @@ export function splitPolygonByLine(polygon: Point[], line: Point[]): [Point[], P
 }
 
 /**
- * Welches der beiden Teilpolygone gilt als "erobert".
+ * Welches der beiden Teilpolygone gilt als "erobert": das, in dem der Gegner
+ * NICHT steht (das Polygon MIT dem Gegner bleibt aktives Spielfeld).
  *
- * TODO(Instruktion 6): Sobald der Gegner existiert, bestimmt DESSEN Position,
- * welche Seite erobert wird (die Seite OHNE Gegner) – nicht mehr die
- * Flächengrösse. Platzhalter bis dahin: das kleinere der beiden Polygone.
+ * Fallback (Randfall): ist keine Gegnerposition bekannt oder lässt sich der
+ * Gegner keinem der beiden Polygone eindeutig zuordnen (auf einer Kante, in
+ * beiden oder in keinem), gewinnt wie zuvor das flächenmässig kleinere Polygon.
  */
-export function determineClaimedRegion(regionA: Point[], regionB: Point[]): Point[] {
+export function determineClaimedRegion(
+  regionA: Point[],
+  regionB: Point[],
+  enemyPosition?: Point,
+): Point[] {
+  if (enemyPosition) {
+    const inA = isPointInPolygon(enemyPosition, regionA);
+    const inB = isPointInPolygon(enemyPosition, regionB);
+    if (inA !== inB) return inA ? regionB : regionA;
+  }
   return polygonArea(regionA) <= polygonArea(regionB) ? regionA : regionB;
 }
 
@@ -127,9 +155,13 @@ export interface FieldSplit {
 }
 
 /** Splittet das Feld an der Linie und wählt die eroberte / aktive Seite. */
-export function splitFieldByLine(polygon: Point[], line: Point[]): FieldSplit {
+export function splitFieldByLine(
+  polygon: Point[],
+  line: Point[],
+  enemyPosition?: Point,
+): FieldSplit {
   const [a, b] = splitPolygonByLine(polygon, line);
-  const claimed = determineClaimedRegion(a, b);
+  const claimed = determineClaimedRegion(a, b, enemyPosition);
   return { claimed, active: claimed === a ? b : a, claimedArea: polygonArea(claimed) };
 }
 
@@ -142,11 +174,16 @@ export interface AppliedLine extends FieldSplit {
 
 /**
  * Verarbeitet eine abgeschlossene Linie: Feld splitten, eroberte Seite
- * bestimmen und den Spieler-Randzustand am Linien-Endpunkt auf dem neuen
- * aktiven Polygon ableiten (dort steht der Spieler nach Abschluss der Linie).
+ * bestimmen (anhand der Gegnerposition, siehe `determineClaimedRegion`) und den
+ * Spieler-Randzustand am Linien-Endpunkt auf dem neuen aktiven Polygon ableiten
+ * (dort steht der Spieler nach Abschluss der Linie).
  */
-export function applyCompletedLine(polygon: Point[], line: Point[]): AppliedLine {
-  const split = splitFieldByLine(polygon, line);
+export function applyCompletedLine(
+  polygon: Point[],
+  line: Point[],
+  enemyPosition?: Point,
+): AppliedLine {
+  const split = splitFieldByLine(polygon, line, enemyPosition);
   const proj = closestPointOnPerimeter(split.active, line[line.length - 1]);
   return {
     ...split,
