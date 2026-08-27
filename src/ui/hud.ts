@@ -4,13 +4,23 @@ import { formatClaimedPercentage } from '../game/scoring';
 export interface Hud {
   /** Prozentanzeige der eroberten Fläche (Wert 0–100). */
   setClaimedPercentage: (percent: number) => void;
+  /** Aktueller Score (einfache Zahl, keine führenden Nullen). */
+  setScore: (score: number) => void;
   /** Verbleibende Leben. */
   setLives: (lives: number) => void;
   /** Schild-Wert 0–100. */
   setShield: (shield: number) => void;
+  /** Kurzes Aufblitzen der Leben-Anzeige (Feedback bei Extra-Leben). */
+  flashLives: () => void;
   /** Game-Over-Overlay ein-/ausblenden. */
   setGameOver: (visible: boolean) => void;
+  /** Level-Complete-Overlay ein-/ausblenden (mit erreichtem Prozent + Score). */
+  setLevelComplete: (visible: boolean, percent?: number, score?: number) => void;
   dispose: () => void;
+}
+
+function formatScore(score: number): string {
+  return `SCORE ${Math.round(score)}`;
 }
 
 function formatLives(lives: number): string {
@@ -26,35 +36,49 @@ function formatShield(shield: number): string {
     .padStart(3, ' ')}`;
 }
 
+/** Befüllt ein Overlay-Element (`#gameover` / `#levelcomplete`) mit Titel,
+ *  optionaler Statuszeile und Neustart-Hinweis. */
+function buildOverlay(
+  el: HTMLElement,
+  titleKey: 'gameOver' | 'levelComplete',
+): HTMLParagraphElement {
+  el.replaceChildren();
+  const title = document.createElement('p');
+  title.className = 'overlay__title';
+  title.textContent = t(titleKey);
+  const stats = document.createElement('p');
+  stats.className = 'overlay__stats';
+  const hint = document.createElement('p');
+  hint.className = 'overlay__hint';
+  hint.textContent = t('restartHint');
+  el.append(title, stats, hint);
+  el.hidden = true;
+  return stats;
+}
+
 /**
- * HUD als DOM-Elemente unter bzw. über dem Canvas (`#hud`, `#gameover` aus
- * `index.html`) – nicht ins Canvas gezeichnet, das lässt sich einfacher stylen.
- * Enthält Erobert-Prozent, Leben und Schild sowie das Game-Over-Overlay.
+ * HUD als DOM-Elemente unter bzw. über dem Canvas (`#hud`, `#gameover`,
+ * `#levelcomplete` aus `index.html`) – nicht ins Canvas gezeichnet, das lässt
+ * sich einfacher stylen. Enthält Score, Erobert-Prozent, Leben, Schild sowie
+ * die Game-Over- / Level-Complete-Overlays.
  */
 export function createHud(): Hud {
   const bar = document.getElementById('hud');
-  const overlay = document.getElementById('gameover');
-  if (!bar || !overlay) {
-    throw new Error('HUD-Elemente #hud / #gameover nicht gefunden.');
+  const gameOverEl = document.getElementById('gameover');
+  const levelCompleteEl = document.getElementById('levelcomplete');
+  if (!bar || !gameOverEl || !levelCompleteEl) {
+    throw new Error('HUD-Elemente #hud / #gameover / #levelcomplete nicht gefunden.');
   }
 
+  const scoreEl = document.createElement('span');
   const claimedEl = document.createElement('span');
   const livesEl = document.createElement('span');
   const shieldEl = document.createElement('span');
-  claimedEl.className = 'hud__item';
-  livesEl.className = 'hud__item';
-  shieldEl.className = 'hud__item';
-  bar.append(claimedEl, livesEl, shieldEl);
+  for (const el of [scoreEl, claimedEl, livesEl, shieldEl]) el.className = 'hud__item';
+  bar.append(scoreEl, claimedEl, livesEl, shieldEl);
 
-  overlay.replaceChildren();
-  const title = document.createElement('p');
-  title.className = 'gameover__title';
-  title.textContent = t('gameOver');
-  const hint = document.createElement('p');
-  hint.className = 'gameover__hint';
-  hint.textContent = t('restartHint');
-  overlay.append(title, hint);
-  overlay.hidden = true;
+  buildOverlay(gameOverEl, 'gameOver');
+  const levelCompleteStats = buildOverlay(levelCompleteEl, 'levelComplete');
 
   const bind = (el: HTMLElement, format: (v: number) => string) => {
     let last = '';
@@ -67,23 +91,45 @@ export function createHud(): Hud {
   };
 
   const setClaimedPercentage = bind(claimedEl, formatClaimedPercentage);
+  const setScore = bind(scoreEl, formatScore);
   const setLives = bind(livesEl, formatLives);
   const setShield = bind(shieldEl, formatShield);
 
+  let flashTimer: number | undefined;
+  const flashLives = (): void => {
+    livesEl.classList.remove('hud__flash');
+    void livesEl.offsetWidth; // Reflow erzwingen, damit die Animation neu startet
+    livesEl.classList.add('hud__flash');
+    clearTimeout(flashTimer);
+    flashTimer = window.setTimeout(() => livesEl.classList.remove('hud__flash'), 500);
+  };
+
+  setScore(0);
   setClaimedPercentage(0);
 
   return {
     setClaimedPercentage,
+    setScore,
     setLives,
     setShield,
+    flashLives,
     setGameOver: (visible: boolean): void => {
-      overlay.hidden = !visible;
+      gameOverEl.hidden = !visible;
+    },
+    setLevelComplete: (visible: boolean, percent?: number, score?: number): void => {
+      if (visible && percent !== undefined && score !== undefined) {
+        levelCompleteStats.textContent = `${formatClaimedPercentage(percent)}  ·  SCORE ${Math.round(score)}`;
+      }
+      levelCompleteEl.hidden = !visible;
     },
     dispose: (): void => {
+      clearTimeout(flashTimer);
+      scoreEl.remove();
       claimedEl.remove();
       livesEl.remove();
       shieldEl.remove();
-      overlay.hidden = true;
+      gameOverEl.hidden = true;
+      levelCompleteEl.hidden = true;
     },
   };
 }

@@ -29,7 +29,7 @@ body {
   touch-action: none;
 }
 
-/* HUD-Leiste unter dem Canvas: Erobert-Prozent, Leben, Schild. */
+/* HUD-Leiste unter dem Canvas: Score, Erobert-Prozent, Leben, Schild. */
 #hud {
   flex: 0 0 auto;
   display: flex;
@@ -50,8 +50,25 @@ body {
   user-select: none;
 }
 
-/* Game-Over-Overlay über dem Spielfeld – gleiche Technik wie das HUD (DOM). */
-#gameover {
+.hud__flash {
+  animation: hud-flash 0.5s ease-out;
+}
+
+@keyframes hud-flash {
+  0% {
+    color: #a3be8c;
+    text-shadow: 0 0 12px #a3be8c;
+  }
+
+  100% {
+    color: #f2c94c;
+    text-shadow: none;
+  }
+}
+
+/* Overlays über dem Spielfeld – gleiche Technik wie das HUD (DOM). */
+#gameover,
+#levelcomplete {
   position: fixed;
   inset: 0;
   z-index: 10;
@@ -66,17 +83,27 @@ body {
   user-select: none;
 }
 
-#gameover[hidden] {
+#gameover[hidden],
+#levelcomplete[hidden] {
   display: none;
 }
 
-.gameover__title {
+.overlay__title {
   font-size: 44px;
   letter-spacing: 0.12em;
   color: #bf616a;
 }
 
-.gameover__hint {
+#levelcomplete .overlay__title {
+  color: #a3be8c;
+}
+
+.overlay__stats {
+  font-size: 20px;
+  color: #f2c94c;
+}
+
+.overlay__hint {
   font-size: 18px;
   color: #d8dee9;
 }

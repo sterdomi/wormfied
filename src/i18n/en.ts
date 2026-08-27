@@ -5,5 +5,6 @@ export const en: Record<TranslationKey, string> = {
   startButton: 'Start game',
   loading: 'Loading …',
   gameOver: 'Game Over',
+  levelComplete: 'Level complete!',
   restartHint: 'Press Enter to restart',
 };

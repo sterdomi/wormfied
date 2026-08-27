@@ -21,7 +21,7 @@ import { createPlayerState, decayShield } from '../game/playerState';
 import { movePlayerAlongEdge } from '../game/playerMovement';
 import { applyCompletedLine, polygonArea } from '../game/polygon';
 import { resetGame } from '../game/resetGame';
-import { createScoring, getClaimedPercentage, type Scoring } from '../game/scoring';
+import { createScoring, getClaimedPercentage, registerClaim, type Scoring } from '../game/scoring';
 import { advanceSpark, createSpark, type Spark } from '../game/spark';
 import { createHud } from '../ui/hud';
 import { t } from '../i18n';
@@ -107,6 +107,8 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
     // Erobert-Anzeige) zurück, weil das Feld wieder komplett ist.
     scoring = createScoring(polygonArea(field));
     hud.setClaimedPercentage(0);
+    hud.setScore(0);
+    hud.setLevelComplete(false);
     // Gegner in die Feldmitte setzen (Levelstart bzw. Resize).
     enemy = createEnemy({ x: fieldWidth / 2, y: fieldHeight / 2 }, randomDirection());
     return field;
@@ -128,7 +130,21 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
     foreground.carveRegion(result.claimed);
 
     scoring.claimedArea += result.claimedArea;
-    hud.setClaimedPercentage(getClaimedPercentage(scoring.claimedArea, scoring.totalFieldArea));
+    const percent = getClaimedPercentage(scoring.claimedArea, scoring.totalFieldArea);
+    hud.setClaimedPercentage(percent);
+
+    // Punkte proportional zur neu eroberten Fläche + daraus resultierende
+    // Extra-Leben + 80%-Levelabschluss.
+    const outcome = registerClaim(scoring, result.claimedArea);
+    hud.setScore(scoring.score);
+    if (outcome.extraLives > 0) {
+      playerState.lives += outcome.extraLives; // kein Cap – bewusst (Arcade-Mechanik)
+      hud.setLives(playerState.lives);
+      hud.flashLives();
+    }
+    if (outcome.levelJustCompleted) {
+      hud.setLevelComplete(true, percent, scoring.score);
+    }
   }
 
   /**
@@ -172,7 +188,9 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
         foregroundSnapshot = null;
         damageFlashUntil = 0;
         hud.setGameOver(false);
+        hud.setLevelComplete(false);
         hud.setClaimedPercentage(0);
+        hud.setScore(scoring.score);
         hud.setLives(playerState.lives);
         hud.setShield(playerState.shield);
       },
@@ -182,6 +200,7 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
   const view = setupCanvas(canvas, { onResize: rebuildField });
   const input = setupInput();
   rebuildField(view.width, view.height);
+  hud.setScore(scoring.score);
   hud.setLives(playerState.lives);
   hud.setShield(playerState.shield);
 
@@ -192,6 +211,13 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
 
     if (playerState.isGameOver) {
       // Keine Spieler-/Gegnerbewegung mehr – nur auf Neustart warten.
+      if (restartPressed) restartGame();
+      return;
+    }
+
+    // Level-Complete-Check nur, wenn nicht bereits Game Over (schliessen sich
+    // gegenseitig aus). Auch hier alles eingefroren bis Enter.
+    if (scoring.isLevelComplete) {
       if (restartPressed) restartGame();
       return;
     }
@@ -226,6 +252,8 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
           // Neu abgeschlossene Linie(n) sofort verarbeiten und aus dem Kanal
           // nehmen (nach dem Split sind sie Teil der Feld-Polygon-Kanten).
           completedLines.splice(before).forEach((line) => handleCompletedLine(line.points));
+          // 80% erreicht -> Level eingefroren, Rest dieses Frames überspringen.
+          if (scoring.isLevelComplete) return;
         }
       }
     }
