@@ -122,13 +122,15 @@ export interface FieldSplit {
   claimed: Point[];
   /** Das neue aktive Spielfeld-Polygon (die nicht-eroberte Seite). */
   active: Point[];
+  /** Fläche von `claimed` – hier einmal berechnet, u.a. für die Prozentanzeige. */
+  claimedArea: number;
 }
 
 /** Splittet das Feld an der Linie und wählt die eroberte / aktive Seite. */
 export function splitFieldByLine(polygon: Point[], line: Point[]): FieldSplit {
   const [a, b] = splitPolygonByLine(polygon, line);
   const claimed = determineClaimedRegion(a, b);
-  return { claimed, active: claimed === a ? b : a };
+  return { claimed, active: claimed === a ? b : a, claimedArea: polygonArea(claimed) };
 }
 
 export interface AppliedLine extends FieldSplit {

@@ -138,9 +138,10 @@ describe('splitFieldByLine', () => {
       { x: 100, y: 0 },
       { x: 100, y: 600 },
     ];
-    const { claimed, active } = splitFieldByLine(field, line);
+    const { claimed, active, claimedArea } = splitFieldByLine(field, line);
     expect(polygonArea(claimed)).toBeCloseTo(60000); // 100 x 600
     expect(polygonArea(active)).toBeCloseTo(420000); // 700 x 600
+    expect(claimedArea).toBeCloseTo(polygonArea(claimed)); // vorberechnete Fläche
   });
 });
 

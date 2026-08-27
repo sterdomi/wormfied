@@ -9,7 +9,9 @@ import { LEVEL_1 } from '../game/level';
 import { type DrawnLine } from '../game/line';
 import { Player } from '../game/player';
 import { movePlayerAlongEdge } from '../game/playerMovement';
-import { applyCompletedLine } from '../game/polygon';
+import { applyCompletedLine, polygonArea } from '../game/polygon';
+import { createScoring, getClaimedPercentage, type Scoring } from '../game/scoring';
+import { createHud } from '../ui/hud';
 import { t } from '../i18n';
 import '../styles/main.css';
 
@@ -54,10 +56,13 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
   // Die Leertaste löst das Verlassen des Rands nur auf ihrer steigenden Flanke aus.
   const drawTrigger = new EdgeTrigger();
 
+  const hud = createHud();
+
   let field: Point[] = createRectangularField(1, 1);
   let fieldWidth = 1;
   let fieldHeight = 1;
   let foreground: ForegroundLayer = createForegroundLayer(assets.foreground, 1, 1);
+  let scoring: Scoring = createScoring(0);
 
   function rebuildField(width: number, height: number): void {
     fieldWidth = Math.max(1, width - FIELD_MARGIN * 2);
@@ -69,12 +74,17 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
     field = createRectangularField(fieldWidth, fieldHeight);
     if (player.mode === 'onEdge') player.syncPosition(field);
     foreground = createForegroundLayer(assets.foreground, fieldWidth, fieldHeight);
+    // Gesamtfläche des Levels einmal festhalten; ein Resize setzt sie (und die
+    // Erobert-Anzeige) zurück, weil das Feld wieder komplett ist.
+    scoring = createScoring(polygonArea(field));
+    hud.setClaimedPercentage(0);
   }
 
   /**
    * Eine abgeschlossene Linie ins Feld einrechnen: Polygon splitten, eroberte
-   * Seite bestimmen, aktives Feld + Spieler-Randzustand aktualisieren und die
-   * gesamte eroberte Fläche aus dem Foreground entfernen.
+   * Seite bestimmen, aktives Feld + Spieler-Randzustand aktualisieren, die
+   * gesamte eroberte Fläche aus dem Foreground entfernen und die
+   * Prozentanzeige nachziehen.
    */
   function handleCompletedLine(linePoints: Point[]): void {
     const result = applyCompletedLine(field, linePoints);
@@ -83,6 +93,9 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
     player.segmentProgress = result.playerSegmentProgress;
     player.syncPosition(field);
     foreground.carveRegion(result.claimed);
+
+    scoring.claimedArea += result.claimedArea;
+    hud.setClaimedPercentage(getClaimedPercentage(scoring.claimedArea, scoring.totalFieldArea));
   }
 
   const view = setupCanvas(canvas, { onResize: rebuildField });
@@ -187,6 +200,7 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
       loop.stop();
       input.dispose();
       view.dispose();
+      hud.dispose();
     });
   }
 }
