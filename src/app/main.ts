@@ -2,7 +2,11 @@ import { loadLevelImages, type LevelImages } from '../engine/assetLoader';
 import { setupCanvas } from '../engine/canvas';
 import { createGameLoop } from '../engine/gameLoop';
 import { setupInput } from '../engine/input';
-import { ENEMY_LINE_TOUCH_RADIUS, enemyTouchesLine } from '../game/collision';
+import {
+  checkLineCollision,
+  checkUnshieldedPlayerCollision,
+  ENEMY_TOUCH_RADIUS,
+} from '../game/collision';
 import { advanceDrawing, beginDrawing, EdgeTrigger, type DrawSession } from '../game/drawing';
 import { createEnemy, type Enemy } from '../game/enemy';
 import { moveEnemy, randomDirection } from '../game/enemyMovement';
@@ -11,10 +15,14 @@ import { createForegroundLayer, type ForegroundLayer } from '../game/foregroundL
 import { closestPointOnPerimeter } from '../game/geometry';
 import { LEVEL_1 } from '../game/level';
 import { type DrawnLine } from '../game/line';
+import { handleLifeLoss } from '../game/lifecycle';
 import { Player } from '../game/player';
+import { createPlayerState, decayShield } from '../game/playerState';
 import { movePlayerAlongEdge } from '../game/playerMovement';
 import { applyCompletedLine, polygonArea } from '../game/polygon';
+import { resetGame } from '../game/resetGame';
 import { createScoring, getClaimedPercentage, type Scoring } from '../game/scoring';
+import { advanceSpark, createSpark, type Spark } from '../game/spark';
 import { createHud } from '../ui/hud';
 import { t } from '../i18n';
 import '../styles/main.css';
@@ -29,6 +37,8 @@ const COLOR_HUD = '#e5e9f0';
 const COLOR_ON_EDGE = '#bf616a';
 const COLOR_DRAWING = '#a3be8c';
 const COLOR_ENEMY = '#b48ead';
+const COLOR_SPARK = '#8fbcff';
+const COLOR_SPARK_CORE = '#eaf3ff';
 const PLAYER_RADIUS = 7;
 const ENEMY_RADIUS = 11;
 
@@ -55,12 +65,22 @@ function showLoading(canvas: HTMLCanvasElement): void {
 
 function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
   const player = new Player();
+  const playerState = createPlayerState();
   // Kanal für abgeschlossene Linien aus `advanceDrawing`; sie werden noch im
   // selben Frame verarbeitet (Feld-Split) und danach aus der Liste entfernt.
   const completedLines: DrawnLine[] = [];
   let session: DrawSession | null = null;
-  // Die Leertaste löst das Verlassen des Rands nur auf ihrer steigenden Flanke aus.
+  // Stromball, der bei Gegner-Linien-Kontakt Richtung Spieler fährt (nur einer
+  // gleichzeitig, lebt so lange wie die aktuelle Zeichen-Session).
+  let spark: Spark | null = null;
+  // Foreground-Pixelzustand beim Start des aktuellen Zeichenversuchs – zum
+  // Rückgängigmachen bei einer Kollision (Punkt 1, Instruktion 8).
+  let foregroundSnapshot: ImageData | null = null;
+  // Zeitpunkt, bis zu dem der Schaden-Blitz gezeichnet wird (ms, performance.now).
+  let damageFlashUntil = 0;
+  // Leertaste / Enter lösen nur auf ihrer steigenden Flanke aus.
   const drawTrigger = new EdgeTrigger();
+  const restartTrigger = new EdgeTrigger();
 
   const hud = createHud();
 
@@ -71,7 +91,8 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
   let scoring: Scoring = createScoring(0);
   let enemy: Enemy = createEnemy({ x: 0, y: 0 });
 
-  function rebuildField(width: number, height: number): void {
+  /** Level-Initialisierung (auch Resize- und Neustart-Pfad nutzen sie). */
+  function rebuildField(width: number, height: number): Point[] {
     fieldWidth = Math.max(1, width - FIELD_MARGIN * 2);
     fieldHeight = Math.max(1, height - FIELD_MARGIN * 2);
     // ÜBERGANGSLÖSUNG (wie in Instruktion 4): Ein Resize setzt das Feld auf das
@@ -80,6 +101,7 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
     // Split-Polygone stattdessen mitskalieren.
     field = createRectangularField(fieldWidth, fieldHeight);
     if (player.mode === 'onEdge') player.syncPosition(field);
+    // Foreground zurück auf das Originalbild (neu aufgebauter Offscreen-Canvas).
     foreground = createForegroundLayer(assets.foreground, fieldWidth, fieldHeight);
     // Gesamtfläche des Levels einmal festhalten; ein Resize setzt sie (und die
     // Erobert-Anzeige) zurück, weil das Feld wieder komplett ist.
@@ -87,6 +109,7 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
     hud.setClaimedPercentage(0);
     // Gegner in die Feldmitte setzen (Levelstart bzw. Resize).
     enemy = createEnemy({ x: fieldWidth / 2, y: fieldHeight / 2 }, randomDirection());
+    return field;
   }
 
   /**
@@ -109,35 +132,70 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
   }
 
   /**
-   * Der Gegner hat die aktive Linie berührt. Minimale Konsequenz (kein Leben-/
-   * Punktesystem): Linie verwerfen, Spieler zurück an den Startpunkt der Linie
-   * auf dem Rand.
+   * Lebensverlust-Ablauf (Gegner berührt aktive Linie ODER ungeschützten
+   * Spieler auf dem Rand): laufenden Zeichenversuch rückgängig machen, Leben
+   * abziehen, Schild auffüllen, ggf. Game Over, kurzes visuelles Feedback.
    */
-  function handleEnemyCollision(): void {
-    if (!session) return;
-    const start = session.line.points[0];
-    const snap = closestPointOnPerimeter(field, start);
-    player.segmentIndex = snap.segmentIndex;
-    player.segmentProgress = snap.progress;
-    player.position = { x: snap.point.x, y: snap.point.y };
+  function loseLife(): void {
+    if (session) {
+      // Pfadbasiert ausgeschnittenen Foreground dieses Versuchs wiederherstellen.
+      if (foregroundSnapshot) foreground.restore(foregroundSnapshot);
+      const snap = closestPointOnPerimeter(field, session.line.points[0]);
+      player.segmentIndex = snap.segmentIndex;
+      player.segmentProgress = snap.progress;
+      player.position = { x: snap.point.x, y: snap.point.y };
+      session = null;
+    }
+    spark = null;
+    foregroundSnapshot = null;
     player.mode = 'onEdge';
-    session = null;
-    // TODO(später): bei Kollision müsste der Foreground eigentlich auf den Stand
-    // vor Beginn der Linie zurückgesetzt werden (z.B. durch Neuzeichnen des
-    // Foreground-Bilds), aktuell bleibt der Pfad optisch ausgeschnitten.
-    console.log(
-      'Gegner hat die aktive Linie berührt – Linie verworfen, Spieler zurück auf den Rand.',
+
+    handleLifeLoss(playerState);
+    hud.setLives(playerState.lives);
+    hud.setShield(playerState.shield);
+    damageFlashUntil = performance.now() + 140;
+
+    if (playerState.isGameOver) {
+      hud.setGameOver(true);
+    }
+  }
+
+  /** Kompletter Neustart nach Game Over. */
+  function restartGame(): void {
+    resetGame(
+      player,
+      playerState,
+      () => rebuildField(view.width, view.height),
+      () => {
+        session = null;
+        spark = null;
+        foregroundSnapshot = null;
+        damageFlashUntil = 0;
+        hud.setGameOver(false);
+        hud.setClaimedPercentage(0);
+        hud.setLives(playerState.lives);
+        hud.setShield(playerState.shield);
+      },
     );
   }
 
   const view = setupCanvas(canvas, { onResize: rebuildField });
   const input = setupInput();
   rebuildField(view.width, view.height);
+  hud.setLives(playerState.lives);
+  hud.setShield(playerState.shield);
 
   document.title = t('gameTitle');
 
   function update(dt: number): void {
-    // Genau einmal pro Frame auswerten (der Detektor merkt sich den Vorzustand).
+    const restartPressed = restartTrigger.pressed(input.state.restart);
+
+    if (playerState.isGameOver) {
+      // Keine Spieler-/Gegnerbewegung mehr – nur auf Neustart warten.
+      if (restartPressed) restartGame();
+      return;
+    }
+
     const drawPressed = drawTrigger.pressed(input.state.draw);
     const prevPos = { x: player.position.x, y: player.position.y };
     // Ob der befahrene Pfad diesen Frame ausgeschnitten werden soll: nur wenn
@@ -146,7 +204,10 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
 
     if (player.mode === 'onEdge') {
       session = beginDrawing(player, drawPressed);
-      if (!session) {
+      if (session) {
+        // Zeichenversuch beginnt: Foreground-Zustand sichern (Rückgängig bei Kollision).
+        foregroundSnapshot = foreground.snapshot();
+      } else {
         movePlayerAlongEdge(player, field, input.state, dt);
       }
     }
@@ -154,10 +215,14 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
     if (player.mode === 'drawing') {
       if (!session) {
         player.mode = 'onEdge'; // defensiv, z.B. nach HMR
+        foregroundSnapshot = null;
+        spark = null;
       } else {
         const before = completedLines.length;
         if (advanceDrawing(session, player, field, input.state, dt, completedLines)) {
           session = null;
+          foregroundSnapshot = null; // Versuch beendet (Split oder blosses Andocken)
+          spark = null; // erreicht → der Spieler ist dem Stromball entkommen
           // Neu abgeschlossene Linie(n) sofort verarbeiten und aus dem Kanal
           // nehmen (nach dem Split sind sie Teil der Feld-Polygon-Kanten).
           completedLines.splice(before).forEach((line) => handleCompletedLine(line.points));
@@ -172,15 +237,40 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
       foreground.carvePath(prevPos.x, prevPos.y, player.position.x, player.position.y);
     }
 
-    // Gegner bewegen (jeden Frame), danach Kollision mit der aktiven Linie
-    // prüfen – nur relevant, solange der Spieler zeichnet.
     moveEnemy(enemy, field, dt);
-    if (
-      player.mode === 'drawing' &&
-      session &&
-      enemyTouchesLine(enemy.position, session.line, ENEMY_LINE_TOUCH_RADIUS, player.position)
-    ) {
-      handleEnemyCollision();
+
+    // Gegner ↔ aktive Linie: löst einen Stromball aus, der die Linie entlang
+    // Richtung Spieler fährt (doppelte Zeichengeschwindigkeit). Ein Leben
+    // kostet es erst, wenn der Ball den Spieler erreicht.
+    if (player.mode === 'drawing' && session) {
+      if (
+        !spark &&
+        checkLineCollision(enemy.position, session.line, ENEMY_TOUCH_RADIUS, player.position)
+      ) {
+        spark = createSpark(session.line, player.position, enemy.position);
+      }
+      if (spark && advanceSpark(spark, session.line, player.position, dt)) {
+        spark = null;
+        loseLife();
+        return;
+      }
+    }
+
+    // Auf dem Rand: Schild nimmt ab; bei leerem Schild ist der Spieler dort
+    // ebenfalls verwundbar.
+    if (player.mode === 'onEdge') {
+      decayShield(playerState, dt);
+      hud.setShield(playerState.shield);
+      if (
+        checkUnshieldedPlayerCollision(
+          enemy.position,
+          player.position,
+          playerState.shield,
+          ENEMY_TOUCH_RADIUS,
+        )
+      ) {
+        loseLife();
+      }
     }
   }
 
@@ -228,6 +318,22 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
       strokePolyline(ctx, [...session.line.points, player.position]);
     }
 
+    // Stromball: heller Kern mit Glow, fährt die Linie entlang.
+    if (spark) {
+      ctx.beginPath();
+      ctx.arc(spark.position.x, spark.position.y, 12, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(143, 188, 255, 0.35)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(spark.position.x, spark.position.y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = COLOR_SPARK;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(spark.position.x, spark.position.y, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = COLOR_SPARK_CORE;
+      ctx.fill();
+    }
+
     // Spieler: rot am Rand, grün beim Zeichnen.
     ctx.beginPath();
     ctx.arc(player.position.x, player.position.y, PLAYER_RADIUS, 0, Math.PI * 2);
@@ -241,6 +347,12 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
     ctx.textBaseline = 'top';
     ctx.textAlign = 'left';
     ctx.fillText(t('gameTitle'), 16, 16);
+
+    // Schaden-Feedback: kurzes rotes Aufblitzen über dem ganzen Canvas.
+    if (performance.now() < damageFlashUntil) {
+      ctx.fillStyle = 'rgba(191, 97, 106, 0.4)';
+      ctx.fillRect(0, 0, view.width, view.height);
+    }
   }
 
   const loop = createGameLoop(view.ctx, { update, render });

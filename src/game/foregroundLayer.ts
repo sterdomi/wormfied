@@ -24,7 +24,11 @@ export interface ForegroundLayer {
   carvePath: (fromX: number, fromY: number, toX: number, toY: number) => void;
   /** Schneidet die gesamte Innenfläche eines Polygons (Feld-Koordinaten) aus. */
   carveRegion: (polygon: { x: number; y: number }[]) => void;
-  /** Stellt den vollständigen Foreground wieder her. */
+  /** Sichert den aktuellen Pixel-Zustand (für Rückgängig bei Kollision). */
+  snapshot: () => ImageData;
+  /** Schreibt einen zuvor gesicherten Pixel-Zustand zurück. */
+  restore: (snapshot: ImageData) => void;
+  /** Stellt den vollständigen (ungeschnittenen) Foreground wieder her. */
   reset: () => void;
 }
 
@@ -72,6 +76,15 @@ export function createForegroundLayer(
     ctx.globalCompositeOperation = 'source-over';
   }
 
+  function snapshot(): ImageData {
+    return ctx.getImageData(0, 0, canvas.width, canvas.height);
+  }
+
+  function restore(data: ImageData): void {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.putImageData(data, 0, 0);
+  }
+
   reset();
-  return { canvas, carvePath, carveRegion, reset };
+  return { canvas, carvePath, carveRegion, snapshot, restore, reset };
 }

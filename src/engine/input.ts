@@ -13,6 +13,8 @@ export interface InputState {
   right: boolean;
   /** "Ins Feld hineinfahren und zeichnen" gewünscht. Keyboard: Leertaste. */
   draw: boolean;
+  /** Neustart nach Game Over gewünscht. Keyboard: Enter. */
+  restart: boolean;
 }
 
 export interface InputHandle {
@@ -33,11 +35,19 @@ const KEY_MAP: Readonly<Record<string, InputDirection>> = {
 };
 
 /**
- * Desktop-Keyboard-Handler: übersetzt Pfeiltasten/WASD → Richtungen und
- * Leertaste → `draw`. Die Spiellogik kennt nur `InputState`, nicht "Leertaste".
+ * Desktop-Keyboard-Handler: übersetzt Pfeiltasten/WASD → Richtungen, Leertaste
+ * → `draw` und Enter → `restart`. Die Spiellogik kennt nur `InputState`, nicht
+ * die konkreten Tasten.
  */
 export function setupInput(): InputHandle {
-  const state: InputState = { up: false, down: false, left: false, right: false, draw: false };
+  const state: InputState = {
+    up: false,
+    down: false,
+    left: false,
+    right: false,
+    draw: false,
+    restart: false,
+  };
 
   const setDirection = (code: string, pressed: boolean): void => {
     const dir = KEY_MAP[code];
@@ -50,6 +60,10 @@ export function setupInput(): InputHandle {
       e.preventDefault(); // Seiten-Scroll durch Leertaste unterdrücken
       return;
     }
+    if (e.code === 'Enter' || e.code === 'NumpadEnter') {
+      state.restart = true;
+      return;
+    }
     setDirection(e.code, true);
   };
 
@@ -58,12 +72,18 @@ export function setupInput(): InputHandle {
       state.draw = false;
       return;
     }
+    if (e.code === 'Enter' || e.code === 'NumpadEnter') {
+      state.restart = false;
+      return;
+    }
     setDirection(e.code, false);
   };
 
   // Fokusverlust: sonst "klebt" eine Taste, deren keyup das Fenster nie erreicht.
   const onBlur = (): void => {
-    state.up = state.down = state.left = state.right = state.draw = false;
+    state.up = state.down = state.left = state.right = false;
+    state.draw = false;
+    state.restart = false;
   };
 
   window.addEventListener('keydown', onKeyDown);

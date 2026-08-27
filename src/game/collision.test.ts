@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { ENEMY_LINE_TOUCH_RADIUS, enemyTouchesLine } from './collision';
+import {
+  checkLineCollision,
+  checkUnshieldedPlayerCollision,
+  ENEMY_TOUCH_RADIUS,
+} from './collision';
 import type { DrawnLine } from './line';
 
 const line: DrawnLine = {
@@ -10,33 +14,51 @@ const line: DrawnLine = {
   ],
 };
 
-describe('enemyTouchesLine', () => {
+describe('checkLineCollision', () => {
   it('erkennt einen Gegner exakt auf der Linie', () => {
-    expect(enemyTouchesLine({ x: 100, y: 200 }, line)).toBe(true); // Mitte des 1. Segments
-    expect(enemyTouchesLine({ x: 180, y: 300 }, line)).toBe(true); // auf dem 2. Segment
+    expect(checkLineCollision({ x: 100, y: 200 }, line)).toBe(true); // Mitte des 1. Segments
+    expect(checkLineCollision({ x: 180, y: 300 }, line)).toBe(true); // auf dem 2. Segment
   });
 
   it('erkennt einen Gegner knapp neben der Linie (innerhalb des Radius)', () => {
-    expect(enemyTouchesLine({ x: 100 + ENEMY_LINE_TOUCH_RADIUS - 1, y: 200 }, line)).toBe(true);
+    expect(checkLineCollision({ x: 100 + ENEMY_TOUCH_RADIUS - 1, y: 200 }, line)).toBe(true);
   });
 
   it('meldet keine Kollision für einen weit entfernten Gegner', () => {
-    expect(enemyTouchesLine({ x: 400, y: 50 }, line)).toBe(false);
-    expect(enemyTouchesLine({ x: 100 + ENEMY_LINE_TOUCH_RADIUS + 2, y: 200 }, line)).toBe(false);
+    expect(checkLineCollision({ x: 400, y: 50 }, line)).toBe(false);
+    expect(checkLineCollision({ x: 100 + ENEMY_TOUCH_RADIUS + 2, y: 200 }, line)).toBe(false);
   });
 
   it('berücksichtigt den optionalen Kopf-Punkt (Spielerposition)', () => {
-    // Ohne head endet die Linie bei (260,300); (300,300) liegt zu weit weg.
-    expect(enemyTouchesLine({ x: 300, y: 300 }, line)).toBe(false);
-    // Mit head bis (340,300) liegt (300,300) auf dem verlängerten Segment.
+    expect(checkLineCollision({ x: 300, y: 300 }, line)).toBe(false);
     expect(
-      enemyTouchesLine({ x: 300, y: 300 }, line, ENEMY_LINE_TOUCH_RADIUS, { x: 340, y: 300 }),
+      checkLineCollision({ x: 300, y: 300 }, line, ENEMY_TOUCH_RADIUS, { x: 340, y: 300 }),
     ).toBe(true);
   });
 
   it('behandelt eine Ein-Punkt-Linie (gerade gestartet)', () => {
     const dot: DrawnLine = { points: [{ x: 50, y: 50 }] };
-    expect(enemyTouchesLine({ x: 52, y: 50 }, dot)).toBe(true);
-    expect(enemyTouchesLine({ x: 200, y: 200 }, dot)).toBe(false);
+    expect(checkLineCollision({ x: 52, y: 50 }, dot)).toBe(true);
+    expect(checkLineCollision({ x: 200, y: 200 }, dot)).toBe(false);
+  });
+});
+
+describe('checkUnshieldedPlayerCollision', () => {
+  const player = { x: 200, y: 200 };
+  const near = { x: 203, y: 200 }; // < ENEMY_TOUCH_RADIUS entfernt
+  const far = { x: 400, y: 200 };
+
+  it('löst nur bei aufgebrauchtem Schild aus', () => {
+    expect(checkUnshieldedPlayerCollision(near, player, 50)).toBe(false); // Schild noch da
+    expect(checkUnshieldedPlayerCollision(near, player, 0)).toBe(true);
+  });
+
+  it('braucht auch bei leerem Schild einen nahen Gegner', () => {
+    expect(checkUnshieldedPlayerCollision(far, player, 0)).toBe(false);
+  });
+
+  it('behandelt Grenzfälle des Schilds', () => {
+    expect(checkUnshieldedPlayerCollision(near, player, 0.1)).toBe(false);
+    expect(checkUnshieldedPlayerCollision(near, player, -5)).toBe(true);
   });
 });

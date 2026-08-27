@@ -3,10 +3,10 @@ import type { DrawnLine } from './line';
 import { clamp } from '../utils/math';
 
 /**
- * Toleranzradius für "Gegner berührt Linie". Gegner (Punkt) und Linie sind
- * konzeptionell dünn – ein kleiner Puffer sorgt für zuverlässige Erkennung.
+ * Toleranzradius für "Gegner berührt X". Gegner (Punkt), Linie und Spielfigur
+ * sind konzeptionell dünn – ein kleiner Puffer sorgt für zuverlässige Erkennung.
  */
-export const ENEMY_LINE_TOUCH_RADIUS = 8;
+export const ENEMY_TOUCH_RADIUS = 8;
 
 /** Kürzester Abstand von `p` zur Strecke a→b. */
 function distanceToSegment(p: Point, a: Point, b: Point): number {
@@ -18,16 +18,17 @@ function distanceToSegment(p: Point, a: Point, b: Point): number {
 }
 
 /**
- * Berührt der Gegner (`enemyPos`) die gezeichnete Linie innerhalb von `radius`?
+ * Berührt der Gegner (`enemyPos`) die aktuell gezeichnete Linie innerhalb von
+ * `radius`?
  *
  * `head` (optional) hängt ein letztes Segment bis zu diesem Punkt an – so lässt
  * sich der "Kopf" der Linie mitprüfen (die aktuelle Spielerposition, die
  * zwischen zwei aufgezeichneten Punkten hängt).
  */
-export function enemyTouchesLine(
+export function checkLineCollision(
   enemyPos: Point,
   line: DrawnLine,
-  radius: number = ENEMY_LINE_TOUCH_RADIUS,
+  radius: number = ENEMY_TOUCH_RADIUS,
   head?: Point,
 ): boolean {
   const pts = head ? [...line.points, head] : line.points;
@@ -39,4 +40,19 @@ export function enemyTouchesLine(
     if (distanceToSegment(enemyPos, pts[i - 1], pts[i]) <= radius) return true;
   }
   return false;
+}
+
+/**
+ * Berührt der Gegner die Spielfigur DIREKT, während deren Schild aufgebraucht
+ * ist? Nur dann ist der Spieler auf dem Rand verwundbar (der `onEdge`-Check
+ * bleibt beim Aufrufer). `shield > 0` ⇒ immer `false`.
+ */
+export function checkUnshieldedPlayerCollision(
+  enemyPos: Point,
+  playerPos: Point,
+  shield: number,
+  radius: number = ENEMY_TOUCH_RADIUS,
+): boolean {
+  if (shield > 0) return false;
+  return Math.hypot(enemyPos.x - playerPos.x, enemyPos.y - playerPos.y) <= radius;
 }

@@ -1,0 +1,55 @@
+import { describe, it, expect } from 'vitest';
+import {
+  createPlayerState,
+  decayShield,
+  resetPlayerState,
+  SHIELD_DECAY_PER_SECOND,
+  STARTING_LIVES,
+  STARTING_SHIELD,
+} from './playerState';
+
+describe('createPlayerState', () => {
+  it('startet mit vollen Leben, vollem Schild, nicht Game Over', () => {
+    expect(createPlayerState()).toEqual({
+      lives: STARTING_LIVES,
+      shield: STARTING_SHIELD,
+      isGameOver: false,
+    });
+  });
+});
+
+describe('decayShield', () => {
+  it('nimmt Delta-Time-basiert ab', () => {
+    const state = createPlayerState();
+    decayShield(state, 1);
+    expect(state.shield).toBe(STARTING_SHIELD - SHIELD_DECAY_PER_SECOND);
+    decayShield(state, 0.5);
+    expect(state.shield).toBeCloseTo(STARTING_SHIELD - SHIELD_DECAY_PER_SECOND * 1.5);
+  });
+
+  it('sinkt nicht unter 0', () => {
+    const state = createPlayerState();
+    state.shield = 3;
+    decayShield(state, 10); // würde weit ins Negative gehen
+    expect(state.shield).toBe(0);
+    decayShield(state, 1);
+    expect(state.shield).toBe(0);
+  });
+});
+
+describe('resetPlayerState', () => {
+  it('setzt einen veränderten Zustand auf die Startwerte zurück', () => {
+    const state = createPlayerState();
+    state.lives = 0;
+    state.shield = 0;
+    state.isGameOver = true;
+
+    resetPlayerState(state);
+
+    expect(state).toEqual({
+      lives: STARTING_LIVES,
+      shield: STARTING_SHIELD,
+      isGameOver: false,
+    });
+  });
+});

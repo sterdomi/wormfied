@@ -4,4 +4,6 @@ export const en: Record<TranslationKey, string> = {
   gameTitle: 'Wormfied',
   startButton: 'Start game',
   loading: 'Loading …',
+  gameOver: 'Game Over',
+  restartHint: 'Press Enter to restart',
 };
