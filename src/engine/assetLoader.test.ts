@@ -64,13 +64,22 @@ describe('loadImage', () => {
 });
 
 describe('loadLevelImages', () => {
-  it('liefert Foreground und Background benannt', async () => {
-    const promise = loadLevelImages({ foregroundSrc: 'fg.png', backgroundSrc: 'bg.png' });
+  it('lädt Foreground, Background und beide Gegner-Sprites, benannt zurückgegeben', async () => {
+    const promise = loadLevelImages({
+      id: 'l',
+      name: 'L',
+      foregroundSrc: 'fg.png',
+      backgroundSrc: 'bg.png',
+      mainEnemy: { assetSrc: 'main.svg', speed: 90, size: 40 },
+      miniEnemies: { count: 3, config: { assetSrc: 'mini.svg', speed: 120, size: 22 } },
+    });
     await flush();
     fakes().forEach((f) => f.onload?.());
     const images = await promise;
 
     expect((images.foreground as unknown as FakeImage).src).toBe('fg.png');
     expect((images.background as unknown as FakeImage).src).toBe('bg.png');
+    expect((images.mainEnemy as unknown as FakeImage).src).toBe('main.svg');
+    expect((images.miniEnemy as unknown as FakeImage).src).toBe('mini.svg');
   });
 });

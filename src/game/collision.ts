@@ -1,3 +1,4 @@
+import type { Enemy } from './enemy';
 import type { Point } from './field';
 import type { DrawnLine } from './line';
 import { clamp } from '../utils/math';
@@ -55,4 +56,31 @@ export function checkUnshieldedPlayerCollision(
 ): boolean {
   if (shield > 0) return false;
   return Math.hypot(enemyPos.x - playerPos.x, enemyPos.y - playerPos.y) <= radius;
+}
+
+/**
+ * Erster Gegner (Haupt- oder Mini-Gegner) aus `enemies`, der die aktive Linie
+ * berührt – oder `null`. Mini-Gegner lösen dieselbe Kollision aus wie der
+ * Hauptgegner; welcher es war, braucht der Aufrufer für den Stromball-Start.
+ */
+export function enemyTouchingLine(
+  enemies: readonly Enemy[],
+  line: DrawnLine,
+  radius: number = ENEMY_TOUCH_RADIUS,
+  head?: Point,
+): Enemy | null {
+  return enemies.find((e) => checkLineCollision(e.position, line, radius, head)) ?? null;
+}
+
+/**
+ * Berührt IRGENDEIN Gegner (Haupt- oder Mini-Gegner) den ungeschützten Spieler
+ * direkt auf dem Rand?
+ */
+export function anyUnshieldedEnemyHit(
+  enemies: readonly Enemy[],
+  playerPos: Point,
+  shield: number,
+  radius: number = ENEMY_TOUCH_RADIUS,
+): boolean {
+  return enemies.some((e) => checkUnshieldedPlayerCollision(e.position, playerPos, shield, radius));
 }

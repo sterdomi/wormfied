@@ -1,10 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import {
+  anyUnshieldedEnemyHit,
   checkLineCollision,
   checkUnshieldedPlayerCollision,
+  enemyTouchingLine,
   ENEMY_TOUCH_RADIUS,
 } from './collision';
+import { createEnemy, type EnemySpec } from './enemy';
 import type { DrawnLine } from './line';
+
+const SPEC: EnemySpec = { speed: 90, size: 30 };
 
 const line: DrawnLine = {
   points: [
@@ -60,5 +65,24 @@ describe('checkUnshieldedPlayerCollision', () => {
   it('behandelt Grenzfälle des Schilds', () => {
     expect(checkUnshieldedPlayerCollision(near, player, 0.1)).toBe(false);
     expect(checkUnshieldedPlayerCollision(near, player, -5)).toBe(true);
+  });
+});
+
+describe('Kollision über alle Gegner (Haupt- + Mini-Gegner)', () => {
+  const mainFar = createEnemy({ x: 700, y: 500 }, SPEC);
+  const miniOnLine = createEnemy({ x: 100, y: 200 }, SPEC); // exakt auf dem 1. Segment
+
+  it('enemyTouchingLine: ein Mini-Gegner an der Linie löst dieselbe Kollision aus wie der Hauptgegner', () => {
+    expect(enemyTouchingLine([mainFar], line)).toBeNull();
+    const hit = enemyTouchingLine([mainFar, miniOnLine], line);
+    expect(hit).toBe(miniOnLine); // liefert den berührenden Gegner
+  });
+
+  it('anyUnshieldedEnemyHit: auch ein Mini-Gegner am ungeschützten Spieler zählt', () => {
+    const player = { x: 200, y: 200 };
+    const miniNear = createEnemy({ x: 204, y: 200 }, SPEC);
+    expect(anyUnshieldedEnemyHit([mainFar], player, 0)).toBe(false);
+    expect(anyUnshieldedEnemyHit([mainFar, miniNear], player, 0)).toBe(true);
+    expect(anyUnshieldedEnemyHit([mainFar, miniNear], player, 30)).toBe(false); // Schild schützt
   });
 });

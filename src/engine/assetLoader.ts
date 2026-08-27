@@ -1,4 +1,4 @@
-import type { Level } from '../game/level';
+import type { LevelConfig } from '../levels/types';
 
 /** Lädt ein einzelnes Bild und löst auf, sobald es fertig geladen ist. */
 export function loadImage(src: string): Promise<HTMLImageElement> {
@@ -22,10 +22,22 @@ export function loadImages(sources: readonly string[]): Promise<HTMLImageElement
 export interface LevelImages {
   foreground: HTMLImageElement;
   background: HTMLImageElement;
+  /** Sprite des Hauptgegners. */
+  mainEnemy: HTMLImageElement;
+  /** Sprite der Mini-Gegner (ein Bild für alle). */
+  miniEnemy: HTMLImageElement;
 }
 
-/** Lädt Foreground- und Background-Bild eines Levels. */
-export async function loadLevelImages(level: Level): Promise<LevelImages> {
-  const [foreground, background] = await loadImages([level.foregroundSrc, level.backgroundSrc]);
-  return { foreground, background };
+/**
+ * Lädt alle Bilder eines Levels: Foreground, Background sowie die Gegner-Sprites
+ * (SVGs laden wie PNGs über `Image()`, keine Sonderbehandlung).
+ */
+export async function loadLevelImages(level: LevelConfig): Promise<LevelImages> {
+  const [foreground, background, mainEnemy, miniEnemy] = await loadImages([
+    level.foregroundSrc,
+    level.backgroundSrc,
+    level.mainEnemy.assetSrc,
+    level.miniEnemies.config.assetSrc,
+  ]);
+  return { foreground, background, mainEnemy, miniEnemy };
 }

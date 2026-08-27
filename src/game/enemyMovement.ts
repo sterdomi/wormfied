@@ -2,7 +2,8 @@ import type { Point } from './field';
 import type { Enemy, Vec } from './enemy';
 import { isPointInPolygon } from './polygon';
 
-/** Bewegungsgeschwindigkeit des Gegners (Pixel/Sekunde). */
+/** Standard-Geschwindigkeit des Hauptgegners (Pixel/Sekunde), = Wert aus
+ *  Instruktion 7. Level-Konfigurationen können davon abweichen. */
 export const ENEMY_SPEED = 90;
 
 /**
@@ -18,8 +19,10 @@ export function randomDirection(rng: () => number = Math.random): Vec {
 }
 
 /**
- * Ein Frame Gegner-Bewegung, begrenzt auf das Innere von `polygon` (dem
- * aktuellen, ggf. schon verkleinerten Feld). Mutiert `enemy`. Delta-Time-basiert.
+ * Ein Frame Bewegung für EINEN beliebigen Gegner (Haupt- oder Mini-Gegner –
+ * dieselbe Funktion, nur andere `Enemy`-Instanz). Begrenzt auf das Innere von
+ * `polygon` (dem aktuellen, ggf. schon verkleinerten Feld). Nutzt `enemy.speed`.
+ * Mutiert `enemy`. Delta-Time-basiert.
  *
  * Simple erratische Bewegung: in die aktuelle Richtung laufen. Würde der
  * nächste Schritt aus der Fläche führen (`isPointInPolygon` schlägt fehl), eine
@@ -37,7 +40,7 @@ export function moveEnemy(
   dt: number,
   rng: () => number = Math.random,
 ): void {
-  const step = ENEMY_SPEED * dt;
+  const step = enemy.speed * dt;
   const advanced = (dir: Vec): Point => ({
     x: enemy.position.x + dir.x * step,
     y: enemy.position.y + dir.y * step,
@@ -64,4 +67,14 @@ export function moveEnemy(
   const reversed = advanced(enemy.direction);
   if (isPointInPolygon(reversed, polygon)) enemy.position = reversed;
   // sonst: diesen Frame stehen bleiben.
+}
+
+/** Bewegt alle übergebenen Gegner für einen Frame (siehe `moveEnemy`). */
+export function moveEnemies(
+  enemies: readonly Enemy[],
+  polygon: Point[],
+  dt: number,
+  rng: () => number = Math.random,
+): void {
+  for (const enemy of enemies) moveEnemy(enemy, polygon, dt, rng);
 }

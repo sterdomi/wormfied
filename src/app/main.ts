@@ -2,20 +2,16 @@ import { loadLevelImages, type LevelImages } from '../engine/assetLoader';
 import { setupCanvas } from '../engine/canvas';
 import { createGameLoop } from '../engine/gameLoop';
 import { setupInput } from '../engine/input';
-import {
-  checkLineCollision,
-  checkUnshieldedPlayerCollision,
-  ENEMY_TOUCH_RADIUS,
-} from '../game/collision';
+import { anyUnshieldedEnemyHit, ENEMY_TOUCH_RADIUS, enemyTouchingLine } from '../game/collision';
 import { advanceDrawing, beginDrawing, EdgeTrigger, type DrawSession } from '../game/drawing';
-import { createEnemy, type Enemy } from '../game/enemy';
-import { moveEnemy, randomDirection } from '../game/enemyMovement';
+import { createEnemy, enemyFacingAngle, type Enemy } from '../game/enemy';
+import { moveEnemies, randomDirection } from '../game/enemyMovement';
 import { createRectangularField, type Point } from '../game/field';
 import { createForegroundLayer, type ForegroundLayer } from '../game/foregroundLayer';
 import { closestPointOnPerimeter } from '../game/geometry';
-import { LEVEL_1 } from '../game/level';
 import { type DrawnLine } from '../game/line';
 import { handleLifeLoss } from '../game/lifecycle';
+import { removeCapturedMiniEnemies, spawnMiniEnemies } from '../game/miniEnemies';
 import { Player } from '../game/player';
 import { createPlayerState, decayShield } from '../game/playerState';
 import { movePlayerAlongEdge } from '../game/playerMovement';
@@ -23,6 +19,8 @@ import { applyCompletedLine, polygonArea } from '../game/polygon';
 import { resetGame } from '../game/resetGame';
 import { createScoring, getClaimedPercentage, registerClaim, type Scoring } from '../game/scoring';
 import { advanceSpark, createSpark, type Spark } from '../game/spark';
+import { levels } from '../levels';
+import { type LevelConfig } from '../levels/types';
 import { createHud } from '../ui/hud';
 import { t } from '../i18n';
 import '../styles/main.css';
@@ -36,11 +34,11 @@ const COLOR_HUD = '#e5e9f0';
 // Auf dem Rand angedockt = rot; ins Feld gefahren und am Zeichnen = grün.
 const COLOR_ON_EDGE = '#bf616a';
 const COLOR_DRAWING = '#a3be8c';
-const COLOR_ENEMY = '#b48ead';
 const COLOR_SPARK = '#8fbcff';
 const COLOR_SPARK_CORE = '#eaf3ff';
 const PLAYER_RADIUS = 7;
-const ENEMY_RADIUS = 11;
+/** Mindestabstand der Mini-Gegner-Startpositionen zueinander und zum Hauptgegner. */
+const MIN_MINI_SPACING = 70;
 
 const foundCanvas = document.querySelector<HTMLCanvasElement>('#game');
 if (!foundCanvas) {
@@ -63,7 +61,7 @@ function showLoading(canvas: HTMLCanvasElement): void {
   ctx.fillText(t('loading'), canvas.width / 2, canvas.height / 2);
 }
 
-function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
+function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImages): void {
   const player = new Player();
   const playerState = createPlayerState();
   // Kanal für abgeschlossene Linien aus `advanceDrawing`; sie werden noch im
@@ -89,7 +87,8 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
   let fieldHeight = 1;
   let foreground: ForegroundLayer = createForegroundLayer(assets.foreground, 1, 1);
   let scoring: Scoring = createScoring(0);
-  let enemy: Enemy = createEnemy({ x: 0, y: 0 });
+  let mainEnemy: Enemy = createEnemy({ x: 0, y: 0 }, level.mainEnemy);
+  let miniEnemies: Enemy[] = [];
 
   /** Level-Initialisierung (auch Resize- und Neustart-Pfad nutzen sie). */
   function rebuildField(width: number, height: number): Point[] {
@@ -109,8 +108,20 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
     hud.setClaimedPercentage(0);
     hud.setScore(0);
     hud.setLevelComplete(false);
-    // Gegner in die Feldmitte setzen (Levelstart bzw. Resize).
-    enemy = createEnemy({ x: fieldWidth / 2, y: fieldHeight / 2 }, randomDirection());
+    // Hauptgegner in die Feldmitte, Mini-Gegner zufällig verteilt (Mindestabstand
+    // zueinander und zum Hauptgegner + Spieler-Start).
+    mainEnemy = createEnemy(
+      { x: fieldWidth / 2, y: fieldHeight / 2 },
+      level.mainEnemy,
+      randomDirection(),
+    );
+    miniEnemies = spawnMiniEnemies(
+      field,
+      level.miniEnemies.count,
+      level.miniEnemies.config,
+      [mainEnemy.position, player.position],
+      MIN_MINI_SPACING,
+    );
     return field;
   }
 
@@ -121,13 +132,17 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
    * Prozentanzeige nachziehen.
    */
   function handleCompletedLine(linePoints: Point[]): void {
-    // Die Seite MIT dem Gegner bleibt aktives Feld; die andere gilt als erobert.
-    const result = applyCompletedLine(field, linePoints, enemy.position);
+    // Die Seite MIT dem HAUPTgegner bleibt aktives Feld; die andere gilt als
+    // erobert. Mini-Gegner beeinflussen das nicht.
+    const result = applyCompletedLine(field, linePoints, mainEnemy.position);
     field = result.active;
     player.segmentIndex = result.playerSegmentIndex;
     player.segmentProgress = result.playerSegmentProgress;
     player.syncPosition(field);
     foreground.carveRegion(result.claimed);
+
+    // Mini-Gegner, die in der eroberten Fläche liegen, sind "gefangen".
+    miniEnemies = removeCapturedMiniEnemies(miniEnemies, result.claimed);
 
     scoring.claimedArea += result.claimedArea;
     const percent = getClaimedPercentage(scoring.claimedArea, scoring.totalFieldArea);
@@ -265,17 +280,23 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
       foreground.carvePath(prevPos.x, prevPos.y, player.position.x, player.position.y);
     }
 
-    moveEnemy(enemy, field, dt);
+    // Alle Gegner (Hauptgegner + Mini-Gegner) bewegen und für Kollisionen als
+    // eine Liste behandeln – Mini-Gegner sind gleichwertig gefährlich.
+    const allEnemies = [mainEnemy, ...miniEnemies];
+    moveEnemies(allEnemies, field, dt);
 
-    // Gegner ↔ aktive Linie: löst einen Stromball aus, der die Linie entlang
-    // Richtung Spieler fährt (doppelte Zeichengeschwindigkeit). Ein Leben
-    // kostet es erst, wenn der Ball den Spieler erreicht.
+    // Irgendein Gegner ↔ aktive Linie: löst einen Stromball aus, der die Linie
+    // entlang Richtung Spieler fährt (doppelte Zeichengeschwindigkeit). Ein
+    // Leben kostet es erst, wenn der Ball den Spieler erreicht.
     if (player.mode === 'drawing' && session) {
-      if (
-        !spark &&
-        checkLineCollision(enemy.position, session.line, ENEMY_TOUCH_RADIUS, player.position)
-      ) {
-        spark = createSpark(session.line, player.position, enemy.position);
+      if (!spark) {
+        const touching = enemyTouchingLine(
+          allEnemies,
+          session.line,
+          ENEMY_TOUCH_RADIUS,
+          player.position,
+        );
+        if (touching) spark = createSpark(session.line, player.position, touching.position);
       }
       if (spark && advanceSpark(spark, session.line, player.position, dt)) {
         spark = null;
@@ -285,17 +306,12 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
     }
 
     // Auf dem Rand: Schild nimmt ab; bei leerem Schild ist der Spieler dort
-    // ebenfalls verwundbar.
+    // ebenfalls verwundbar – für JEDEN Gegner.
     if (player.mode === 'onEdge') {
       decayShield(playerState, dt);
       hud.setShield(playerState.shield);
       if (
-        checkUnshieldedPlayerCollision(
-          enemy.position,
-          player.position,
-          playerState.shield,
-          ENEMY_TOUCH_RADIUS,
-        )
+        anyUnshieldedEnemyHit(allEnemies, player.position, playerState.shield, ENEMY_TOUCH_RADIUS)
       ) {
         loseLife();
       }
@@ -307,6 +323,19 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
     ctx.beginPath();
     points.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
     ctx.stroke();
+  }
+
+  function drawEnemySprite(
+    ctx: CanvasRenderingContext2D,
+    sprite: HTMLImageElement,
+    e: Enemy,
+  ): void {
+    // In Bewegungsrichtung ausrichten (Sprite-Kopf zeigt lokal nach oben).
+    ctx.save();
+    ctx.translate(e.position.x, e.position.y);
+    ctx.rotate(enemyFacingAngle(e.direction));
+    ctx.drawImage(sprite, -e.size / 2, -e.size / 2, e.size, e.size);
+    ctx.restore();
   }
 
   function render(ctx: CanvasRenderingContext2D): void {
@@ -330,14 +359,10 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
     ctx.closePath();
     ctx.stroke();
 
-    // Gegner (Platzhalter-Kreis – später das eigentliche Wurm-/Drachen-Design).
-    ctx.beginPath();
-    ctx.arc(enemy.position.x, enemy.position.y, ENEMY_RADIUS, 0, Math.PI * 2);
-    ctx.fillStyle = COLOR_ENEMY;
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = COLOR_BACKDROP;
-    ctx.stroke();
+    // Gegner: Hauptgegner + Mini-Gegner, jeweils mit ihrem SVG-Sprite,
+    // skaliert auf ihre konfigurierte Grösse.
+    drawEnemySprite(ctx, assets.mainEnemy, mainEnemy);
+    for (const mini of miniEnemies) drawEnemySprite(ctx, assets.miniEnemy, mini);
 
     // Aktuell gezeichnete Linie (grün): aufgezeichnete Punkte + live bis zum Spieler.
     if (session) {
@@ -399,8 +424,9 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
 
 async function boot(): Promise<void> {
   showLoading(gameCanvas);
-  const assets = await loadLevelImages(LEVEL_1);
-  start(gameCanvas, assets);
+  const level = levels[0];
+  const assets = await loadLevelImages(level);
+  start(gameCanvas, level, assets);
 }
 
 void boot().catch((err: unknown) => {
