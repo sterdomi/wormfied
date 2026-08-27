@@ -1,68 +1,70 @@
 import { setupCanvas } from '../engine/canvas';
 import { createGameLoop } from '../engine/gameLoop';
 import { setupInput } from '../engine/input';
+import { createRectangularField, type Point } from '../game/field';
+import { Player } from '../game/player';
+import { movePlayerAlongEdge } from '../game/playerMovement';
 import { t } from '../i18n';
 import '../styles/main.css';
+
+// Abstand des Spielfelds zum Fensterrand, damit der Umriss nicht abgeschnitten
+// wird. Später über CSS-Variablen / Theme steuerbar.
+const FIELD_MARGIN = 40;
+const COLOR_FIELD_EDGE = '#3b4252';
+const COLOR_PLAYER = '#88c0d0';
+const COLOR_HUD = '#e5e9f0';
+const PLAYER_RADIUS = 7;
 
 const canvasEl = document.querySelector<HTMLCanvasElement>('#game');
 if (!canvasEl) {
   throw new Error('Canvas-Element #game nicht gefunden.');
 }
 
-const view = setupCanvas(canvasEl);
-const input = setupInput(canvasEl);
+let field: Point[] = createRectangularField(1, 1);
+const player = new Player();
+
+/** Feld an die aktuelle Canvas-Grösse anpassen und Spielerposition nachziehen. */
+function rebuildField(width: number, height: number): void {
+  field = createRectangularField(
+    Math.max(1, width - FIELD_MARGIN * 2),
+    Math.max(1, height - FIELD_MARGIN * 2),
+  );
+  player.syncPosition(field);
+}
+
+const view = setupCanvas(canvasEl, { onResize: rebuildField });
+const input = setupInput();
+rebuildField(view.width, view.height);
 
 document.title = t('gameTitle');
 
-// --- Platzhalter-Zustand ---------------------------------------------------
-// Ein einzelner Testkreis, der über die Fläche wandert und an den Rändern
-// abprallt. Belegt nur, dass Loop + Delta-Time + Rendering zusammenspielen —
-// wird in einem späteren Auftrag durch echte Spiellogik ersetzt.
-const circle = {
-  x: 140,
-  y: 140,
-  radius: 24,
-  vx: 190, // CSS-Pixel pro Sekunde
-  vy: 150,
-};
-
 function update(dt: number): void {
-  circle.x += circle.vx * dt;
-  circle.y += circle.vy * dt;
-
-  if (circle.x - circle.radius < 0) {
-    circle.x = circle.radius;
-    circle.vx = Math.abs(circle.vx);
-  } else if (circle.x + circle.radius > view.width) {
-    circle.x = view.width - circle.radius;
-    circle.vx = -Math.abs(circle.vx);
-  }
-
-  if (circle.y - circle.radius < 0) {
-    circle.y = circle.radius;
-    circle.vy = Math.abs(circle.vy);
-  } else if (circle.y + circle.radius > view.height) {
-    circle.y = view.height - circle.radius;
-    circle.vy = -Math.abs(circle.vy);
-  }
+  movePlayerAlongEdge(player, field, input.keys, dt);
 }
 
 function render(ctx: CanvasRenderingContext2D): void {
   ctx.clearRect(0, 0, view.width, view.height);
 
-  // Spielfeldrahmen — hier bewegt sich der Spieler später sicher entlang.
-  ctx.strokeStyle = '#3b4252';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(2, 2, view.width - 4, view.height - 4);
+  ctx.save();
+  ctx.translate(FIELD_MARGIN, FIELD_MARGIN);
 
-  // Testkreis.
+  // Spielfeld-Umriss (aktuell ein Rechteck, später ein komplexeres Polygon).
+  ctx.strokeStyle = COLOR_FIELD_EDGE;
+  ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
-  ctx.fillStyle = '#88c0d0';
+  field.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+  ctx.closePath();
+  ctx.stroke();
+
+  // Spieler.
+  ctx.beginPath();
+  ctx.arc(player.position.x, player.position.y, PLAYER_RADIUS, 0, Math.PI * 2);
+  ctx.fillStyle = COLOR_PLAYER;
   ctx.fill();
 
-  // i18n-Platzhalter.
-  ctx.fillStyle = '#e5e9f0';
+  ctx.restore();
+
+  ctx.fillStyle = COLOR_HUD;
   ctx.font = '16px system-ui, sans-serif';
   ctx.textBaseline = 'top';
   ctx.fillText(t('gameTitle'), 16, 16);
