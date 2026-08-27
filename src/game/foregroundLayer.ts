@@ -13,15 +13,17 @@ export const CARVE_WIDTH = 16;
  * ausgeschnitten (transparent), sodass der darunterliegende Background
  * durchscheint.
  *
- * ÜBERGANGSLÖSUNG: Dieses pfadbasierte Ausschneiden mit fester Breite ist eine
- * Zwischenstufe. Instruktion 5 ersetzt es durch exaktes, polygon-basiertes
- * Ausschneiden des tatsächlich eingeschlossenen Bereichs.
+ * `carvePath` (aus Instruktion 4) bleibt als sofortige Live-Vorschau während
+ * des Zeichnens. `carveRegion` (Instruktion 5) entfernt zusätzlich die GESAMTE
+ * Innenfläche des eroberten Teilpolygons, sobald die Linie abgeschlossen ist.
  */
 export interface ForegroundLayer {
   /** Offscreen-Canvas mit dem aktuellen (teils ausgeschnittenen) Foreground. */
   readonly canvas: HTMLCanvasElement;
   /** Schneidet die Strecke `from → to` (Feld-Koordinaten) dauerhaft aus. */
   carvePath: (fromX: number, fromY: number, toX: number, toY: number) => void;
+  /** Schneidet die gesamte Innenfläche eines Polygons (Feld-Koordinaten) aus. */
+  carveRegion: (polygon: { x: number; y: number }[]) => void;
   /** Stellt den vollständigen Foreground wieder her. */
   reset: () => void;
 }
@@ -59,6 +61,17 @@ export function createForegroundLayer(
     ctx.globalCompositeOperation = 'source-over';
   }
 
+  function carveRegion(polygon: { x: number; y: number }[]): void {
+    if (polygon.length < 3) return;
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.moveTo(polygon[0].x, polygon[0].y);
+    for (let i = 1; i < polygon.length; i++) ctx.lineTo(polygon[i].x, polygon[i].y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
   reset();
-  return { canvas, carvePath, reset };
+  return { canvas, carvePath, carveRegion, reset };
 }

@@ -159,15 +159,28 @@ describe('advanceDrawing – Leertaste loslassen', () => {
     expect(completed).toHaveLength(0); // nichts gezeichnet → keine Linie
   });
 
-  it('losgelassen im Feldinneren: Platzhalter – Spieler bleibt stehen (drawing)', () => {
-    const p = playerOnTopEdge();
+  it('losgelassen im Feldinneren: gerade Verbindung zum nächsten Randpunkt, Linie abgeschlossen', () => {
+    const p = playerOnTopEdge(); // (400, 0)
     const session = beginDrawing(p, true)!;
-    for (let i = 0; i < 5; i++) advanceDrawing(session, p, field, { ...HELD, down: true }, 0.1, []);
-    const inside = { ...p.position };
-    const done = advanceDrawing(session, p, field, NONE, 0.1, []);
-    expect(done).toBe(false);
-    expect(p.mode).toBe('drawing');
-    expect(p.position).toEqual(inside);
+    const completed: DrawnLine[] = [];
+    // ein Stück nach unten (näher an die obere als an die untere Kante)
+    for (let i = 0; i < 5; i++) {
+      advanceDrawing(session, p, field, { ...HELD, down: true }, 0.1, completed);
+    }
+    const yInside = p.position.y;
+
+    const done = advanceDrawing(session, p, field, NONE, 0.1, completed);
+
+    expect(done).toBe(true);
+    expect(p.mode).toBe('onEdge');
+    // nächstgelegener Randpunkt ist (400, 0) auf der oberen Kante
+    expect(p.position).toEqual({ x: 400, y: 0 });
+    expect(p.segmentIndex).toBe(0);
+    expect(completed).toHaveLength(1);
+    const pts = completed[0].points;
+    expect(pts[0]).toEqual({ x: 400, y: 0 }); // Start
+    expect(pts[pts.length - 1]).toEqual({ x: 400, y: 0 }); // ergänzter Randpunkt
+    expect(yInside).toBeGreaterThan(0);
   });
 });
 

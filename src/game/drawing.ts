@@ -43,8 +43,6 @@ export interface DrawSession {
    * Spieler seit dem Lösen noch keine Cursor-Richtung gewählt hat.
    */
   heading: Point | null;
-  /** Rand-Segment, auf dem das Zeichnen begonnen hat (für Instruktion 5). */
-  startSegmentIndex: number;
   /**
    * Wird `true`, sobald sich der Spieler das erste Mal vom Rand gelöst hat.
    * Davor: Cursor nach aussen ist blockiert und ein Rand-Kontakt zählt nicht
@@ -94,7 +92,6 @@ export function beginDrawing(player: Player, drawPressed: boolean): DrawSession 
   return {
     line: createLine(player.position),
     heading: null,
-    startSegmentIndex: player.segmentIndex,
     hasLeftEdge: false,
   };
 }
@@ -153,12 +150,13 @@ export function crossesOwnLine(line: DrawnLine, from: Point, to: Point): boolean
  * Rückgabe `true`, wenn die Session verbraucht ist – der Spieler ist wieder
  * `onEdge`:
  *  - Linie hat den Rand erreicht → fertige Linie kommt in `completedLines`
+ *  - Leertaste im Feldinneren losgelassen → gerade Verbindung zum
+ *    nächstgelegenen Randpunkt, fertige Linie kommt in `completedLines`
  *  - Leertaste losgelassen, bevor der Spieler je losgefahren ist → er dockt
  *    unverändert wieder an, die (leere/entartete) Linie wird verworfen
  *
  * Rückgabe `false`, wenn weitergezeichnet wird ODER der Spieler stehen bleibt
- * (keine/aussenwärtige Cursor-Eingabe, oder Leertaste im Feldinneren losgelassen
- * – Platzhalter bis Instruktion 5).
+ * (keine oder rein aussenwärtige Cursor-Eingabe, während die Leertaste hält).
  */
 export function advanceDrawing(
   session: DrawSession,
@@ -171,20 +169,33 @@ export function advanceDrawing(
   const from: Point = { x: player.position.x, y: player.position.y };
 
   if (!input.draw) {
+    const snap = closestPointOnPerimeter(polygon, from);
+
     if (!session.hasLeftEdge) {
       // Nie vom Rand gelöst → unverändert wieder andocken, "rot". Die
       // (leere/entartete) Linie wird verworfen.
-      const snap = closestPointOnPerimeter(polygon, from);
       player.segmentIndex = snap.segmentIndex;
       player.segmentProgress = snap.progress;
       player.position = { x: snap.point.x, y: snap.point.y };
       player.mode = 'onEdge';
       return true;
     }
-    // TODO(Instruktion 5): Leertaste im Feldinneren losgelassen → Tod oder
-    // Rückzug der Linie (Konsequenz noch nicht definiert). Vorerst: Spieler
-    // bleibt stehen.
-    return false;
+
+    // Leertaste mitten im Feld losgelassen: gerade Verbindung zum
+    // nächstgelegenen Randpunkt ergänzen, dann die Linie normal abschliessen
+    // (der Aufrufer splittet daraufhin das Feld).
+    //
+    // TODO(Instruktion 6): Sobald Gegner/Gefahr existieren, wird vorzeitiges
+    // Loslassen vermutlich anders behandelt (z.B. Linie bricht ab ohne Fläche
+    // zu erobern, oder kostet ein Leben) – aktuelle Regel ist ein Platzhalter
+    // ohne Risiko.
+    appendPoint(session.line, snap.point, 0);
+    player.position = { x: snap.point.x, y: snap.point.y };
+    player.segmentIndex = snap.segmentIndex;
+    player.segmentProgress = snap.progress;
+    player.mode = 'onEdge';
+    completedLines.push(session.line);
+    return true;
   }
 
   const heading = headingFromInput(session.heading, input);

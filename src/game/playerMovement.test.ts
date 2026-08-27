@@ -88,4 +88,33 @@ describe('movePlayerAlongEdge', () => {
     expect(p.segmentIndex).toBe(1);
     expect(p.segmentProgress).toBeCloseTo(0.4);
   });
+
+  it('an einer Ecke: quer stehende Eingabe biegt aufs Nachbarsegment ab (vorwärts)', () => {
+    // Spieler exakt auf der oberen-rechten Ecke, aber noch auf Segment 0 (obere
+    // Kante). "runter" steht quer zu Segment 0 → muss auf Segment 1 abbiegen.
+    const p = new Player(0, 1);
+    movePlayerAlongEdge(p, field, { ...NONE, down: true }, 1);
+    expect(p.segmentIndex).toBe(1); // rechte Kante
+    expect(p.position.x).toBeCloseTo(800);
+    expect(p.position.y).toBeCloseTo(EDGE_SPEED);
+  });
+
+  it('an einer Ecke: quer stehende Eingabe biegt aufs Nachbarsegment ab (rückwärts)', () => {
+    // Spieler auf derselben Ecke, aber auf Segment 1 (rechte Kante) bei
+    // progress 0. "links" steht quer zu Segment 1 → muss auf Segment 0 zurück.
+    const p = new Player(1, 0);
+    movePlayerAlongEdge(p, field, { ...NONE, left: true }, 1);
+    expect(p.segmentIndex).toBe(0); // obere Kante
+    expect(p.position.x).toBeCloseTo(800 - EDGE_SPEED);
+    expect(p.position.y).toBeCloseTo(0);
+  });
+
+  it('an einer Ecke: keine passende Nachbar-Richtung → keine Bewegung', () => {
+    // Auf der oberen-rechten Ecke (Segment 0, progress 1); "hoch" zeigt weder
+    // entlang Segment 0 noch entlang Segment 1.
+    const p = new Player(0, 1);
+    movePlayerAlongEdge(p, field, { ...NONE, up: true }, 1);
+    expect(p.segmentIndex).toBe(0);
+    expect(p.segmentProgress).toBeCloseTo(1);
+  });
 });

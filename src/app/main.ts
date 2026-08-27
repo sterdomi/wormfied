@@ -9,6 +9,7 @@ import { LEVEL_1 } from '../game/level';
 import { type DrawnLine } from '../game/line';
 import { Player } from '../game/player';
 import { movePlayerAlongEdge } from '../game/playerMovement';
+import { applyCompletedLine } from '../game/polygon';
 import { t } from '../i18n';
 import '../styles/main.css';
 
@@ -21,7 +22,6 @@ const COLOR_HUD = '#e5e9f0';
 // Auf dem Rand angedockt = rot; ins Feld gefahren und am Zeichnen = grün.
 const COLOR_ON_EDGE = '#bf616a';
 const COLOR_DRAWING = '#a3be8c';
-const COLOR_COMPLETED_LINE = '#d08770';
 const PLAYER_RADIUS = 7;
 
 const foundCanvas = document.querySelector<HTMLCanvasElement>('#game');
@@ -47,8 +47,8 @@ function showLoading(canvas: HTMLCanvasElement): void {
 
 function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
   const player = new Player();
-  // Abgeschlossene Linien werden gesammelt und gezeichnet, aber noch NICHT ins
-  // Feld-Polygon eingerechnet (das ist Instruktion 5).
+  // Kanal für abgeschlossene Linien aus `advanceDrawing`; sie werden noch im
+  // selben Frame verarbeitet (Feld-Split) und danach aus der Liste entfernt.
   const completedLines: DrawnLine[] = [];
   let session: DrawSession | null = null;
   // Die Leertaste löst das Verlassen des Rands nur auf ihrer steigenden Flanke aus.
@@ -57,17 +57,32 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
   let field: Point[] = createRectangularField(1, 1);
   let fieldWidth = 1;
   let fieldHeight = 1;
-  // Offscreen-Foreground: wird bei jedem Resize an die neue Feldgrösse neu
-  // aufgebaut. ÜBERGANGSLÖSUNG – der bisher ausgeschnittene Pfad geht dabei
-  // verloren; Instruktion 5 löst das über das exakte Polygon.
   let foreground: ForegroundLayer = createForegroundLayer(assets.foreground, 1, 1);
 
   function rebuildField(width: number, height: number): void {
     fieldWidth = Math.max(1, width - FIELD_MARGIN * 2);
     fieldHeight = Math.max(1, height - FIELD_MARGIN * 2);
+    // ÜBERGANGSLÖSUNG (wie in Instruktion 4): Ein Resize setzt das Feld auf das
+    // volle Rechteck zurück und baut den Foreground neu auf – bereits eroberte
+    // Flächen / Ausschnitte gehen dabei verloren. Ein späterer Schritt kann die
+    // Split-Polygone stattdessen mitskalieren.
     field = createRectangularField(fieldWidth, fieldHeight);
     if (player.mode === 'onEdge') player.syncPosition(field);
     foreground = createForegroundLayer(assets.foreground, fieldWidth, fieldHeight);
+  }
+
+  /**
+   * Eine abgeschlossene Linie ins Feld einrechnen: Polygon splitten, eroberte
+   * Seite bestimmen, aktives Feld + Spieler-Randzustand aktualisieren und die
+   * gesamte eroberte Fläche aus dem Foreground entfernen.
+   */
+  function handleCompletedLine(linePoints: Point[]): void {
+    const result = applyCompletedLine(field, linePoints);
+    field = result.active;
+    player.segmentIndex = result.playerSegmentIndex;
+    player.segmentProgress = result.playerSegmentProgress;
+    player.syncPosition(field);
+    foreground.carveRegion(result.claimed);
   }
 
   const view = setupCanvas(canvas, { onResize: rebuildField });
@@ -94,8 +109,14 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
     if (player.mode === 'drawing') {
       if (!session) {
         player.mode = 'onEdge'; // defensiv, z.B. nach HMR
-      } else if (advanceDrawing(session, player, field, input.state, dt, completedLines)) {
-        session = null;
+      } else {
+        const before = completedLines.length;
+        if (advanceDrawing(session, player, field, input.state, dt, completedLines)) {
+          session = null;
+          // Neu abgeschlossene Linie(n) sofort verarbeiten und aus dem Kanal
+          // nehmen (nach dem Split sind sie Teil der Feld-Polygon-Kanten).
+          completedLines.splice(before).forEach((line) => handleCompletedLine(line.points));
+        }
       }
     }
 
@@ -134,11 +155,6 @@ function start(canvas: HTMLCanvasElement, assets: LevelImages): void {
     field.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
     ctx.closePath();
     ctx.stroke();
-
-    // Abgeschlossene Linien.
-    ctx.strokeStyle = COLOR_COMPLETED_LINE;
-    ctx.lineWidth = 2;
-    completedLines.forEach((line) => strokePolyline(ctx, line.points));
 
     // Aktuell gezeichnete Linie (grün): aufgezeichnete Punkte + live bis zum Spieler.
     if (session) {

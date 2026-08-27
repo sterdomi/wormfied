@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createRectangularField, pointOnPerimeter, segmentLength } from './field';
+import { Player } from './player';
+import { applyCompletedLine, polygonArea } from './polygon';
 
 describe('createRectangularField', () => {
   it('liefert genau vier Eckpunkte', () => {
@@ -42,5 +44,26 @@ describe('pointOnPerimeter', () => {
     expect(pointOnPerimeter(f, 0, 0.5)).toEqual({ x: 400, y: 0 });
     expect(pointOnPerimeter(f, 1, 0.5)).toEqual({ x: 800, y: 300 });
     expect(pointOnPerimeter(f, 3, 1)).toEqual({ x: 0, y: 0 });
+  });
+});
+
+describe('Feld-Update nach einem Polygon-Split', () => {
+  it('setzt das neue Feld und einen konsistenten Spieler-Randzustand am Linien-Endpunkt', () => {
+    const field = createRectangularField(800, 600);
+    // Gerader Schnitt obere → untere Kante; der Spieler steht danach bei (400, 600).
+    const line = [
+      { x: 400, y: 0 },
+      { x: 400, y: 600 },
+    ];
+    const result = applyCompletedLine(field, line);
+
+    // Neues aktives Feld: die (gleich grosse) andere Hälfte.
+    expect(polygonArea(result.active)).toBeCloseTo(240000);
+
+    // Spieler-Zustand auf dem NEUEN Polygon rekonstruieren.
+    const player = new Player(result.playerSegmentIndex, result.playerSegmentProgress);
+    player.syncPosition(result.active);
+    expect(player.position.x).toBeCloseTo(400);
+    expect(player.position.y).toBeCloseTo(600);
   });
 });

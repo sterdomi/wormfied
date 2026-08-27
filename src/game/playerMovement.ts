@@ -107,18 +107,37 @@ export function movePlayerAlongEdge(
   keys: KeyInput,
   dt: number,
 ): void {
-  const dir = edgeDirectionFromInput(polygon, player.segmentIndex, keys);
+  const n = polygon.length;
+  let segmentIndex = player.segmentIndex;
+  let progress = player.segmentProgress;
+  let dir = edgeDirectionFromInput(polygon, segmentIndex, keys);
 
-  if (dir !== 0) {
-    const next = advanceAlongPerimeter(
-      polygon,
-      player.segmentIndex,
-      player.segmentProgress,
-      dir * EDGE_SPEED * dt,
-    );
-    player.segmentIndex = next.segmentIndex;
-    player.segmentProgress = next.progress;
+  // An einer Ecke (progress ≈ 0 oder ≈ 1) grenzt der Spieler an ZWEI Segmente.
+  // Steht das aktuelle Segment quer zur Eingabe (dir 0), aufs Nachbarsegment
+  // umsteigen, falls die Eingabe DORT entlang zeigt. Wichtig z.B. direkt nach
+  // einem Feld-Split, wo der Spieler exakt auf einer Ecke platziert wird.
+  const AT_VERTEX = 1e-6;
+  if (dir === 0) {
+    const nextSeg = (segmentIndex + 1) % n;
+    const prevSeg = (segmentIndex - 1 + n) % n;
+    if (progress >= 1 - AT_VERTEX && edgeDirectionFromInput(polygon, nextSeg, keys) === 1) {
+      segmentIndex = nextSeg;
+      progress = 0;
+      dir = 1;
+    } else if (progress <= AT_VERTEX && edgeDirectionFromInput(polygon, prevSeg, keys) === -1) {
+      segmentIndex = prevSeg;
+      progress = 1;
+      dir = -1;
+    }
   }
 
-  player.position = pointOnPerimeter(polygon, player.segmentIndex, player.segmentProgress);
+  if (dir !== 0) {
+    const next = advanceAlongPerimeter(polygon, segmentIndex, progress, dir * EDGE_SPEED * dt);
+    segmentIndex = next.segmentIndex;
+    progress = next.progress;
+  }
+
+  player.segmentIndex = segmentIndex;
+  player.segmentProgress = progress;
+  player.position = pointOnPerimeter(polygon, segmentIndex, progress);
 }
