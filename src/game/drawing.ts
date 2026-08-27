@@ -43,7 +43,7 @@ export interface DrawSession {
    * Spieler seit dem Lösen noch keine Cursor-Richtung gewählt hat.
    */
   heading: Point | null;
-  /** Rand-Segment, auf dem das Zeichnen begonnen hat (für Instruktion 4). */
+  /** Rand-Segment, auf dem das Zeichnen begonnen hat (für Instruktion 5). */
   startSegmentIndex: number;
   /**
    * Wird `true`, sobald sich der Spieler das erste Mal vom Rand gelöst hat.
@@ -158,7 +158,7 @@ export function crossesOwnLine(line: DrawnLine, from: Point, to: Point): boolean
  *
  * Rückgabe `false`, wenn weitergezeichnet wird ODER der Spieler stehen bleibt
  * (keine/aussenwärtige Cursor-Eingabe, oder Leertaste im Feldinneren losgelassen
- * – Platzhalter bis Instruktion 4).
+ * – Platzhalter bis Instruktion 5).
  */
 export function advanceDrawing(
   session: DrawSession,
@@ -181,8 +181,9 @@ export function advanceDrawing(
       player.mode = 'onEdge';
       return true;
     }
-    // TODO(Instruktion 4): Leertaste im Feldinneren losgelassen → Tod oder
-    // Rückzug der Linie. Vorerst: Spieler bleibt stehen.
+    // TODO(Instruktion 5): Leertaste im Feldinneren losgelassen → Tod oder
+    // Rückzug der Linie (Konsequenz noch nicht definiert). Vorerst: Spieler
+    // bleibt stehen.
     return false;
   }
 
