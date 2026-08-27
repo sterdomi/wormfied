@@ -1,6 +1,7 @@
 import type { Enemy } from './enemy';
 import type { Point } from './field';
 import type { DrawnLine } from './line';
+import type { Projectile } from './projectile';
 import { clamp } from '../utils/math';
 
 /**
@@ -83,4 +84,38 @@ export function anyUnshieldedEnemyHit(
   radius: number = ENEMY_TOUCH_RADIUS,
 ): boolean {
   return enemies.some((e) => checkUnshieldedPlayerCollision(e.position, playerPos, shield, radius));
+}
+
+/** Trefferradius für ein Projektil = Basis-Toleranz + halber Projektil-Durchmesser. */
+function projectileRadius(p: Projectile): number {
+  return ENEMY_TOUCH_RADIUS + p.size / 2;
+}
+
+/**
+ * Index des ersten Projektils, das die aktive Linie berührt – oder `-1`.
+ * Nutzt dieselbe Punkt-Linien-Prüfung wie beim Gegner (`checkLineCollision`),
+ * nur mit einem an die Projektilgrösse angepassten Radius.
+ */
+export function projectileIndexTouchingLine(
+  projectiles: readonly Projectile[],
+  line: DrawnLine,
+  head?: Point,
+): number {
+  return projectiles.findIndex((p) =>
+    checkLineCollision(p.position, line, projectileRadius(p), head),
+  );
+}
+
+/**
+ * Index des ersten Projektils, das den ungeschützten Spieler direkt trifft –
+ * oder `-1`. `shield > 0` ⇒ immer `-1` (wie bei der Gegner-Berührung).
+ */
+export function projectileIndexHittingUnshieldedPlayer(
+  projectiles: readonly Projectile[],
+  playerPos: Point,
+  shield: number,
+): number {
+  return projectiles.findIndex((p) =>
+    checkUnshieldedPlayerCollision(p.position, playerPos, shield, projectileRadius(p)),
+  );
 }

@@ -26,18 +26,27 @@ export interface LevelImages {
   mainEnemy: HTMLImageElement;
   /** Sprite der Mini-Gegner (ein Bild für alle). */
   miniEnemy: HTMLImageElement;
+  /** Projektil-Sprite – nur vorhanden, wenn im Level ein Gegner schiesst. */
+  projectile?: HTMLImageElement;
 }
 
 /**
- * Lädt alle Bilder eines Levels: Foreground, Background sowie die Gegner-Sprites
- * (SVGs laden wie PNGs über `Image()`, keine Sonderbehandlung).
+ * Lädt alle Bilder eines Levels: Foreground, Background, Gegner-Sprites sowie
+ * (falls ein Gegner schiesst) das Projektil-Sprite. SVGs laden wie PNGs über
+ * `Image()`, keine Sonderbehandlung.
  */
 export async function loadLevelImages(level: LevelConfig): Promise<LevelImages> {
-  const [foreground, background, mainEnemy, miniEnemy] = await loadImages([
+  const projectileSrc =
+    level.mainEnemy.shooting?.projectileAssetSrc ??
+    level.miniEnemies.config.shooting?.projectileAssetSrc;
+
+  const [foreground, background, mainEnemy, miniEnemy, projectile] = await loadImages([
     level.foregroundSrc,
     level.backgroundSrc,
     level.mainEnemy.assetSrc,
     level.miniEnemies.config.assetSrc,
+    ...(projectileSrc ? [projectileSrc] : []),
   ]);
-  return { foreground, background, mainEnemy, miniEnemy };
+
+  return { foreground, background, mainEnemy, miniEnemy, projectile };
 }

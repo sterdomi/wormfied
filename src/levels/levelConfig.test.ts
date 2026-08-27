@@ -24,4 +24,17 @@ describe('Level-Registry', () => {
     // Mini-Gegner sind kleiner als der Hauptgegner (Design-Entscheidung Level 1).
     expect(level1.miniEnemies.config.size).toBeLessThan(level1.mainEnemy.size);
   });
+
+  it('level1: nur der Hauptgegner schiesst, mit plausiblen Werten', () => {
+    const level1 = levels.find((l) => l.id === 'level1')!;
+
+    expect(level1.mainEnemy.shooting?.enabled).toBe(true);
+    expect(level1.mainEnemy.shooting!.cooldownSeconds).toBeGreaterThan(1);
+    expect(level1.mainEnemy.shooting!.projectileSpeed).toBeGreaterThan(0);
+    expect(level1.mainEnemy.shooting!.projectileSize).toBeGreaterThan(0);
+    expect(level1.mainEnemy.shooting!.projectileAssetSrc).toMatch(/\.svg$/);
+
+    // Mini-Gegner schiessen in Level 1 nicht.
+    expect(level1.miniEnemies.config.shooting?.enabled ?? false).toBe(false);
+  });
 });

@@ -23,6 +23,8 @@ export interface Enemy {
   speed: number;
   /** Rendergrösse (Durchmesser) in Pixel. */
   size: number;
+  /** Sekunden seit dem letzten Schuss (nur relevant für schiessende Gegner). */
+  timeSinceLastShot: number;
 }
 
 export interface EnemySpec {
@@ -40,6 +42,7 @@ export function createEnemy(
     direction: { x: direction.x, y: direction.y },
     speed: spec.speed,
     size: spec.size,
+    timeSinceLastShot: 0,
   };
 }
 

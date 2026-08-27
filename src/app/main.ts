@@ -2,7 +2,13 @@ import { loadLevelImages, type LevelImages } from '../engine/assetLoader';
 import { setupCanvas } from '../engine/canvas';
 import { createGameLoop } from '../engine/gameLoop';
 import { setupInput } from '../engine/input';
-import { anyUnshieldedEnemyHit, ENEMY_TOUCH_RADIUS, enemyTouchingLine } from '../game/collision';
+import {
+  anyUnshieldedEnemyHit,
+  ENEMY_TOUCH_RADIUS,
+  enemyTouchingLine,
+  projectileIndexHittingUnshieldedPlayer,
+  projectileIndexTouchingLine,
+} from '../game/collision';
 import { advanceDrawing, beginDrawing, EdgeTrigger, type DrawSession } from '../game/drawing';
 import { createEnemy, enemyFacingAngle, type Enemy } from '../game/enemy';
 import { moveEnemies, randomDirection } from '../game/enemyMovement';
@@ -16,6 +22,12 @@ import { Player } from '../game/player';
 import { createPlayerState, decayShield } from '../game/playerState';
 import { movePlayerAlongEdge } from '../game/playerMovement';
 import { applyCompletedLine, polygonArea } from '../game/polygon';
+import {
+  advanceProjectile,
+  isProjectileOutOfBounds,
+  tickEnemyShooting,
+  type Projectile,
+} from '../game/projectile';
 import { resetGame } from '../game/resetGame';
 import { createScoring, getClaimedPercentage, registerClaim, type Scoring } from '../game/scoring';
 import { advanceSpark, createSpark, type Spark } from '../game/spark';
@@ -89,6 +101,7 @@ function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImage
   let scoring: Scoring = createScoring(0);
   let mainEnemy: Enemy = createEnemy({ x: 0, y: 0 }, level.mainEnemy);
   let miniEnemies: Enemy[] = [];
+  let projectiles: Projectile[] = [];
 
   /** Level-Initialisierung (auch Resize- und Neustart-Pfad nutzen sie). */
   function rebuildField(width: number, height: number): Point[] {
@@ -122,6 +135,7 @@ function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImage
       [mainEnemy.position, player.position],
       MIN_MINI_SPACING,
     );
+    projectiles = [];
     return field;
   }
 
@@ -178,6 +192,7 @@ function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImage
       session = null;
     }
     spark = null;
+    projectiles = []; // Gefahr zurücksetzen – keine noch fliegenden Kugeln
     foregroundSnapshot = null;
     player.mode = 'onEdge';
 
@@ -200,6 +215,7 @@ function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImage
       () => {
         session = null;
         spark = null;
+        projectiles = [];
         foregroundSnapshot = null;
         damageFlashUntil = 0;
         hud.setGameOver(false);
@@ -285,10 +301,28 @@ function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImage
     const allEnemies = [mainEnemy, ...miniEnemies];
     moveEnemies(allEnemies, field, dt);
 
+    // Gegner schiessen (auf die aktuelle Spielerposition gezielt).
+    const shot = tickEnemyShooting(mainEnemy, level.mainEnemy.shooting, player.position, dt);
+    if (shot) projectiles.push(shot);
+    for (const mini of miniEnemies) {
+      const miniShot = tickEnemyShooting(
+        mini,
+        level.miniEnemies.config.shooting,
+        player.position,
+        dt,
+      );
+      if (miniShot) projectiles.push(miniShot);
+    }
+
+    // Projektile bewegen und die aus dem Bereich geflogenen aufräumen.
+    for (const p of projectiles) advanceProjectile(p, dt);
+    projectiles = projectiles.filter((p) => !isProjectileOutOfBounds(p, fieldWidth, fieldHeight));
+
     // Irgendein Gegner ↔ aktive Linie: löst einen Stromball aus, der die Linie
     // entlang Richtung Spieler fährt (doppelte Zeichengeschwindigkeit). Ein
     // Leben kostet es erst, wenn der Ball den Spieler erreicht.
     if (player.mode === 'drawing' && session) {
+      // Ein Gegner an der Linie löst den Stromball aus (nur einer gleichzeitig).
       if (!spark) {
         const touching = enemyTouchingLine(
           allEnemies,
@@ -298,6 +332,17 @@ function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImage
         );
         if (touching) spark = createSpark(session.line, player.position, touching.position);
       }
+
+      // Ein Projektil verpufft beim Kontakt mit der Linie – und löst dabei
+      // GENAU DENSELBEN Stromball aus wie eine Gegner-Berührung (falls noch
+      // keiner läuft), ausgehend vom Einschlagpunkt.
+      const li = projectileIndexTouchingLine(projectiles, session.line, player.position);
+      if (li >= 0) {
+        const hitPos = { x: projectiles[li].position.x, y: projectiles[li].position.y };
+        projectiles.splice(li, 1);
+        if (!spark) spark = createSpark(session.line, player.position, hitPos);
+      }
+
       if (spark && advanceSpark(spark, session.line, player.position, dt)) {
         spark = null;
         loseLife();
@@ -306,13 +351,23 @@ function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImage
     }
 
     // Auf dem Rand: Schild nimmt ab; bei leerem Schild ist der Spieler dort
-    // ebenfalls verwundbar – für JEDEN Gegner.
+    // ebenfalls verwundbar – für jeden Gegner UND jedes Projektil.
     if (player.mode === 'onEdge') {
       decayShield(playerState, dt);
       hud.setShield(playerState.shield);
       if (
         anyUnshieldedEnemyHit(allEnemies, player.position, playerState.shield, ENEMY_TOUCH_RADIUS)
       ) {
+        loseLife();
+        return;
+      }
+      const hi = projectileIndexHittingUnshieldedPlayer(
+        projectiles,
+        player.position,
+        playerState.shield,
+      );
+      if (hi >= 0) {
+        projectiles.splice(hi, 1);
         loseLife();
       }
     }
@@ -363,6 +418,19 @@ function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImage
     // skaliert auf ihre konfigurierte Grösse.
     drawEnemySprite(ctx, assets.mainEnemy, mainEnemy);
     for (const mini of miniEnemies) drawEnemySprite(ctx, assets.miniEnemy, mini);
+
+    // Projektile: nach den Gegnern, vor Spielfigur/Linie.
+    if (assets.projectile) {
+      for (const p of projectiles) {
+        ctx.drawImage(
+          assets.projectile,
+          p.position.x - p.size / 2,
+          p.position.y - p.size / 2,
+          p.size,
+          p.size,
+        );
+      }
+    }
 
     // Aktuell gezeichnete Linie (grün): aufgezeichnete Punkte + live bis zum Spieler.
     if (session) {
