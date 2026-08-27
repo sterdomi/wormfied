@@ -1,7 +1,25 @@
 export type InputDirection = 'up' | 'down' | 'left' | 'right';
 
-/** Live-Tastenzustand: pro Richtung `true`, solange die Taste gedrückt ist. */
-export type KeyState = Record<InputDirection, boolean>;
+/**
+ * Abstrakter Eingabezustand, den die Spiellogik liest. Bewusst OHNE Bezug zu
+ * Tastencodes oder Events: der Keyboard-Handler unten befüllt ihn, später
+ * könnten Gamepad-, Touch- oder Joystick-Handler denselben Zustand befüllen,
+ * ohne dass `player.ts` / `playerMovement.ts` / `drawing.ts` angefasst werden.
+ */
+export interface InputState {
+  up: boolean;
+  down: boolean;
+  left: boolean;
+  right: boolean;
+  /** "Ins Feld hineinfahren und zeichnen" gewünscht. Keyboard: Leertaste. */
+  draw: boolean;
+}
+
+export interface InputHandle {
+  /** In-place aktualisierter Zustand – Referenz einmal holen, pro Frame lesen. */
+  readonly state: Readonly<InputState>;
+  dispose: () => void;
+}
 
 const KEY_MAP: Readonly<Record<string, InputDirection>> = {
   ArrowUp: 'up',
@@ -14,33 +32,38 @@ const KEY_MAP: Readonly<Record<string, InputDirection>> = {
   KeyD: 'right',
 };
 
-export interface InputState {
-  /**
-   * Objekt mit dem aktuellen Druckzustand je Richtung. Wird in-place
-   * aktualisiert – Referenz einmal holen und pro Frame auslesen.
-   */
-  readonly keys: Readonly<KeyState>;
-  dispose: () => void;
-}
-
 /**
- * Minimales Desktop-Keyboard-Handling für die Rand-Steuerung: Pfeiltasten und
- * WASD. Kein Diagonal-Handling nötig, da sich der Spieler nur entlang der
- * Feldkanten bewegt.
+ * Desktop-Keyboard-Handler: übersetzt Pfeiltasten/WASD → Richtungen und
+ * Leertaste → `draw`. Die Spiellogik kennt nur `InputState`, nicht "Leertaste".
  */
-export function setupInput(): InputState {
-  const keys: KeyState = { up: false, down: false, left: false, right: false };
+export function setupInput(): InputHandle {
+  const state: InputState = { up: false, down: false, left: false, right: false, draw: false };
 
-  const setKey = (code: string, pressed: boolean): void => {
+  const setDirection = (code: string, pressed: boolean): void => {
     const dir = KEY_MAP[code];
-    if (dir) keys[dir] = pressed;
+    if (dir) state[dir] = pressed;
   };
 
-  const onKeyDown = (e: KeyboardEvent): void => setKey(e.code, true);
-  const onKeyUp = (e: KeyboardEvent): void => setKey(e.code, false);
+  const onKeyDown = (e: KeyboardEvent): void => {
+    if (e.code === 'Space') {
+      state.draw = true;
+      e.preventDefault(); // Seiten-Scroll durch Leertaste unterdrücken
+      return;
+    }
+    setDirection(e.code, true);
+  };
+
+  const onKeyUp = (e: KeyboardEvent): void => {
+    if (e.code === 'Space') {
+      state.draw = false;
+      return;
+    }
+    setDirection(e.code, false);
+  };
+
   // Fokusverlust: sonst "klebt" eine Taste, deren keyup das Fenster nie erreicht.
   const onBlur = (): void => {
-    keys.up = keys.down = keys.left = keys.right = false;
+    state.up = state.down = state.left = state.right = state.draw = false;
   };
 
   window.addEventListener('keydown', onKeyDown);
@@ -48,7 +71,7 @@ export function setupInput(): InputState {
   window.addEventListener('blur', onBlur);
 
   return {
-    keys,
+    state,
     dispose(): void {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);

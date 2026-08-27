@@ -51,3 +51,14 @@ export function pointOnPerimeter(polygon: Point[], i: number, p: number): Point 
   const [a, b] = segmentEndpoints(polygon, i);
   return { x: a.x + (b.x - a.x) * p, y: a.y + (b.y - a.y) * p };
 }
+
+/**
+ * Ins Feldinnere zeigende Einheits-Normale des Segments `i`, für ein IM
+ * UHRZEIGERSINN gewickeltes Polygon in Bildschirmkoordinaten (y nach unten):
+ * 90°-Drehung (-Δy, Δx). Beim Rechteck immer achsparallel (obere Kante → (0, 1)).
+ */
+export function inwardNormal(polygon: Point[], i: number): Point {
+  const [a, b] = segmentEndpoints(polygon, i);
+  const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+  return { x: -(b.y - a.y) / len, y: (b.x - a.x) / len };
+}
