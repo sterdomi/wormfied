@@ -1,13 +1,15 @@
+import { resolveAssetPath } from './assetPath';
 import type { LevelConfig } from '../levels/types';
 
 /** Lädt ein einzelnes Bild und löst auf, sobald es fertig geladen ist. */
 export function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
+    const resolvedSrc = resolveAssetPath(src);
     const img = new Image();
     // Handler VOR `src` setzen: ein (gecachtes) Bild kann sofort feuern.
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Bild konnte nicht geladen werden: ${src}`));
-    img.src = src;
+    img.onerror = () => reject(new Error(`Bild konnte nicht geladen werden: ${resolvedSrc}`));
+    img.src = resolvedSrc;
   });
 }
 

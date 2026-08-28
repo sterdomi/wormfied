@@ -1,3 +1,5 @@
+import { resolveAssetPath } from './assetPath';
+
 export interface PlayOptions {
   /** 0–1, relativ zur Master-Lautstärke. Default 1. */
   volume?: number;
@@ -65,7 +67,7 @@ export function createAudioManager(): AudioManager {
 
   async function loadSound(key: string, src: string): Promise<void> {
     const { ctx } = ensureContext();
-    const response = await fetch(src);
+    const response = await fetch(resolveAssetPath(src));
     const arrayBuffer = await response.arrayBuffer();
     const buffer = await ctx.decodeAudioData(arrayBuffer);
     buffers.set(key, buffer);
