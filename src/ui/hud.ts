@@ -1,4 +1,4 @@
-import { t } from '../i18n';
+import { t, type TranslationKey } from '../i18n';
 import { formatClaimedPercentage } from '../game/scoring';
 
 export interface Hud {
@@ -37,10 +37,12 @@ function formatShield(shield: number): string {
 }
 
 /** Befüllt ein Overlay-Element (`#gameover` / `#levelcomplete`) mit Titel,
- *  optionaler Statuszeile und Neustart-Hinweis. */
+ *  optionaler Statuszeile und Hinweis (Text je nach Overlay unterschiedlich –
+ *  Game Over kehrt automatisch zurück, Level Complete wartet auf Enter). */
 function buildOverlay(
   el: HTMLElement,
   titleKey: 'gameOver' | 'levelComplete',
+  hintKey: TranslationKey,
 ): HTMLParagraphElement {
   el.replaceChildren();
   const title = document.createElement('p');
@@ -50,7 +52,7 @@ function buildOverlay(
   stats.className = 'overlay__stats';
   const hint = document.createElement('p');
   hint.className = 'overlay__hint';
-  hint.textContent = t('restartHint');
+  hint.textContent = t(hintKey);
   el.append(title, stats, hint);
   el.hidden = true;
   return stats;
@@ -77,8 +79,11 @@ export function createHud(): Hud {
   for (const el of [scoreEl, claimedEl, livesEl, shieldEl]) el.className = 'hud__item';
   bar.append(scoreEl, claimedEl, livesEl, shieldEl);
 
-  buildOverlay(gameOverEl, 'gameOver');
-  const levelCompleteStats = buildOverlay(levelCompleteEl, 'levelComplete');
+  // Game Over führt (per Enter oder automatisch nach GAME_OVER_DISPLAY_MS,
+  // main.ts) zurück zum Startbildschirm statt direkt zu einer neuen Partie
+  // wie beim Level-Complete-Overlay.
+  buildOverlay(gameOverEl, 'gameOver', 'backToStartHint');
+  const levelCompleteStats = buildOverlay(levelCompleteEl, 'levelComplete', 'restartHint');
 
   const bind = (el: HTMLElement, format: (v: number) => string) => {
     let last = '';

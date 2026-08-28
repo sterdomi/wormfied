@@ -63,9 +63,20 @@ import { createHud } from '../ui/hud';
 import { t } from '../i18n';
 import '../styles/main.css';
 
-// Abstand des Spielfelds zum Fensterrand (links/rechts/unten), damit der
-// Umriss nicht abgeschnitten wird. Später über CSS-Variablen / Theme steuerbar.
+// Mindestabstand des (jetzt fest grossen) Spielfelds zum linken/rechten
+// Fensterrand, falls das Fenster schmaler als das Feld selbst ist – sonst
+// ist das Feld horizontal zentriert. Später über CSS-Variablen / Theme
+// steuerbar.
 const FIELD_MARGIN = 40;
+/**
+ * Feste Spielfeld-Grösse, unabhängig von der Fenstergrösse – ein Resize
+ * ändert nur noch, WO das (horizontal zentrierte) Feld gezeichnet wird,
+ * nicht mehr seine Grösse oder den Spielzustand (löst die bisherige
+ * ÜBERGANGSLÖSUNG aus Instruktion 4 ab, die bei jedem Resize das Feld samt
+ * eroberter Fläche zurückgesetzt hat).
+ */
+const FIELD_WIDTH = 800;
+const FIELD_HEIGHT = 600;
 const COLOR_BACKDROP = '#0b0e14';
 const COLOR_FIELD_EDGE = '#3b4252';
 const COLOR_HUD = '#e5e9f0';
@@ -104,6 +115,10 @@ const LOGO_MARGIN_BOTTOM = 10;
  * Feld hinein) – bewusst grösser als der seitliche/untere `FIELD_MARGIN`.
  */
 const FIELD_MARGIN_TOP = LOGO_MARGIN_TOP + LOGO_HEIGHT + LOGO_MARGIN_BOTTOM;
+/** Grosses Logo auf dem Startbildschirm (Instruktion: einfacher Startscreen). */
+const START_SCREEN_LOGO_WIDTH = 480;
+/** Abstand zwischen Logo-Unterkante und dem "Enter"-Hinweis darunter. */
+const START_SCREEN_LOGO_GAP = 56;
 /**
  * Kollisions-Toleranzradius für "Gegner/Projektil berührt Spieler direkt"
  * (Instruktion 8/11): an `playerSize` ausgerichtet statt am generischen
@@ -118,6 +133,12 @@ const PLAYER_HIT_RADIUS = playerSize / 2;
  * für alle (kein Per-Entität-Zustand nötig), analog zu `damageFlashUntil`.
  */
 const WALK_FRAME_INTERVAL_MS = 220;
+/**
+ * Wie lange der Game-Over-Screen spätestens stehen bleibt, bevor es
+ * automatisch zurück zum Startbildschirm geht – Enter überspringt die
+ * Wartezeit und geht sofort dorthin.
+ */
+const GAME_OVER_DISPLAY_MS = 10_000;
 /** Mindestabstand der Mini-Gegner-Startpositionen zueinander und zum Hauptgegner. */
 const MIN_MINI_SPACING = 70;
 
@@ -142,6 +163,64 @@ function showLoading(canvas: HTMLCanvasElement): void {
   ctx.fillText(t('loading'), canvas.width / 2, canvas.height / 2);
 }
 
+/** Zeichnet einen Frame des Startbildschirms: grosses Logo + Enter-Hinweis. */
+function renderStartScreen(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  logoImage: HTMLImageElement,
+): void {
+  ctx.fillStyle = COLOR_BACKDROP;
+  ctx.fillRect(0, 0, width, height);
+
+  const logoWidth = Math.min(START_SCREEN_LOGO_WIDTH, width * 0.85);
+  const logoHeight = logoWidth * LOGO_ASPECT_RATIO;
+  const blockHeight = logoHeight + START_SCREEN_LOGO_GAP;
+  const top = (height - blockHeight) / 2;
+
+  ctx.drawImage(logoImage, (width - logoWidth) / 2, top, logoWidth, logoHeight);
+
+  ctx.fillStyle = COLOR_HUD;
+  ctx.font = 'bold 28px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(t('pressEnterToPlay'), width / 2, top + logoHeight + START_SCREEN_LOGO_GAP / 2);
+}
+
+/**
+ * Startbildschirm: grosses Logo, wartet auf Enter (steigende Flanke, wie der
+ * Neustart-Trigger nach Game Over). Löst danach eigenen Canvas-/Input-Setup
+ * wieder auf – `start()` richtet für das eigentliche Spiel sein eigenes ein.
+ */
+function showStartScreen(canvas: HTMLCanvasElement, logoImage: HTMLImageElement): Promise<void> {
+  return new Promise((resolve) => {
+    const view = setupCanvas(canvas);
+    const input = setupInput();
+    const enterTrigger = new EdgeTrigger();
+
+    const loop = createGameLoop(view.ctx, {
+      update: () => {
+        input.tick();
+        if (enterTrigger.pressed(input.state.restart)) {
+          loop.stop();
+          input.dispose();
+          view.dispose();
+          resolve();
+        }
+      },
+      render: (ctx) => renderStartScreen(ctx, view.width, view.height, logoImage),
+    });
+    loop.start();
+  });
+}
+
+/**
+ * Startet eine Partie. Löst auf, sobald nach einem Game Over entweder
+ * `GAME_OVER_DISPLAY_MS` verstrichen sind ODER Enter gedrückt wird – der
+ * Aufrufer (`boot`) zeigt dann wieder den Startbildschirm (Level-Complete
+ * bleibt davon unberührt: dort wartet die Partie weiter auf Enter für einen
+ * direkten Neustart, siehe `restartGame`).
+ */
 function start(
   canvas: HTMLCanvasElement,
   level: LevelConfig,
@@ -149,7 +228,16 @@ function start(
   playerImage: HTMLImageElement,
   playerWalkImage: HTMLImageElement,
   logoImage: HTMLImageElement,
-): void {
+): Promise<void> {
+  // Wird synchron im Promise-Executor unten zugewiesen (läuft vor jedem
+  // anderen Code in dieser Funktion) – die Definite-Assignment-Assertion ist
+  // hier sicher, TypeScript kennt das Ausführungsverhalten des
+  // Promise-Konstruktors selbst aber nicht.
+  let resolveStart!: () => void;
+  const donePromise = new Promise<void>((resolve) => {
+    resolveStart = resolve;
+  });
+
   const player = new Player();
   const playerState = createPlayerState();
   // Kanal für abgeschlossene Linien aus `advanceDrawing`; sie werden noch im
@@ -164,6 +252,9 @@ function start(
   let foregroundSnapshot: ImageData | null = null;
   // Zeitpunkt, bis zu dem der Schaden-Blitz gezeichnet wird (ms, performance.now).
   let damageFlashUntil = 0;
+  // Zeitpunkt des Game Over (ms, performance.now) – `null`, solange keins
+  // läuft. Steuert die automatische Rückkehr zum Startbildschirm.
+  let gameOverAt: number | null = null;
   // Enter löst nur auf seiner steigenden Flanke aus (Leertaste liefert das
   // seit Instruktion 15 bereits fertig über `input.state.drawJustPressed`).
   const restartTrigger = new EdgeTrigger();
@@ -171,8 +262,6 @@ function start(
   const hud = createHud();
 
   let field: Point[] = createRectangularField(1, 1);
-  let fieldWidth = 1;
-  let fieldHeight = 1;
   let foreground: ForegroundLayer = createForegroundLayer(assets.foreground, 1, 1);
   let scoring: Scoring = createScoring(0);
   let mainEnemy: Enemy = createEnemy({ x: 0, y: 0 }, level.mainEnemy);
@@ -185,20 +274,15 @@ function start(
   // getrennt von den Gegner-Projektilen (`projectiles`).
   let playerProjectiles: Projectile[] = [];
 
-  /** Level-Initialisierung (auch Resize- und Neustart-Pfad nutzen sie). */
-  function rebuildField(width: number, height: number): Point[] {
-    fieldWidth = Math.max(1, width - FIELD_MARGIN * 2);
-    fieldHeight = Math.max(1, height - FIELD_MARGIN_TOP - FIELD_MARGIN);
-    // ÜBERGANGSLÖSUNG (wie in Instruktion 4): Ein Resize setzt das Feld auf das
-    // volle Rechteck zurück und baut den Foreground neu auf – bereits eroberte
-    // Flächen / Ausschnitte gehen dabei verloren. Ein späterer Schritt kann die
-    // Split-Polygone stattdessen mitskalieren.
-    field = createRectangularField(fieldWidth, fieldHeight);
+  /** Level-Initialisierung (Neustart-Pfad nutzt sie ebenfalls). Feste
+   *  Grösse (`FIELD_WIDTH`/`FIELD_HEIGHT`) – ein Fenster-Resize ruft das
+   *  NICHT mehr auf, siehe `setupCanvas`-Aufruf unten. */
+  function rebuildField(): Point[] {
+    field = createRectangularField(FIELD_WIDTH, FIELD_HEIGHT);
     if (player.mode === 'onEdge') player.syncPosition(field);
     // Foreground zurück auf das Originalbild (neu aufgebauter Offscreen-Canvas).
-    foreground = createForegroundLayer(assets.foreground, fieldWidth, fieldHeight);
-    // Gesamtfläche des Levels einmal festhalten; ein Resize setzt sie (und die
-    // Erobert-Anzeige) zurück, weil das Feld wieder komplett ist.
+    foreground = createForegroundLayer(assets.foreground, FIELD_WIDTH, FIELD_HEIGHT);
+    // Gesamtfläche des Levels einmal festhalten (Basis für die Erobert-Anzeige).
     scoring = createScoring(polygonArea(field));
     hud.setClaimedPercentage(0);
     hud.setScore(0);
@@ -206,7 +290,7 @@ function start(
     // Hauptgegner in die Feldmitte, Mini-Gegner zufällig verteilt (Mindestabstand
     // zueinander und zum Hauptgegner + Spieler-Start).
     mainEnemy = createEnemy(
-      { x: fieldWidth / 2, y: fieldHeight / 2 },
+      { x: FIELD_WIDTH / 2, y: FIELD_HEIGHT / 2 },
       level.mainEnemy,
       randomDirection(),
     );
@@ -319,15 +403,21 @@ function start(
 
     if (playerState.isGameOver) {
       hud.setGameOver(true);
+      gameOverAt = performance.now();
     }
   }
 
-  /** Kompletter Neustart nach Game Over. */
+  /**
+   * Kompletter Neustart per Enter nach Level-Complete. Game Over geht per
+   * Enter (oder automatisch nach `GAME_OVER_DISPLAY_MS`) stattdessen über
+   * `teardown()` + `resolveStart()` zurück zum Startbildschirm, siehe
+   * `update`.
+   */
   function restartGame(): void {
     resetGame(
       player,
       playerState,
-      () => rebuildField(view.width, view.height),
+      () => rebuildField(),
       () => {
         session = null;
         spark = null;
@@ -338,6 +428,7 @@ function start(
         playerProjectiles = [];
         foregroundSnapshot = null;
         damageFlashUntil = 0;
+        gameOverAt = null;
         hud.setGameOver(false);
         hud.setLevelComplete(false);
         hud.setClaimedPercentage(0);
@@ -348,9 +439,12 @@ function start(
     );
   }
 
-  const view = setupCanvas(canvas, { onResize: rebuildField });
+  // Kein `onResize`-Handler mehr: die Feldgrösse ist fix, ein Resize
+  // ändert nur `view.width`/`view.height` (für Hintergrund-Füllung und
+  // Zentrierung in `render`), nicht mehr den Spielzustand.
+  const view = setupCanvas(canvas);
   const input = setupInput();
-  rebuildField(view.width, view.height);
+  rebuildField();
   hud.setScore(scoring.score);
   hud.setLives(playerState.lives);
   hud.setShield(playerState.shield);
@@ -372,8 +466,14 @@ function start(
     explosions = pruneExplosions(explosions, performance.now());
 
     if (playerState.isGameOver) {
-      // Keine Spieler-/Gegnerbewegung mehr – nur auf Neustart warten.
-      if (restartPressed) restartGame();
+      // Keine Spieler-/Gegnerbewegung mehr – zurück zum Startbildschirm,
+      // entweder automatisch nach GAME_OVER_DISPLAY_MS oder sofort per Enter.
+      const displayTimeElapsed =
+        gameOverAt !== null && performance.now() - gameOverAt >= GAME_OVER_DISPLAY_MS;
+      if (displayTimeElapsed || restartPressed) {
+        teardown();
+        resolveStart();
+      }
       return;
     }
 
@@ -470,7 +570,7 @@ function start(
 
     // Projektile bewegen und die aus dem Bereich geflogenen aufräumen.
     for (const p of projectiles) advanceProjectile(p, dt);
-    projectiles = projectiles.filter((p) => !isProjectileOutOfBounds(p, fieldWidth, fieldHeight));
+    projectiles = projectiles.filter((p) => !isProjectileOutOfBounds(p, FIELD_WIDTH, FIELD_HEIGHT));
 
     // Bonussteine: abgelaufene entfernen, ggf. einen neuen spawnen
     // (Instruktion 14, Punkt 3/4).
@@ -506,7 +606,7 @@ function start(
     if (cannonShot) playerProjectiles.push(cannonShot);
     for (const p of playerProjectiles) advanceProjectile(p, dt);
     playerProjectiles = playerProjectiles.filter(
-      (p) => !isProjectileOutOfBounds(p, fieldWidth, fieldHeight),
+      (p) => !isProjectileOutOfBounds(p, FIELD_WIDTH, FIELD_HEIGHT),
     );
 
     // Spieler-Projektil trifft Mini-Gegner: gleicher Ablauf wie beim
@@ -607,14 +707,18 @@ function start(
     ctx.fillStyle = COLOR_BACKDROP;
     ctx.fillRect(0, 0, view.width, view.height);
 
+    // Horizontal zentriert (mit `FIELD_MARGIN` als Mindestabstand, falls das
+    // Fenster schmaler als das feste Spielfeld + Ränder ist), vertikal fix
+    // unterhalb des Logos.
+    const fieldOffsetX = Math.max(FIELD_MARGIN, (view.width - FIELD_WIDTH) / 2);
     ctx.save();
-    ctx.translate(FIELD_MARGIN, FIELD_MARGIN_TOP);
+    ctx.translate(fieldOffsetX, FIELD_MARGIN_TOP);
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
 
     // Ebenen: Background → Foreground (Offscreen, ausgeschnitten) → Spiel-Layer.
-    ctx.drawImage(assets.background, 0, 0, fieldWidth, fieldHeight);
-    ctx.drawImage(foreground.canvas, 0, 0, fieldWidth, fieldHeight);
+    ctx.drawImage(assets.background, 0, 0, FIELD_WIDTH, FIELD_HEIGHT);
+    ctx.drawImage(foreground.canvas, 0, 0, FIELD_WIDTH, FIELD_HEIGHT);
 
     // Spielfeld-Umriss (aktuell ein Rechteck, später ein komplexeres Polygon).
     ctx.strokeStyle = COLOR_FIELD_EDGE;
@@ -733,18 +837,25 @@ function start(
     }
   }
 
+  /** Räumt Loop, Input-Listener, Resize-Listener und HUD-DOM auf. */
+  function teardown(): void {
+    loop.stop();
+    input.dispose();
+    view.dispose();
+    hud.dispose();
+  }
+
   const loop = createGameLoop(view.ctx, { update, render });
   loop.start();
 
-  // Vite HMR: laufende Ressourcen beim Hot-Reload sauber abbauen.
+  // Vite HMR: laufende Ressourcen beim Hot-Reload sauber abbauen (löst NICHT
+  // `donePromise` auf – das würde die alte `boot()`-Instanz nach dem Modul-
+  // Swap unnötig weiterlaufen lassen).
   if (import.meta.hot) {
-    import.meta.hot.dispose(() => {
-      loop.stop();
-      input.dispose();
-      view.dispose();
-      hud.dispose();
-    });
+    import.meta.hot.dispose(() => teardown());
   }
+
+  return donePromise;
 }
 
 async function boot(): Promise<void> {
@@ -759,7 +870,13 @@ async function boot(): Promise<void> {
     loadImage(PLAYER_WALK_ASSET_SRC),
     loadImage(LOGO_ASSET_SRC),
   ]);
-  start(gameCanvas, level, assets, playerImage, playerWalkImage, logoImage);
+  // Startbildschirm ↔ Partie im Wechsel: eine Partie endet entweder gar
+  // nicht (Fenster bleibt offen) oder – nach einem Game Over, per Enter oder
+  // automatisch nach GAME_OVER_DISPLAY_MS – wieder beim Startbildschirm.
+  for (;;) {
+    await showStartScreen(gameCanvas, logoImage);
+    await start(gameCanvas, level, assets, playerImage, playerWalkImage, logoImage);
+  }
 }
 
 void boot().catch((err: unknown) => {

@@ -5,12 +5,12 @@ import { resetPlayerState, type PlayerState } from './playerState';
 /**
  * Kompletter Neustart nach Game Over – inhaltlich identisch zum Level-Start.
  *
- * `rebuildLevel` ist die (auch vom Resize genutzte) Level-Initialisierung:
- * setzt Feld-Polygon, Foreground (auf das Originalbild), Scoring und Gegner
- * zurück und liefert das frische Feld-Polygon. Danach werden Spielfigur und
- * Leben/Schild/Game-Over auf die Startwerte gesetzt. `finalize` räumt das
- * Übrige auf, das nur der Aufrufer kennt (HUD, laufende Zeichen-Session,
- * Foreground-Snapshot).
+ * `rebuildLevel` ist dieselbe Level-Initialisierung wie beim ersten Level-
+ * Start: setzt Feld-Polygon, Foreground (auf das Originalbild), Scoring und
+ * Gegner zurück und liefert das frische Feld-Polygon. Danach werden
+ * Spielfigur und Leben/Schild/Game-Over auf die Startwerte gesetzt.
+ * `finalize` räumt das Übrige auf, das nur der Aufrufer kennt (HUD, laufende
+ * Zeichen-Session, Foreground-Snapshot).
  */
 export function resetGame(
   player: Player,
