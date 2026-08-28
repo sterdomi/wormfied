@@ -1,3 +1,5 @@
+import { setupTouchControls } from '../ui/touchControls';
+
 export type InputDirection = 'up' | 'down' | 'left' | 'right';
 
 /**
@@ -56,7 +58,7 @@ const KEY_MAP: Readonly<Record<string, InputDirection>> = {
  * → `drawJustPressed` (Flanke, s.u.) und Enter → `restart`. Die Spiellogik
  * kennt nur `InputState`, nicht die konkreten Tasten.
  */
-export function setupInput(): InputHandle {
+function setupKeyboardInput(): InputHandle {
   const state: InputState = {
     up: false,
     down: false,
@@ -123,6 +125,50 @@ export function setupInput(): InputHandle {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);
+    },
+  };
+}
+
+/**
+ * Kombiniert Tastatur- und Touch-Eingabe (Instruktion 19) zu EINEM
+ * `InputState`, den die Spiellogik liest – sie weiss dabei nie, aus welcher
+ * Quelle eine Eingabe kam (`up = keyboard.up || touch.up` usw.). Touch ist
+ * eine rein additive Quelle: auf Geräten ohne Touch (`isTouchCapable()` in
+ * `touchControls.ts`) liefert `setupTouchControls()` einen No-op-Stub, der
+ * hier nichts beiträgt – bestehendes Tastatur-Verhalten bleibt unverändert.
+ *
+ * `restart` (Enter) kommt seit dem Nutzer-Feedback zu Instruktion 19 auch
+ * vom Action-Button (Tap zählt dort als "Enter", geteilter Rohzustand mit
+ * `drawJustPressed` – siehe `TouchInputState`).
+ */
+export function setupInput(): InputHandle {
+  const keyboard = setupKeyboardInput();
+  const touch = setupTouchControls();
+
+  const state: InputState = {
+    up: false,
+    down: false,
+    left: false,
+    right: false,
+    drawJustPressed: false,
+    restart: false,
+  };
+
+  return {
+    state,
+    tick(): void {
+      keyboard.tick();
+      touch.tick();
+      state.up = keyboard.state.up || touch.state.up;
+      state.down = keyboard.state.down || touch.state.down;
+      state.left = keyboard.state.left || touch.state.left;
+      state.right = keyboard.state.right || touch.state.right;
+      state.drawJustPressed = keyboard.state.drawJustPressed || touch.state.drawJustPressed;
+      state.restart = keyboard.state.restart || touch.state.restart;
+    },
+    dispose(): void {
+      keyboard.dispose();
+      touch.dispose();
     },
   };
 }

@@ -124,3 +124,61 @@ body {
   font-size: 18px;
   color: #d8dee9;
 }
+
+/*
+ * Touch-Steuerung (Instruktion 19): HTML-Overlay über dem Canvas, nur von
+ * `touchControls.ts` erzeugt (also nur auf touch-fähigen Geräten im DOM
+ * vorhanden). z-index unter den Overlays (10), aber über Canvas/HUD, damit
+ * ein Game-Over-/Level-Complete-Bildschirm die Bedienelemente überdeckt.
+ * `env(safe-area-inset-*)` hält beide Elemente aus der iPhone-Notch- bzw.
+ * Home-Indicator-Zone heraus.
+ */
+.touch-joystick,
+.touch-action-button {
+  position: fixed;
+  z-index: 5;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.touch-joystick {
+  left: calc(24px + env(safe-area-inset-left, 0px));
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgb(229 233 240 / 12%);
+  border: 2px solid rgb(229 233 240 / 25%);
+}
+
+.touch-joystick__knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  border-radius: 50%;
+  background: rgb(229 233 240 / 35%);
+  border: 2px solid rgb(229 233 240 / 55%);
+  /* `transform` wird von touchControls.ts pro Frame gesetzt (translate); keine
+     Transition, damit der Knüppel dem Finger ohne Verzögerung folgt. */
+}
+
+.touch-action-button {
+  right: calc(28px + env(safe-area-inset-right, 0px));
+  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: rgb(191 97 106 / 30%);
+  border: 2px solid rgb(191 97 106 / 55%);
+  color: #e5e9f0;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.touch-action-button--active {
+  background: rgb(191 97 106 / 55%);
+}
