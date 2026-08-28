@@ -63,8 +63,8 @@ import { createHud } from '../ui/hud';
 import { t } from '../i18n';
 import '../styles/main.css';
 
-// Abstand des Spielfelds zum Fensterrand, damit der Umriss nicht abgeschnitten
-// wird. Später über CSS-Variablen / Theme steuerbar.
+// Abstand des Spielfelds zum Fensterrand (links/rechts/unten), damit der
+// Umriss nicht abgeschnitten wird. Später über CSS-Variablen / Theme steuerbar.
 const FIELD_MARGIN = 40;
 const COLOR_BACKDROP = '#0b0e14';
 const COLOR_FIELD_EDGE = '#3b4252';
@@ -82,6 +82,23 @@ const COLOR_ERROR_TEXT = '#bf616a';
 const PLAYER_ASSET_SRC = '/assets/player.svg';
 /** Rendergrösse (Durchmesser) des Spieler-Sprites in Pixel. */
 const playerSize = 30;
+/**
+ * Logo (ersetzt den reinen Textschriftzug oben): ebenfalls levelübergreifend
+ * gleich, wie das Spieler-Sprite separat geladen.
+ */
+const LOGO_ASSET_SRC = '/assets/wormfied-logo.svg';
+/** Breite des Logos oben in der Mitte (Höhe ergibt sich aus dem Seitenverhältnis). */
+const LOGO_WIDTH = 180;
+const LOGO_ASPECT_RATIO = 180 / 640; // viewBox-Verhältnis von wormfied-logo.svg
+const LOGO_HEIGHT = LOGO_WIDTH * LOGO_ASPECT_RATIO;
+const LOGO_MARGIN_TOP = 10;
+/** Abstand Logo-Unterkante zum Spielfeld. */
+const LOGO_MARGIN_BOTTOM = 10;
+/**
+ * Oberer Rand des Spielfelds: muss Platz fürs Logo lassen (sonst ragt es ins
+ * Feld hinein) – bewusst grösser als der seitliche/untere `FIELD_MARGIN`.
+ */
+const FIELD_MARGIN_TOP = LOGO_MARGIN_TOP + LOGO_HEIGHT + LOGO_MARGIN_BOTTOM;
 /**
  * Kollisions-Toleranzradius für "Gegner/Projektil berührt Spieler direkt"
  * (Instruktion 8/11): an `playerSize` ausgerichtet statt am generischen
@@ -118,6 +135,7 @@ function start(
   level: LevelConfig,
   assets: LevelImages,
   playerImage: HTMLImageElement,
+  logoImage: HTMLImageElement,
 ): void {
   const player = new Player();
   const playerState = createPlayerState();
@@ -157,7 +175,7 @@ function start(
   /** Level-Initialisierung (auch Resize- und Neustart-Pfad nutzen sie). */
   function rebuildField(width: number, height: number): Point[] {
     fieldWidth = Math.max(1, width - FIELD_MARGIN * 2);
-    fieldHeight = Math.max(1, height - FIELD_MARGIN * 2);
+    fieldHeight = Math.max(1, height - FIELD_MARGIN_TOP - FIELD_MARGIN);
     // ÜBERGANGSLÖSUNG (wie in Instruktion 4): Ein Resize setzt das Feld auf das
     // volle Rechteck zurück und baut den Foreground neu auf – bereits eroberte
     // Flächen / Ausschnitte gehen dabei verloren. Ein späterer Schritt kann die
@@ -574,7 +592,7 @@ function start(
     ctx.fillRect(0, 0, view.width, view.height);
 
     ctx.save();
-    ctx.translate(FIELD_MARGIN, FIELD_MARGIN);
+    ctx.translate(FIELD_MARGIN, FIELD_MARGIN_TOP);
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
 
@@ -675,11 +693,15 @@ function start(
 
     ctx.restore();
 
-    ctx.fillStyle = COLOR_HUD;
-    ctx.font = '16px system-ui, sans-serif';
-    ctx.textBaseline = 'top';
-    ctx.textAlign = 'left';
-    ctx.fillText(t('gameTitle'), 16, 16);
+    // Logo statt Text-Schriftzug, horizontal mittig oben, oberhalb des
+    // Spielfelds (siehe FIELD_MARGIN_TOP) statt darüber zu liegen.
+    ctx.drawImage(
+      logoImage,
+      (view.width - LOGO_WIDTH) / 2,
+      LOGO_MARGIN_TOP,
+      LOGO_WIDTH,
+      LOGO_HEIGHT,
+    );
 
     // Schaden-Feedback: kurzes rotes Aufblitzen über dem ganzen Canvas.
     if (performance.now() < damageFlashUntil) {
@@ -705,13 +727,15 @@ function start(
 async function boot(): Promise<void> {
   showLoading(gameCanvas);
   const level = levels[0];
-  // Levelbilder + Spieler-Sprite parallel laden – der Spieler ist bewusst
-  // NICHT Teil von `LevelConfig` (levelübergreifend gleich, Instruktion 13).
-  const [assets, playerImage] = await Promise.all([
+  // Levelbilder + Spieler-Sprite + Logo parallel laden – Spieler und Logo
+  // sind bewusst NICHT Teil von `LevelConfig` (levelübergreifend gleich,
+  // Instruktion 13).
+  const [assets, playerImage, logoImage] = await Promise.all([
     loadLevelImages(level),
     loadImage(PLAYER_ASSET_SRC),
+    loadImage(LOGO_ASSET_SRC),
   ]);
-  start(gameCanvas, level, assets, playerImage);
+  start(gameCanvas, level, assets, playerImage, logoImage);
 }
 
 void boot().catch((err: unknown) => {

@@ -1,0 +1,62 @@
+<svg viewBox="0 0 640 180" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="titleGrad" x1="0" y1="45" x2="0" y2="150" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#95d5b2"/>
+      <stop offset="35%" stop-color="#40916c"/>
+      <stop offset="75%" stop-color="#1b4332"/>
+      <stop offset="100%" stop-color="#0d2818"/>
+    </linearGradient>
+    <linearGradient id="titleHighlight" x1="0" y1="45" x2="0" y2="150" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="40%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="titleShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#000000" flood-opacity="0.55"/>
+    </filter>
+    <radialGradient id="ballLightningGrad" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#fff9c4"/>
+      <stop offset="40%" stop-color="#ffd60a"/>
+      <stop offset="80%" stop-color="#f77f00"/>
+      <stop offset="100%" stop-color="#c1440e"/>
+    </radialGradient>
+    <radialGradient id="ballLightningGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="55%" stop-color="#ffd60a" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#ffd60a" stop-opacity="0.45"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Titel-Schriftzug: Buchstaben manuell positioniert, 'o' ausgelassen (Platz fuer Marienkaefer),
+       'i' punktlos / dotless (Platz fuer Mini-Spinne als Punkt-Ersatz) -->
+  <text y="120" font-family="'Trebuchet MS', 'Segoe UI', Verdana, sans-serif"
+        font-weight="900" font-style="italic" font-size="92" letter-spacing="2"
+        fill="url(#titleGrad)" stroke="#0a1a12" stroke-width="6"
+        paint-order="stroke fill" filter="url(#titleShadow)">
+    <tspan x="90">W</tspan><tspan x="221.75">r</tspan><tspan x="276.25">m</tspan><tspan x="364.75">f</tspan><tspan x="421.25">ı</tspan><tspan x="459">e</tspan><tspan x="519.5">d</tspan>
+  </text>
+
+  <text y="120" font-family="'Trebuchet MS', 'Segoe UI', Verdana, sans-serif"
+        font-weight="900" font-style="italic" font-size="92" letter-spacing="2"
+        fill="url(#titleHighlight)">
+    <tspan x="90">W</tspan><tspan x="221.75">r</tspan><tspan x="276.25">m</tspan><tspan x="364.75">f</tspan><tspan x="421.25">ı</tspan><tspan x="459">e</tspan><tspan x="519.5">d</tspan>
+  </text>
+
+  <!-- Marienkaefer anstelle des 'o' -->
+  <image href="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjIwIDIyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8ZGVmcz4KICAgIDxyYWRpYWxHcmFkaWVudCBpZD0ic2hlbGxHcmFkIiBjeD0iMzUlIiBjeT0iMzAlIiByPSI3NSUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmY2YjZiIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iNTUlIiBzdG9wLWNvbG9yPSIjZTYzOTQ2Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzhiMDAwMCIvPgogICAgPC9yYWRpYWxHcmFkaWVudD4KICAgIDxyYWRpYWxHcmFkaWVudCBpZD0iaGVhZEdyYWQiIGN4PSIzNSUiIGN5PSIzMCUiIHI9Ijc1JSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMzYTNhM2EiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMGQwZDBkIi8+CiAgICA8L3JhZGlhbEdyYWRpZW50PgogICAgPHJhZGlhbEdyYWRpZW50IGlkPSJleWVHbG93IiBjeD0iNTAlIiBjeT0iNTAlIiByPSI1MCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmZlMDY2Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSIjZTYzOTQ2Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzdmMWQxZCIvPgogICAgPC9yYWRpYWxHcmFkaWVudD4KICA8L2RlZnM+CgogIDwhLS0gQmVpbmUgKDgsIHNwaW5uZW5hcnRpZyksIGhpbnRlciBkZW0gS8O2cnBlciAtLT4KICA8ZyBzdHJva2U9IiM1YTRhM2EiIHN0cm9rZS13aWR0aD0iNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBmaWxsPSJub25lIj4KICAgIDxwYXRoIGQ9Ik04NSw5MCBDNTUsODAgMzAsODUgMTIsNzAiLz4KICAgIDxwYXRoIGQ9Ik04NSw5MCBDNTUsOTUgMjUsMTAwIDgsMTEwIi8+CiAgICA8cGF0aCBkPSJNODUsMTAwIEM1OCwxMTUgMzUsMTMwIDIwLDE1NSIvPgogICAgPHBhdGggZD0iTTkwLDExMiBDNjgsMTM1IDU1LDE1NSA0OCwxODIiLz4KICAgIDxwYXRoIGQ9Ik0xMzUsOTAgQzE2NSw4MCAxOTAsODUgMjA4LDcwIi8+CiAgICA8cGF0aCBkPSJNMTM1LDkwIEMxNjUsOTUgMTk1LDEwMCAyMTIsMTEwIi8+CiAgICA8cGF0aCBkPSJNMTM1LDEwMCBDMTYyLDExNSAxODUsMTMwIDIwMCwxNTUiLz4KICAgIDxwYXRoIGQ9Ik0xMzAsMTEyIEMxNTIsMTM1IDE2NSwxNTUgMTcyLDE4MiIvPgogIDwvZz4KCiAgPCEtLSBLw7ZycGVyIChNYXJpZW5rw6RmZXItUGFuemVyKSAtLT4KICA8ZWxsaXBzZSBjeD0iMTEwIiBjeT0iMTIwIiByeD0iNjgiIHJ5PSI3NiIgZmlsbD0idXJsKCNzaGVsbEdyYWQpIiBzdHJva2U9IiM1YzBhMGEiIHN0cm9rZS13aWR0aD0iMyIvPgoKICA8IS0tIE1pdHRlbG5haHQgZGVzIFBhbnplcnMgLS0+CiAgPGxpbmUgeDE9IjExMCIgeTE9IjUyIiB4Mj0iMTEwIiB5Mj0iMTk2IiBzdHJva2U9IiM1YzBhMGEiIHN0cm9rZS13aWR0aD0iMyIvPgoKICA8IS0tIEZsZWNrZW4gLS0+CiAgPGcgZmlsbD0iIzFhMWExYSI+CiAgICA8ZWxsaXBzZSBjeD0iODAiIGN5PSI5MCIgcng9IjExIiByeT0iMTIiLz4KICAgIDxlbGxpcHNlIGN4PSIxNDIiIGN5PSI5NSIgcng9IjEwIiByeT0iMTEiLz4KICAgIDxlbGxpcHNlIGN4PSI3NSIgY3k9IjE0MCIgcng9IjEyIiByeT0iMTMiLz4KICAgIDxlbGxpcHNlIGN4PSIxNDUiIGN5PSIxNDUiIHJ4PSIxMSIgcnk9IjEyIi8+CiAgICA8ZWxsaXBzZSBjeD0iOTAiIGN5PSIxNzUiIHJ4PSI5IiByeT0iMTAiLz4KICAgIDxlbGxpcHNlIGN4PSIxMzIiIGN5PSIxNzgiIHJ4PSI5IiByeT0iMTAiLz4KICA8L2c+CgogIDwhLS0gS29wZiAtLT4KICA8Zz4KICAgIDxjaXJjbGUgY3g9IjExMCIgY3k9IjQ2IiByPSIzMCIgZmlsbD0idXJsKCNoZWFkR3JhZCkiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIyIi8+CgogICAgPCEtLSBGw7xobGVyIC0tPgogICAgPHBhdGggZD0iTTk2LDI0IEM5MCwxMCA4Miw0IDc0LDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzFhMWExYSIgc3Ryb2tlLXdpZHRoPSI0IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICAgIDxwYXRoIGQ9Ik0xMjQsMjQgQzEzMCwxMCAxMzgsNCAxNDYsMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMWExYTFhIiBzdHJva2Utd2lkdGg9IjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgogICAgPGNpcmNsZSBjeD0iNzQiIGN5PSIwIiByPSI0IiBmaWxsPSIjMWExYTFhIi8+CiAgICA8Y2lyY2xlIGN4PSIxNDYiIGN5PSIwIiByPSI0IiBmaWxsPSIjMWExYTFhIi8+CgogICAgPCEtLSBBdWdlbiAtLT4KICAgIDxjaXJjbGUgY3g9Ijk4IiBjeT0iNDQiIHI9IjgiIGZpbGw9InVybCgjZXllR2xvdykiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgICA8Y2lyY2xlIGN4PSIxMjIiIGN5PSI0NCIgcj0iOCIgZmlsbD0idXJsKCNleWVHbG93KSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgIDxjaXJjbGUgY3g9Ijk4IiBjeT0iNDQiIHI9IjIuNSIgZmlsbD0iIzFiMWIxYiIvPgogICAgPGNpcmNsZSBjeD0iMTIyIiBjeT0iNDQiIHI9IjIuNSIgZmlsbD0iIzFiMWIxYiIvPgoKICAgIDwhLS0gTWFuZGliZWxuIC0tPgogICAgPHBhdGggZD0iTTEwMCw2MCBMOTQsNzAgTTEyMCw2MCBMMTI2LDcwIiBzdHJva2U9IiMxYTFhMWEiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPC9nPgo8L3N2Zz4K" x="158" y="56.75" width="74" height="74"/>
+
+  <!-- Mini-Spinne anstelle des i-Punkts, haengt an kurzem Faden -->
+  <line x1="440" y1="20" x2="440" y2="36" stroke="#e8ede3" stroke-width="2" opacity="0.95"/>
+  <image href="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgOTAgOTAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPGRlZnM+CiAgICA8cmFkaWFsR3JhZGllbnQgaWQ9Im1pbmlCb2R5R3JhZCIgY3g9IjM1JSIgY3k9IjMwJSIgcj0iNzUlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2ZmZmZmZiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjU1JSIgc3RvcC1jb2xvcj0iI2VlZjBmMiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNjZmQ0ZDkiLz4KICAgIDwvcmFkaWFsR3JhZGllbnQ+CiAgICA8cmFkaWFsR3JhZGllbnQgaWQ9Im1pbmlFeWVHbG93IiBjeD0iNTAlIiBjeT0iNTAlIiByPSI1MCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmZlMDY2Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iODAlIiBzdG9wLWNvbG9yPSIjZTYzOTQ2Ii8+CiAgICA8L3JhZGlhbEdyYWRpZW50PgogIDwvZGVmcz4KCiAgPCEtLSBCZWluZSAoNiwgbWl0IEtuaWNrKSAtLT4KICA8ZyBzdHJva2U9IiNmNGY2ZjgiIHN0cm9rZS13aWR0aD0iMy41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGZpbGw9Im5vbmUiPgogICAgPHBhdGggZD0iTTM2LDQyIEwyMiwyOCBMOCwyMiIvPgogICAgPHBhdGggZD0iTTM2LDQ4IEwyMCw1MCBMNCw1MiIvPgogICAgPHBhdGggZD0iTTM2LDU2IEwyMiw2OCBMMTAsNzgiLz4KCiAgICA8cGF0aCBkPSJNNTQsNDIgTDY4LDI4IEw4MiwyMiIvPgogICAgPHBhdGggZD0iTTU0LDQ4IEw3MCw1MCBMODYsNTIiLz4KICAgIDxwYXRoIGQ9Ik01NCw1NiBMNjgsNjggTDgwLDc4Ii8+CiAgPC9nPgoKICA8IS0tIEhpbnRlcmxlaWIgLS0+CiAgPGVsbGlwc2UgY3g9IjQ1IiBjeT0iNTgiIHJ4PSIxOSIgcnk9IjIzIiBmaWxsPSJ1cmwoI21pbmlCb2R5R3JhZCkiIHN0cm9rZT0iIzlhYTFhOCIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KCiAgPCEtLSBrbGVpbmUgU2FuZHVoci1aZWljaG51bmcgLS0+CiAgPHBhdGggZD0iTTQwLDUzIEw1MCw1MyBMNDMsNjYgTDQzLDY2IEw1MCw3OSBMNDAsNzkgTDQ3LDY2IFoiCiAgICAgICAgZmlsbD0iI2MxMTIxZiIgb3BhY2l0eT0iMC44NSIvPgoKICA8IS0tIEtvcGZicnVzdCAtLT4KICA8ZWxsaXBzZSBjeD0iNDUiIGN5PSIzNCIgcng9IjEzIiByeT0iMTIiIGZpbGw9InVybCgjbWluaUJvZHlHcmFkKSIgc3Ryb2tlPSIjOWFhMWE4IiBzdHJva2Utd2lkdGg9IjEuNSIvPgoKICA8IS0tIEZhbmd6w6RobmUgLS0+CiAgPHBhdGggZD0iTTQwLDQzIFEzOCw0OSAzNiw1MiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMmEyYTJhIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgogIDxwYXRoIGQ9Ik01MCw0MyBRNTIsNDkgNTQsNTIiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzJhMmEyYSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KCiAgPCEtLSBBdWdlbiAtLT4KICA8Zz4KICAgIDxjaXJjbGUgY3g9IjQwIiBjeT0iMzAiIHI9IjMuNSIgZmlsbD0idXJsKCNtaW5pRXllR2xvdykiIHN0cm9rZT0iIzBhMDYwMyIgc3Ryb2tlLXdpZHRoPSIwLjYiLz4KICAgIDxjaXJjbGUgY3g9IjUwIiBjeT0iMzAiIHI9IjMuNSIgZmlsbD0idXJsKCNtaW5pRXllR2xvdykiIHN0cm9rZT0iIzBhMDYwMyIgc3Ryb2tlLXdpZHRoPSIwLjYiLz4KICAgIDxjaXJjbGUgY3g9IjQwIiBjeT0iMzAiIHI9IjEuMSIgZmlsbD0iIzFiMWIxYiIvPgogICAgPGNpcmNsZSBjeD0iNTAiIGN5PSIzMCIgcj0iMS4xIiBmaWxsPSIjMWIxYjFiIi8+CiAgPC9nPgo8L3N2Zz4K" x="425" y="36" width="30" height="30"/>
+
+  <!-- Rankenartige Unterstreichung -->
+  <path d="M70,140 C160,155 260,150 320,150 C380,150 480,155 570,140"
+        fill="none" stroke="#52b788" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  <circle cx="70" cy="140" r="4" fill="#52b788"/>
+  <circle cx="570" cy="140" r="4" fill="#52b788"/>
+
+  <!-- Kugelblitz auf der Unterstreichung -->
+  <g transform="translate(320,150)">
+    <circle r="14" fill="url(#ballLightningGlow)"/>
+    <circle r="8" fill="url(#ballLightningGrad)" stroke="#8a3a00" stroke-width="0.8"/>
+    <path d="M1,-6 L-4,1 L0,1 L-1,6 L4,-1 L0,-1 Z" fill="#fff9c4"/>
+  </g>
+</svg>
