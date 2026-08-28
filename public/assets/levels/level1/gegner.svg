@@ -1,13 +1,9 @@
 <svg viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <radialGradient id="shellGrad" cx="35%" cy="30%" r="75%">
-      <stop offset="0%" stop-color="#ff6b6b"/>
-      <stop offset="55%" stop-color="#e63946"/>
-      <stop offset="100%" stop-color="#8b0000"/>
-    </radialGradient>
-    <radialGradient id="headGrad" cx="35%" cy="30%" r="75%">
-      <stop offset="0%" stop-color="#3a3a3a"/>
-      <stop offset="100%" stop-color="#0d0d0d"/>
+    <radialGradient id="bodyGrad" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#5a4030"/>
+      <stop offset="55%" stop-color="#2e1f16"/>
+      <stop offset="100%" stop-color="#120b07"/>
     </radialGradient>
     <radialGradient id="eyeGlow" cx="50%" cy="50%" r="50%">
       <stop offset="0%" stop-color="#ffe066"/>
@@ -16,51 +12,50 @@
     </radialGradient>
   </defs>
 
-  <!-- Beine (8, spinnenartig), hinter dem Körper -->
-  <g stroke="#5a4a3a" stroke-width="6" stroke-linecap="round" fill="none">
-    <path d="M85,90 C55,80 30,85 12,70"/>
-    <path d="M85,90 C55,95 25,100 8,110"/>
-    <path d="M85,100 C58,115 35,130 20,155"/>
-    <path d="M90,112 C68,135 55,155 48,182"/>
-    <path d="M135,90 C165,80 190,85 208,70"/>
-    <path d="M135,90 C165,95 195,100 212,110"/>
-    <path d="M135,100 C162,115 185,130 200,155"/>
-    <path d="M130,112 C152,135 165,155 172,182"/>
+  <!-- Beine (8, mit Knick wie bei echten Spinnen) -->
+  <g stroke="#5a4a3a" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M90,105 L55,70 L20,55"/>
+    <path d="M90,105 L50,95 L10,90"/>
+    <path d="M90,120 L50,135 L12,145"/>
+    <path d="M90,130 L55,160 L25,185"/>
+
+    <path d="M130,105 L165,70 L200,55"/>
+    <path d="M130,105 L170,95 L210,90"/>
+    <path d="M130,120 L170,135 L208,145"/>
+    <path d="M130,130 L165,160 L195,185"/>
+  </g>
+  <!-- Helle Konturlinie auf den Beinen für Kontrast -->
+  <g stroke="#8a7660" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5">
+    <path d="M90,105 L55,70 L20,55"/>
+    <path d="M130,105 L165,70 L200,55"/>
   </g>
 
-  <!-- Körper (Marienkäfer-Panzer) -->
-  <ellipse cx="110" cy="120" rx="68" ry="76" fill="url(#shellGrad)" stroke="#5c0a0a" stroke-width="3"/>
+  <!-- Hinterleib -->
+  <ellipse cx="110" cy="150" rx="46" ry="56" fill="url(#bodyGrad)" stroke="#0a0603" stroke-width="2"/>
 
-  <!-- Mittelnaht des Panzers -->
-  <line x1="110" y1="52" x2="110" y2="196" stroke="#5c0a0a" stroke-width="3"/>
+  <!-- Sanduhr-Zeichnung auf dem Hinterleib -->
+  <path d="M100,140 L120,140 L104,165 L104,165 L120,190 L100,190 L116,165 Z"
+        fill="#c1121f" opacity="0.85"/>
 
-  <!-- Flecken -->
-  <g fill="#1a1a1a">
-    <ellipse cx="80" cy="90" rx="11" ry="12"/>
-    <ellipse cx="142" cy="95" rx="10" ry="11"/>
-    <ellipse cx="75" cy="140" rx="12" ry="13"/>
-    <ellipse cx="145" cy="145" rx="11" ry="12"/>
-    <ellipse cx="90" cy="175" rx="9" ry="10"/>
-    <ellipse cx="132" cy="178" rx="9" ry="10"/>
-  </g>
+  <!-- Kopfbrust (Cephalothorax) -->
+  <ellipse cx="110" cy="88" rx="32" ry="30" fill="url(#bodyGrad)" stroke="#0a0603" stroke-width="2"/>
 
-  <!-- Kopf -->
+  <!-- Fangzähne -->
+  <path d="M98,110 Q94,122 90,128" fill="none" stroke="#1a1008" stroke-width="4" stroke-linecap="round"/>
+  <path d="M122,110 Q126,122 130,128" fill="none" stroke="#1a1008" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="90" cy="128" r="2.5" fill="#e63946"/>
+  <circle cx="130" cy="128" r="2.5" fill="#e63946"/>
+
+  <!-- Augen (Cluster aus mehreren Augen) -->
   <g>
-    <circle cx="110" cy="46" r="30" fill="url(#headGrad)" stroke="#000" stroke-width="2"/>
+    <circle cx="98" cy="72" r="8" fill="url(#eyeGlow)" stroke="#0a0603" stroke-width="1"/>
+    <circle cx="122" cy="72" r="8" fill="url(#eyeGlow)" stroke="#0a0603" stroke-width="1"/>
+    <circle cx="98" cy="72" r="2.5" fill="#1b1b1b"/>
+    <circle cx="122" cy="72" r="2.5" fill="#1b1b1b"/>
 
-    <!-- Fühler -->
-    <path d="M96,24 C90,10 82,4 74,0" fill="none" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>
-    <path d="M124,24 C130,10 138,4 146,0" fill="none" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>
-    <circle cx="74" cy="0" r="4" fill="#1a1a1a"/>
-    <circle cx="146" cy="0" r="4" fill="#1a1a1a"/>
-
-    <!-- Augen -->
-    <circle cx="98" cy="44" r="8" fill="url(#eyeGlow)" stroke="#000" stroke-width="1"/>
-    <circle cx="122" cy="44" r="8" fill="url(#eyeGlow)" stroke="#000" stroke-width="1"/>
-    <circle cx="98" cy="44" r="2.5" fill="#1b1b1b"/>
-    <circle cx="122" cy="44" r="2.5" fill="#1b1b1b"/>
-
-    <!-- Mandibeln -->
-    <path d="M100,60 L94,70 M120,60 L126,70" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="86" cy="80" r="4" fill="url(#eyeGlow)" stroke="#0a0603" stroke-width="0.8"/>
+    <circle cx="134" cy="80" r="4" fill="url(#eyeGlow)" stroke="#0a0603" stroke-width="0.8"/>
+    <circle cx="94" cy="62" r="3.5" fill="url(#eyeGlow)" stroke="#0a0603" stroke-width="0.7"/>
+    <circle cx="126" cy="62" r="3.5" fill="url(#eyeGlow)" stroke="#0a0603" stroke-width="0.7"/>
   </g>
 </svg>

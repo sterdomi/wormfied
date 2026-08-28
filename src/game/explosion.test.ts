@@ -33,7 +33,12 @@ describe('isExplosionExpired / pruneExplosions', () => {
 
   it('gilt nach Ablauf der durationMs als abgelaufen', () => {
     const explosion = createExplosion({ x: 0, y: 0 });
-    expect(isExplosionExpired(explosion, explosion.startTime + explosion.durationMs)).toBe(true);
+    // +1 statt exakt +durationMs: `startTime + durationMs - startTime` kann durch
+    // Floating-Point-Rundung knapp UNTER durationMs liegen und die `>=`-Grenze
+    // in isExplosionExpired knapp verfehlen (flaky ohne diesen Puffer).
+    expect(isExplosionExpired(explosion, explosion.startTime + explosion.durationMs + 1)).toBe(
+      true,
+    );
     expect(isExplosionExpired(explosion, explosion.startTime + explosion.durationMs + 500)).toBe(
       true,
     );

@@ -87,8 +87,8 @@ export function anyUnshieldedEnemyHit(
 }
 
 /** Trefferradius für ein Projektil = Basis-Toleranz + halber Projektil-Durchmesser. */
-function projectileRadius(p: Projectile): number {
-  return ENEMY_TOUCH_RADIUS + p.size / 2;
+function projectileRadius(p: Projectile, baseRadius: number = ENEMY_TOUCH_RADIUS): number {
+  return baseRadius + p.size / 2;
 }
 
 /**
@@ -109,13 +109,18 @@ export function projectileIndexTouchingLine(
 /**
  * Index des ersten Projektils, das den ungeschützten Spieler direkt trifft –
  * oder `-1`. `shield > 0` ⇒ immer `-1` (wie bei der Gegner-Berührung).
+ *
+ * `baseRadius` (Default `ENEMY_TOUCH_RADIUS`) erlaubt es dem Aufrufer, die
+ * Basis-Toleranz auf die tatsächliche Spieler-Sprite-Grösse abzustimmen
+ * (Instruktion 13) statt sie an die generische Gegner-Toleranz zu koppeln.
  */
 export function projectileIndexHittingUnshieldedPlayer(
   projectiles: readonly Projectile[],
   playerPos: Point,
   shield: number,
+  baseRadius: number = ENEMY_TOUCH_RADIUS,
 ): number {
   return projectiles.findIndex((p) =>
-    checkUnshieldedPlayerCollision(p.position, playerPos, shield, projectileRadius(p)),
+    checkUnshieldedPlayerCollision(p.position, playerPos, shield, projectileRadius(p, baseRadius)),
   );
 }

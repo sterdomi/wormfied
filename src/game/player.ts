@@ -30,12 +30,22 @@ export class Player {
   position: Point;
   /** Aktueller Bewegungsmodus. */
   mode: PlayerMode;
+  /**
+   * Zuletzt bekannter Bewegungsvektor (nicht zwingend normiert), fürs Sprite-
+   * Rendering (Instruktion 13). Wird NUR aktualisiert, wenn sich der Spieler
+   * diesen Frame tatsächlich bewegt (siehe `movePlayerAlongEdge` /
+   * `advanceDrawing`) – steht er kurzzeitig still (z.B. exakt beim Wechsel
+   * zwischen Rand- und Zeichenmodus), bleibt die zuletzt bekannte Richtung
+   * erhalten, statt auf 0 zurückzufallen.
+   */
+  facing: Point;
 
   constructor(segmentIndex = 0, segmentProgress = 0) {
     this.segmentIndex = segmentIndex;
     this.segmentProgress = segmentProgress;
     this.position = { x: 0, y: 0 };
     this.mode = 'onEdge';
+    this.facing = { x: 1, y: 0 };
   }
 
   /**
@@ -46,4 +56,22 @@ export class Player {
   syncPosition(polygon: Point[]): void {
     this.position = pointOnPerimeter(polygon, this.segmentIndex, this.segmentProgress);
   }
+}
+
+/**
+ * `player.svg` zeichnet den Marienkäfer standardmässig nach OBEN zeigend
+ * (Blickrichtung "Norden"), während `Math.atan2(dy, dx)` bei 0 "nach rechts"
+ * bedeutet. Der Rotationsaufruf muss den Bewegungswinkel deshalb um diesen
+ * Wert ergänzen, damit "oben" im Artwork mit der Bewegungsrichtung
+ * übereinstimmt (siehe `playerFacingAngle`).
+ */
+export const spriteBaseRotationOffset = Math.PI / 2;
+
+/**
+ * Canvas-Drehwinkel (Radiant) für den Spieler-Sprite aus einem
+ * Bewegungsvektor (muss nicht normiert sein) – analog zu
+ * `enemyFacingAngle` in `enemy.ts`.
+ */
+export function playerFacingAngle(facing: Point): number {
+  return Math.atan2(facing.y, facing.x) + spriteBaseRotationOffset;
 }

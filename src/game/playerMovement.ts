@@ -132,6 +132,15 @@ export function movePlayerAlongEdge(
   }
 
   if (dir !== 0) {
+    // Blickrichtung = Kantenvektor der Kante, auf der dieser Schritt beginnt,
+    // mit Laufrichtung (`dir`) vorzeichenbehaftet – bleibt für die ganze
+    // (gerade) Kante konstant. Nur bei tatsächlicher Bewegung aktualisiert,
+    // siehe `Player.facing`.
+    const a = polygon[segmentIndex % n];
+    const b = polygon[(segmentIndex + 1) % n];
+    const edgeLen = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    player.facing = { x: ((b.x - a.x) / edgeLen) * dir, y: ((b.y - a.y) / edgeLen) * dir };
+
     const next = advanceAlongPerimeter(polygon, segmentIndex, progress, dir * EDGE_SPEED * dt);
     segmentIndex = next.segmentIndex;
     progress = next.progress;

@@ -232,6 +232,7 @@ export function advanceDrawing(
   if (crossesOwnLine(session.line, from, to)) return false;
 
   player.position = to;
+  player.facing = heading; // tatsächliche Bewegung → Blickrichtung nachziehen
   appendPoint(session.line, to); // distanzbasiert – siehe line.ts
 
   // Einmal deutlich vom Rand entfernt: ab jetzt zählt jeder Rand-Kontakt.

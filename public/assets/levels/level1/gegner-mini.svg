@@ -1,13 +1,9 @@
 <svg viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <radialGradient id="miniShellGrad" cx="35%" cy="30%" r="75%">
-      <stop offset="0%" stop-color="#ff6b6b"/>
-      <stop offset="55%" stop-color="#e63946"/>
-      <stop offset="100%" stop-color="#8b0000"/>
-    </radialGradient>
-    <radialGradient id="miniHeadGrad" cx="35%" cy="30%" r="75%">
-      <stop offset="0%" stop-color="#3a3a3a"/>
-      <stop offset="100%" stop-color="#0d0d0d"/>
+    <radialGradient id="miniBodyGrad" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#5a4030"/>
+      <stop offset="55%" stop-color="#2e1f16"/>
+      <stop offset="100%" stop-color="#120b07"/>
     </radialGradient>
     <radialGradient id="miniEyeGlow" cx="50%" cy="50%" r="50%">
       <stop offset="0%" stop-color="#ffe066"/>
@@ -15,42 +11,36 @@
     </radialGradient>
   </defs>
 
-  <!-- Beine (6, einfacher als beim Hauptgegner) -->
-  <g stroke="#5a4a3a" stroke-width="3" stroke-linecap="round" fill="none">
-    <path d="M34,36 C22,32 12,34 5,28"/>
-    <path d="M34,42 C20,44 10,48 4,54"/>
-    <path d="M36,48 C24,58 16,66 12,76"/>
-    <path d="M56,36 C68,32 78,34 85,28"/>
-    <path d="M56,42 C70,44 80,48 86,54"/>
-    <path d="M54,48 C66,58 74,66 78,76"/>
+  <!-- Beine (6, mit Knick) -->
+  <g stroke="#5a4a3a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M36,42 L22,28 L8,22"/>
+    <path d="M36,48 L20,50 L4,52"/>
+    <path d="M36,56 L22,68 L10,78"/>
+
+    <path d="M54,42 L68,28 L82,22"/>
+    <path d="M54,48 L70,50 L86,52"/>
+    <path d="M54,56 L68,68 L80,78"/>
   </g>
 
-  <!-- Körper -->
-  <ellipse cx="45" cy="50" rx="27" ry="30" fill="url(#miniShellGrad)" stroke="#5c0a0a" stroke-width="2"/>
+  <!-- Hinterleib -->
+  <ellipse cx="45" cy="58" rx="19" ry="23" fill="url(#miniBodyGrad)" stroke="#0a0603" stroke-width="1.5"/>
 
-  <!-- Mittelnaht -->
-  <line x1="45" y1="22" x2="45" y2="78" stroke="#5c0a0a" stroke-width="1.5"/>
+  <!-- kleine Sanduhr-Zeichnung -->
+  <path d="M40,53 L50,53 L43,66 L43,66 L50,79 L40,79 L47,66 Z"
+        fill="#c1121f" opacity="0.85"/>
 
-  <!-- Flecken -->
-  <g fill="#1a1a1a">
-    <ellipse cx="34" cy="38" rx="4.5" ry="5"/>
-    <ellipse cx="57" cy="40" rx="4" ry="4.5"/>
-    <ellipse cx="33" cy="58" rx="4.5" ry="5"/>
-    <ellipse cx="58" cy="60" rx="4.5" ry="5"/>
-  </g>
+  <!-- Kopfbrust -->
+  <ellipse cx="45" cy="34" rx="13" ry="12" fill="url(#miniBodyGrad)" stroke="#0a0603" stroke-width="1.5"/>
 
-  <!-- Kopf -->
+  <!-- Fangzähne -->
+  <path d="M40,43 Q38,49 36,52" fill="none" stroke="#1a1008" stroke-width="2" stroke-linecap="round"/>
+  <path d="M50,43 Q52,49 54,52" fill="none" stroke="#1a1008" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Augen -->
   <g>
-    <circle cx="45" cy="19" r="12" fill="url(#miniHeadGrad)" stroke="#000" stroke-width="1.5"/>
-
-    <!-- Fühler -->
-    <path d="M40,10 C37,4 33,1 29,0" fill="none" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round"/>
-    <path d="M50,10 C53,4 57,1 61,0" fill="none" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round"/>
-
-    <!-- Augen -->
-    <circle cx="40" cy="18" r="3.5" fill="url(#miniEyeGlow)" stroke="#000" stroke-width="0.6"/>
-    <circle cx="50" cy="18" r="3.5" fill="url(#miniEyeGlow)" stroke="#000" stroke-width="0.6"/>
-    <circle cx="40" cy="18" r="1.1" fill="#1b1b1b"/>
-    <circle cx="50" cy="18" r="1.1" fill="#1b1b1b"/>
+    <circle cx="40" cy="30" r="3.5" fill="url(#miniEyeGlow)" stroke="#0a0603" stroke-width="0.6"/>
+    <circle cx="50" cy="30" r="3.5" fill="url(#miniEyeGlow)" stroke="#0a0603" stroke-width="0.6"/>
+    <circle cx="40" cy="30" r="1.1" fill="#1b1b1b"/>
+    <circle cx="50" cy="30" r="1.1" fill="#1b1b1b"/>
   </g>
 </svg>

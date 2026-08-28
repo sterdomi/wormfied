@@ -1,4 +1,4 @@
-import { loadLevelImages, type LevelImages } from '../engine/assetLoader';
+import { loadImage, loadLevelImages, type LevelImages } from '../engine/assetLoader';
 import { setupCanvas } from '../engine/canvas';
 import { createGameLoop } from '../engine/gameLoop';
 import { setupInput } from '../engine/input';
@@ -19,7 +19,7 @@ import { closestPointOnPerimeter } from '../game/geometry';
 import { type DrawnLine } from '../game/line';
 import { handleLifeLoss } from '../game/lifecycle';
 import { partitionCapturedMiniEnemies, spawnMiniEnemies } from '../game/miniEnemies';
-import { Player } from '../game/player';
+import { Player, playerFacingAngle } from '../game/player';
 import { createPlayerState, decayShield } from '../game/playerState';
 import { movePlayerAlongEdge } from '../game/playerMovement';
 import { applyCompletedLine, polygonArea } from '../game/polygon';
@@ -51,12 +51,26 @@ const FIELD_MARGIN = 40;
 const COLOR_BACKDROP = '#0b0e14';
 const COLOR_FIELD_EDGE = '#3b4252';
 const COLOR_HUD = '#e5e9f0';
-// Auf dem Rand angedockt = rot; ins Feld gefahren und am Zeichnen = grün.
-const COLOR_ON_EDGE = '#bf616a';
 const COLOR_DRAWING = '#a3be8c';
 const COLOR_SPARK = '#8fbcff';
 const COLOR_SPARK_CORE = '#eaf3ff';
-const PLAYER_RADIUS = 7;
+// Fallback-Textfarbe für den Boot-Fehlerbildschirm (kein Spieler-Bezug mehr,
+// seit der Spieler als Sprite statt als Kreis gerendert wird).
+const COLOR_ERROR_TEXT = '#bf616a';
+/**
+ * Spieler-Sprite (Marienkäfer) – nicht Teil von `LevelConfig`, da er über alle
+ * Level hinweg gleich aussieht (Instruktion 13).
+ */
+const PLAYER_ASSET_SRC = '/assets/player.svg';
+/** Rendergrösse (Durchmesser) des Spieler-Sprites in Pixel. */
+const playerSize = 30;
+/**
+ * Kollisions-Toleranzradius für "Gegner/Projektil berührt Spieler direkt"
+ * (Instruktion 8/11): an `playerSize` ausgerichtet statt am generischen
+ * `ENEMY_TOUCH_RADIUS`, damit der Trefferbereich optisch zur Sprite-Grösse
+ * passt.
+ */
+const PLAYER_HIT_RADIUS = playerSize / 2;
 /** Mindestabstand der Mini-Gegner-Startpositionen zueinander und zum Hauptgegner. */
 const MIN_MINI_SPACING = 70;
 
@@ -81,7 +95,12 @@ function showLoading(canvas: HTMLCanvasElement): void {
   ctx.fillText(t('loading'), canvas.width / 2, canvas.height / 2);
 }
 
-function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImages): void {
+function start(
+  canvas: HTMLCanvasElement,
+  level: LevelConfig,
+  assets: LevelImages,
+  playerImage: HTMLImageElement,
+): void {
   const player = new Player();
   const playerState = createPlayerState();
   // Kanal für abgeschlossene Linien aus `advanceDrawing`; sie werden noch im
@@ -392,7 +411,7 @@ function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImage
       decayShield(playerState, dt);
       hud.setShield(playerState.shield);
       if (
-        anyUnshieldedEnemyHit(allEnemies, player.position, playerState.shield, ENEMY_TOUCH_RADIUS)
+        anyUnshieldedEnemyHit(allEnemies, player.position, playerState.shield, PLAYER_HIT_RADIUS)
       ) {
         loseLife();
         return;
@@ -401,6 +420,7 @@ function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImage
         projectiles,
         player.position,
         playerState.shield,
+        PLAYER_HIT_RADIUS,
       );
       if (hi >= 0) {
         projectiles.splice(hi, 1);
@@ -495,11 +515,12 @@ function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImage
       ctx.fill();
     }
 
-    // Spieler: rot am Rand, grün beim Zeichnen.
-    ctx.beginPath();
-    ctx.arc(player.position.x, player.position.y, PLAYER_RADIUS, 0, Math.PI * 2);
-    ctx.fillStyle = player.mode === 'drawing' ? COLOR_DRAWING : COLOR_ON_EDGE;
-    ctx.fill();
+    // Spieler: Marienkäfer-Sprite, in aktuelle Bewegungsrichtung gedreht.
+    ctx.save();
+    ctx.translate(player.position.x, player.position.y);
+    ctx.rotate(playerFacingAngle(player.facing));
+    ctx.drawImage(playerImage, -playerSize / 2, -playerSize / 2, playerSize, playerSize);
+    ctx.restore();
 
     ctx.restore();
 
@@ -533,8 +554,13 @@ function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImage
 async function boot(): Promise<void> {
   showLoading(gameCanvas);
   const level = levels[0];
-  const assets = await loadLevelImages(level);
-  start(gameCanvas, level, assets);
+  // Levelbilder + Spieler-Sprite parallel laden – der Spieler ist bewusst
+  // NICHT Teil von `LevelConfig` (levelübergreifend gleich, Instruktion 13).
+  const [assets, playerImage] = await Promise.all([
+    loadLevelImages(level),
+    loadImage(PLAYER_ASSET_SRC),
+  ]);
+  start(gameCanvas, level, assets, playerImage);
 }
 
 void boot().catch((err: unknown) => {
@@ -543,7 +569,7 @@ void boot().catch((err: unknown) => {
   if (!ctx) return;
   ctx.fillStyle = COLOR_BACKDROP;
   ctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
-  ctx.fillStyle = COLOR_ON_EDGE;
+  ctx.fillStyle = COLOR_ERROR_TEXT;
   ctx.font = '16px system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
