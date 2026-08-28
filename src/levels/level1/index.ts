@@ -23,8 +23,9 @@ export const level1: LevelConfig = {
   foregroundSrc: '/assets/levels/level1/foreground.png',
   mainEnemy: {
     assetSrc: '/assets/levels/level1/gegner.svg',
-    speed: 90,
-    size: 40,
+    walkAssetSrc: '/assets/levels/level1/gegner-walk.svg',
+    speed: 120,
+    size: 80,
     shooting: {
       enabled: true,
       cooldownSeconds: 2.6,
@@ -37,6 +38,7 @@ export const level1: LevelConfig = {
     count: 3,
     config: {
       assetSrc: '/assets/levels/level1/gegner-mini.svg',
+      walkAssetSrc: '/assets/levels/level1/gegner-mini-walk.svg',
       speed: 120,
       size: 22,
       // Mini-Gegner schiessen in Level 1 bewusst nicht.

@@ -80,8 +80,13 @@ const COLOR_ERROR_TEXT = '#bf616a';
  * Level hinweg gleich aussieht (Instruktion 13).
  */
 const PLAYER_ASSET_SRC = '/assets/player.svg';
+/**
+ * Zweite Bein-Pose für dieselbe Zwei-Bild-Lauf-Animation wie bei den Gegnern
+ * (Instruktion 16), im gemeinsamen `WALK_FRAME_INTERVAL_MS`-Takt gewechselt.
+ */
+const PLAYER_WALK_ASSET_SRC = '/assets/player-walk.svg';
 /** Rendergrösse (Durchmesser) des Spieler-Sprites in Pixel. */
-const playerSize = 30;
+const playerSize = 45;
 /**
  * Logo (ersetzt den reinen Textschriftzug oben): ebenfalls levelübergreifend
  * gleich, wie das Spieler-Sprite separat geladen.
@@ -106,6 +111,13 @@ const FIELD_MARGIN_TOP = LOGO_MARGIN_TOP + LOGO_HEIGHT + LOGO_MARGIN_BOTTOM;
  * passt.
  */
 const PLAYER_HIT_RADIUS = playerSize / 2;
+/**
+ * Bein-Lauf-Animation für Gegner UND Spieler (Instruktion 16): simpler
+ * Sprite-Swap zwischen dem Standbild und einer zweiten Bein-Pose statt
+ * prozeduraler Bein-Animation – ein gemeinsamer, wanduhrzeitbasierter Takt
+ * für alle (kein Per-Entität-Zustand nötig), analog zu `damageFlashUntil`.
+ */
+const WALK_FRAME_INTERVAL_MS = 220;
 /** Mindestabstand der Mini-Gegner-Startpositionen zueinander und zum Hauptgegner. */
 const MIN_MINI_SPACING = 70;
 
@@ -135,6 +147,7 @@ function start(
   level: LevelConfig,
   assets: LevelImages,
   playerImage: HTMLImageElement,
+  playerWalkImage: HTMLImageElement,
   logoImage: HTMLImageElement,
 ): void {
   const player = new Player();
@@ -577,13 +590,16 @@ function start(
   function drawEnemySprite(
     ctx: CanvasRenderingContext2D,
     sprite: HTMLImageElement,
+    walkSprite: HTMLImageElement | undefined,
+    useWalkFrame: boolean,
     e: Enemy,
   ): void {
     // In Bewegungsrichtung ausrichten (Sprite-Kopf zeigt lokal nach oben).
+    const activeSprite = useWalkFrame && walkSprite ? walkSprite : sprite;
     ctx.save();
     ctx.translate(e.position.x, e.position.y);
     ctx.rotate(enemyFacingAngle(e.direction));
-    ctx.drawImage(sprite, -e.size / 2, -e.size / 2, e.size, e.size);
+    ctx.drawImage(activeSprite, -e.size / 2, -e.size / 2, e.size, e.size);
     ctx.restore();
   }
 
@@ -609,9 +625,14 @@ function start(
     ctx.stroke();
 
     // Gegner: Hauptgegner + Mini-Gegner, jeweils mit ihrem SVG-Sprite,
-    // skaliert auf ihre konfigurierte Grösse.
-    drawEnemySprite(ctx, assets.mainEnemy, mainEnemy);
-    for (const mini of miniEnemies) drawEnemySprite(ctx, assets.miniEnemy, mini);
+    // skaliert auf ihre konfigurierte Grösse. Bein-Pose wechselt im
+    // gemeinsamen Takt (`WALK_FRAME_INTERVAL_MS`) für eine einfache
+    // Zwei-Bild-Lauf-Animation.
+    const useWalkFrame = Math.floor(performance.now() / WALK_FRAME_INTERVAL_MS) % 2 === 1;
+    drawEnemySprite(ctx, assets.mainEnemy, assets.mainEnemyWalk, useWalkFrame, mainEnemy);
+    for (const mini of miniEnemies) {
+      drawEnemySprite(ctx, assets.miniEnemy, assets.miniEnemyWalk, useWalkFrame, mini);
+    }
 
     // Bonussteine: mit ihrem typspezifischen Sprite, in der letzten Sekunde
     // vor Ablauf sanft ausblendend (Instruktion 14, Punkt 4).
@@ -684,11 +705,13 @@ function start(
       ctx.fill();
     }
 
-    // Spieler: Marienkäfer-Sprite, in aktuelle Bewegungsrichtung gedreht.
+    // Spieler: Marienkäfer-Sprite, in aktuelle Bewegungsrichtung gedreht,
+    // Bein-Pose im selben Takt wie bei den Gegnern (Instruktion 16).
+    const activePlayerSprite = useWalkFrame ? playerWalkImage : playerImage;
     ctx.save();
     ctx.translate(player.position.x, player.position.y);
     ctx.rotate(playerFacingAngle(player.facing));
-    ctx.drawImage(playerImage, -playerSize / 2, -playerSize / 2, playerSize, playerSize);
+    ctx.drawImage(activePlayerSprite, -playerSize / 2, -playerSize / 2, playerSize, playerSize);
     ctx.restore();
 
     ctx.restore();
@@ -727,15 +750,16 @@ function start(
 async function boot(): Promise<void> {
   showLoading(gameCanvas);
   const level = levels[0];
-  // Levelbilder + Spieler-Sprite + Logo parallel laden – Spieler und Logo
-  // sind bewusst NICHT Teil von `LevelConfig` (levelübergreifend gleich,
-  // Instruktion 13).
-  const [assets, playerImage, logoImage] = await Promise.all([
+  // Levelbilder + Spieler-Sprite (inkl. Lauf-Pose) + Logo parallel laden –
+  // Spieler und Logo sind bewusst NICHT Teil von `LevelConfig`
+  // (levelübergreifend gleich, Instruktion 13).
+  const [assets, playerImage, playerWalkImage, logoImage] = await Promise.all([
     loadLevelImages(level),
     loadImage(PLAYER_ASSET_SRC),
+    loadImage(PLAYER_WALK_ASSET_SRC),
     loadImage(LOGO_ASSET_SRC),
   ]);
-  start(gameCanvas, level, assets, playerImage, logoImage);
+  start(gameCanvas, level, assets, playerImage, playerWalkImage, logoImage);
 }
 
 void boot().catch((err: unknown) => {

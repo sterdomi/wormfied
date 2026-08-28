@@ -14,6 +14,12 @@ export interface ShootingConfig {
 export interface EnemyConfig {
   /** Pfad zum SVG-Sprite (wie PNGs über `Image()` ladbar). */
   assetSrc: string;
+  /**
+   * Optionale zweite Bein-Pose für eine simple Zwei-Bild-Lauf-Animation
+   * (Sprite-Swap statt prozeduraler Animation) – fehlt sie, wird nur
+   * `assetSrc` gezeichnet (kein Bein-"Wackeln").
+   */
+  walkAssetSrc?: string;
   /** Bewegungsgeschwindigkeit in Pixel/Sekunde. */
   speed: number;
   /** Rendergrösse (Durchmesser) in Pixel. */

@@ -1,0 +1,66 @@
+<svg viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="shellGrad" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#ff6b6b"/>
+      <stop offset="55%" stop-color="#e63946"/>
+      <stop offset="100%" stop-color="#8b0000"/>
+    </radialGradient>
+    <radialGradient id="headGrad" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#3a3a3a"/>
+      <stop offset="100%" stop-color="#0d0d0d"/>
+    </radialGradient>
+    <radialGradient id="eyeGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffe066"/>
+      <stop offset="70%" stop-color="#e63946"/>
+      <stop offset="100%" stop-color="#7f1d1d"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Beine (8, spinnenartig), hinter dem Körper -->
+  <g stroke="#5a4a3a" stroke-width="6" stroke-linecap="round" fill="none">
+    <path d="M85,90 C61.6,82.2 42.1,86.1 28.06,74.4"/>
+    <path d="M85,90 C61.6,93.9 38.2,97.8 24.94,105.6"/>
+    <path d="M85,100 C63.94,111.7 46,123.4 34.3,142.9"/>
+    <path d="M90,112 C72.84,129.94 62.7,145.54 57.24,166.6"/>
+    <path d="M135,90 C158.4,82.2 177.9,86.1 191.94,74.4"/>
+    <path d="M135,90 C158.4,93.9 181.8,97.8 195.06,105.6"/>
+    <path d="M135,100 C156.06,111.7 174,123.4 185.7,142.9"/>
+    <path d="M130,112 C147.16,129.94 157.3,145.54 162.76,166.6"/>
+  </g>
+
+  <!-- Körper (Marienkäfer-Panzer) -->
+  <ellipse cx="110" cy="120" rx="68" ry="76" fill="url(#shellGrad)" stroke="#5c0a0a" stroke-width="3"/>
+
+  <!-- Mittelnaht des Panzers -->
+  <line x1="110" y1="52" x2="110" y2="196" stroke="#5c0a0a" stroke-width="3"/>
+
+  <!-- Flecken -->
+  <g fill="#1a1a1a">
+    <ellipse cx="80" cy="90" rx="11" ry="12"/>
+    <ellipse cx="142" cy="95" rx="10" ry="11"/>
+    <ellipse cx="75" cy="140" rx="12" ry="13"/>
+    <ellipse cx="145" cy="145" rx="11" ry="12"/>
+    <ellipse cx="90" cy="175" rx="9" ry="10"/>
+    <ellipse cx="132" cy="178" rx="9" ry="10"/>
+  </g>
+
+  <!-- Kopf -->
+  <g>
+    <circle cx="110" cy="46" r="30" fill="url(#headGrad)" stroke="#000" stroke-width="2"/>
+
+    <!-- Fühler -->
+    <path d="M96,24 C90,10 82,4 74,0" fill="none" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>
+    <path d="M124,24 C130,10 138,4 146,0" fill="none" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="74" cy="0" r="4" fill="#1a1a1a"/>
+    <circle cx="146" cy="0" r="4" fill="#1a1a1a"/>
+
+    <!-- Augen -->
+    <circle cx="98" cy="44" r="8" fill="url(#eyeGlow)" stroke="#000" stroke-width="1"/>
+    <circle cx="122" cy="44" r="8" fill="url(#eyeGlow)" stroke="#000" stroke-width="1"/>
+    <circle cx="98" cy="44" r="2.5" fill="#1b1b1b"/>
+    <circle cx="122" cy="44" r="2.5" fill="#1b1b1b"/>
+
+    <!-- Mandibeln -->
+    <path d="M100,60 L94,70 M120,60 L126,70" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round"/>
+  </g>
+</svg>
