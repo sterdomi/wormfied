@@ -29,13 +29,16 @@ widerspricht, was dort ursprünglich stand.
   weiterhin genau dann gilt, wenn die Position geometrisch auf dem Rand
   liegt (siehe Punkt 2), unabhängig vom neuen Abgedockt-Flag
 - **Feuern mit der Kanone (Instruktion 14) wird neu an dieselbe Taste
-  gebunden, aber kontextabhängig:** Drückt der Spieler die Leertaste,
-  während er sich auf feindlichem Terrain befindet (`mode === 'drawing'`)
-  UND der Kanone-Bonus aktiv ist, wird ein Schuss in die aktuelle
-  Blickrichtung abgefeuert, **statt** anzudocken (Andocken ist von dort aus
-  ohnehin nicht möglich, da nicht auf dem Rand) — das ersetzt die in
-  Instruktion 14 beschriebene automatische Dauerfeuer-Lösung, die durch
-  dieses neue Steuerungsmodell obsolet wird
+  gebunden:** Drückt der Spieler die Leertaste, während der Kanone-Bonus
+  aktiv ist, wird ein Schuss in die aktuelle Blickrichtung abgefeuert — das
+  ersetzt die in Instruktion 14 beschriebene automatische
+  Dauerfeuer-Lösung, die durch dieses neue Steuerungsmodell obsolet wird.
+  Auf feindlichem Terrain (`mode === 'drawing'`) geschieht das **statt**
+  anzudocken (Andocken ist von dort aus ohnehin nicht möglich). **Nachtrag
+  (siehe unten):** Feuern ist bewusst NICHT auf `mode === 'drawing'`
+  beschränkt — auch geschützt auf dem eigenen Terrain (`onEdge`) kann der
+  Spieler zielen und feuern, zusätzlich zum Abdock-Toggle auf derselben
+  Taste
 
 **Damit obsolet/zu entfernen:**
 - Instruktion 5, Punkt 5 ("Verhalten bei Loslassen der Leertaste mitten im
@@ -132,8 +135,8 @@ widerspricht, was dort ursprünglich stand.
 ### 8. Kanone: Tap-to-Fire statt Dauerfeuer (löst Instruktion 14, Punkt 8
    ab)
 
-- Neue Prüfung: Ist `mode === 'drawing'` UND `cannonRemainingSeconds > 0`
-  UND `inputState.drawJustPressed === true`: einen Schuss abfeuern (gleiche
+- Neue Prüfung: Ist `cannonRemainingSeconds > 0` UND
+  `inputState.drawJustPressed === true`: einen Schuss abfeuern (gleiche
   Projektil-Logik wie in Instruktion 14 beschrieben — eigene
   `playerProjectiles`-Liste, Richtung = aktuelle Bewegungs-/
   Blickrichtung), **kein** Cooldown-Timer/Dauerfeuer mehr nötig, da jeder
@@ -142,9 +145,12 @@ widerspricht, was dort ursprünglich stand.
   entweder entfernt oder als minimale Schuss-Abklingzeit zwischen zwei
   Tap-Schüssen uminterpretiert werden, um zu schnelles Spammen zu
   verhindern; bitte kurz begründen, wofür entschieden wurde)
-- Ist `mode === 'drawing'` UND `inputState.drawJustPressed === true` UND
-  **kein** aktiver Kanone-Bonus: keine Wirkung (weder Schuss noch
-  Andock-Versuch, da Andocken von dort aus geometrisch nicht möglich ist)
+  - **Nachtrag (siehe unten):** diese Prüfung ist bewusst NICHT mehr an
+    `mode === 'drawing'` gebunden — Feuern ist auch im `onEdge`-Zustand
+    möglich, geschützt vom Rand aus.
+- Ist `inputState.drawJustPressed === true` UND **kein** aktiver
+  Kanone-Bonus: keine Wirkung (kein Schuss; ein laufender Abdock-Toggle
+  bzw. Andock-Versuch aus Punkt 3/4/5 läuft davon unabhängig weiter)
 
 ### 9. Tests
 
@@ -172,9 +178,39 @@ widerspricht, was dort ursprünglich stand.
 - Änderungen an der eigentlichen Rand-Bewegung (Instruktion 2) oder der
   Zeichen-Bewegung im Feldinneren (Instruktion 3) selbst — nur die
   Übergangs-/Auslösebedingungen zwischen den Zuständen ändern sich
+  (**Nachtrag:** die Rand-Bewegung bekam nachträglich doch eine kleine
+  Ergänzung, siehe unten — reine Blickrichtung ohne Positionsänderung,
+  keine Änderung an der eigentlichen Lauf-Logik)
 - Visuelle Kennzeichnung des `isUndocked`-Zustands (z.B. andere
   Spieler-Farbe, solange abgedockt aber noch auf dem Rand) — falls
   gewünscht, gerne als eigener kleiner Folgeauftrag
+
+## Nachtrag: Feuern und Zielen auch angedockt/vom Rand aus
+
+Nutzer-Feedback nach dem ersten Durchgang: Die Kanone (Punkt 8) sollte
+**nicht** an `mode === 'drawing'` gekoppelt sein — der Spieler soll auch
+angedockt, also während er auf dem Rand geschützt steht, zielen und feuern
+können, ohne sich vom Rand lösen zu müssen. Beispiel: oben am Rand stehend
+Pfeil-runter drücken → Spieler dreht sich nach unten, ohne loszufahren;
+Leertaste → Schuss nach unten; weiterhin geschützt; könnte anschliessend
+per erneuter Richtungseingabe trotzdem noch ins Feld fahren.
+
+Zwei Ergänzungen dafür:
+
+- **Zielen ohne Bewegung** (`src/game/playerMovement.ts`,
+  `movePlayerAlongEdge`): Zeigt die Richtungseingabe quer zur aktuellen
+  Kante (löst also `edgeDirectionFromInput` zufolge KEINE Rand-Bewegung
+  aus — z.B. "runter" auf der oberen Kante), wird `player.facing`
+  trotzdem auf diese Richtung gesetzt. Reine Blickrichtung, keine
+  Positions-/Modusänderung, `mode` bleibt `onEdge` (Schild-Schutz bleibt
+  also erhalten). Eingabe ENTLANG der Kante setzt `facing` weiterhin wie
+  bisher über die tatsächliche Bewegungsrichtung (Kantentangente).
+- **Kanone modusunabhängig** (Punkt 8 oben entsprechend korrigiert): die
+  Tap-to-Fire-Prüfung hängt nur noch an `cannonRemainingSeconds > 0` UND
+  `drawJustPressed`, nicht mehr an `mode`. Auf dem Rand (`onEdge`) läuft
+  das Feuern zusätzlich zum bestehenden Abdock-Toggle (Punkt 3/5) auf
+  derselben Leertaste — beides passiert bei Bedarf im selben Tastendruck,
+  ohne sich gegenseitig zu stören.
 
 ## Nach Abschluss
 Bitte kurz zusammenfassen:
