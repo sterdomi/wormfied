@@ -1,4 +1,5 @@
 import { loadImage, loadLevelImages, type LevelImages } from '../engine/assetLoader';
+import { createAudioManager } from '../engine/audioManager';
 import { setupCanvas } from '../engine/canvas';
 import { createGameLoop } from '../engine/gameLoop';
 import { setupInput } from '../engine/input';
@@ -14,6 +15,7 @@ import {
   applyBonusStoneEffect,
   BONUS_STONE_EXPLOSION_COLOR,
   bonusStoneOpacity,
+  bonusStoneSoundKey,
   createBonusStoneSpawner,
   isBlockedByBonusStone,
   partitionCapturedBonusStones,
@@ -191,6 +193,37 @@ if (!foundCanvas) {
 }
 const gameCanvas: HTMLCanvasElement = foundCanvas;
 
+/**
+ * Ein AudioManager fürs ganze Spiel (Instruktion 18) – geladene Sounds und
+ * Mute-/Lautstärke-Zustand müssen über Startbildschirm ↔ Partie-Wechsel
+ * (`boot`s Schleife) hinweg erhalten bleiben, deshalb Modul-Singleton statt
+ * pro `start()`-Aufruf neu erzeugt.
+ */
+const audioManager = createAudioManager();
+
+/** Pfad je Sound-Key – liegt unter `public/assets/sound/` (nicht `sounds/`,
+ *  siehe Abschluss-Bericht). `pickup_generic.wav` bewusst nicht geladen, da
+ *  aktuell ungenutzt (Instruktion 18, Punkt 4). */
+const SOUND_SOURCES: Record<string, string> = {
+  undock: '/assets/sound/undock.wav',
+  dock: '/assets/sound/dock.wav',
+  draw_loop: '/assets/sound/draw_loop.wav',
+  player_cannon_shot: '/assets/sound/player_cannon_shot.wav',
+  enemy_shot: '/assets/sound/enemy_shot.wav',
+  mini_enemy_explosion: '/assets/sound/mini_enemy_explosion.wav',
+  main_enemy_explosion: '/assets/sound/main_enemy_explosion.wav',
+  pickup_speed: '/assets/sound/pickup_speed.wav',
+  pickup_cannon: '/assets/sound/pickup_cannon.wav',
+  life_loss: '/assets/sound/life_loss.wav',
+  game_over: '/assets/sound/game_over.wav',
+  level_complete: '/assets/sound/level_complete.wav',
+};
+
+/** Sound-Key für die levelspezifische Hintergrundmusik (`level.musicSrc`). */
+const MUSIC_SOUND_KEY = 'music';
+/** Deutlich leiser als die SFX, damit sie im Hintergrund bleibt. */
+const MUSIC_VOLUME = 0.35;
+
 /** Einfacher "Lädt …"-Zustand, bevor die Level-Assets da sind. */
 function showLoading(canvas: HTMLCanvasElement): void {
   const ctx = canvas.getContext('2d');
@@ -287,6 +320,16 @@ function start(
   // selben Frame verarbeitet (Feld-Split) und danach aus der Liste entfernt.
   const completedLines: DrawnLine[] = [];
   let session: DrawSession | null = null;
+  // Loop-Sound während `mode === 'drawing'` (Instruktion 18, Punkt 3) – Node
+  // gehalten, um ihn gezielt zu stoppen (beim Andocken oder Lebensverlust
+  // mitten im Zeichnen); `null` solange keiner läuft (auch Guard gegen
+  // doppeltes Starten).
+  let drawLoopNode: AudioBufferSourceNode | null = null;
+  // Hintergrundmusik-Loop dieser Partie (levelspezifisch, `level.musicSrc`) –
+  // einmal gestartet, läuft über einen kompletten `start()`-Aufruf durch,
+  // auch über einen Level-Complete-Neustart (`restartGame`) hinweg, statt
+  // bei jedem Neustart neu anzusetzen.
+  let musicNode: AudioBufferSourceNode | null = null;
   // Stromball, der bei Gegner-Linien-Kontakt Richtung Spieler fährt (nur einer
   // gleichzeitig, lebt so lange wie die aktuelle Zeichen-Session).
   let spark: Spark | null = null;
@@ -303,7 +346,7 @@ function start(
   // seit Instruktion 15 bereits fertig über `input.state.drawJustPressed`).
   const restartTrigger = new EdgeTrigger();
 
-  const hud = createHud();
+  const hud = createHud((muted) => audioManager.setMuted(muted));
 
   let field: Point[] = createRectangularField(1, 1);
   let foreground: ForegroundLayer = createForegroundLayer(assets.foreground, 1, 1);
@@ -373,7 +416,10 @@ function start(
     // Punkte + eine Explosion an ihrer letzten Position (Instruktion 12).
     const { survivors, captured } = partitionCapturedMiniEnemies(miniEnemies, result.claimed);
     miniEnemies = survivors;
-    for (const enemy of captured) defeatMiniEnemy(enemy, scoring, explosions, level.scoring);
+    for (const enemy of captured) {
+      defeatMiniEnemy(enemy, scoring, explosions, level.scoring);
+      audioManager.play('mini_enemy_explosion');
+    }
 
     // Bonussteine, die in der eroberten Fläche liegen, sind ebenfalls
     // "gefangen": Effekt aktivieren + Aufnahme-Explosion in typspezifischer
@@ -383,6 +429,7 @@ function start(
     for (const stone of bonusCapture.captured) {
       applyBonusStoneEffect(stone, playerState, level.bonusStones);
       explosions.push(createExplosion(stone.position, BONUS_STONE_EXPLOSION_COLOR[stone.type]));
+      audioManager.play(bonusStoneSoundKey(stone.type));
     }
 
     scoring.claimedArea += result.claimedArea;
@@ -412,6 +459,8 @@ function start(
       for (const enemy of miniEnemies) explosions.push(createExplosion(enemy.position));
       miniEnemies = [];
       hud.setLevelComplete(true, percent, scoring.score);
+      audioManager.play('main_enemy_explosion');
+      audioManager.play('level_complete');
     }
     hud.setScore(scoring.score);
   }
@@ -430,6 +479,10 @@ function start(
       player.segmentProgress = snap.progress;
       player.position = { x: snap.point.x, y: snap.point.y };
       session = null;
+      // Zeichnen-Loop-Sound beenden (Instruktion 18, Punkt 3): Lebensverlust
+      // mitten im Zeichnen reisst den Spieler ebenfalls aus `drawing` heraus.
+      audioManager.stop(drawLoopNode);
+      drawLoopNode = null;
     }
     spark = null;
     projectiles = []; // Gefahr zurücksetzen – keine noch fliegenden Kugeln
@@ -444,10 +497,12 @@ function start(
     hud.setLives(playerState.lives);
     hud.setShield(playerState.shield);
     screenFlash = createScreenFlash();
+    audioManager.play('life_loss');
 
     if (playerState.isGameOver) {
       hud.setGameOver(true);
       gameOverAt = performance.now();
+      audioManager.play('game_over');
     }
   }
 
@@ -464,6 +519,8 @@ function start(
       () => rebuildField(),
       () => {
         session = null;
+        audioManager.stop(drawLoopNode); // defensiv – sollte hier schon null sein
+        drawLoopNode = null;
         spark = null;
         projectiles = [];
         explosions = [];
@@ -547,11 +604,20 @@ function start(
       // Andock/Abdock-Toggle (Instruktion 15): ändert nur `isUndocked`, keine
       // Positionsänderung. Der eigentliche Übergang zu `drawing` passiert erst
       // bei tatsächlicher Richtungseingabe nach innen, siehe `tryEnterDrawing`.
+      const wasUndocked = player.isUndocked;
       toggleUndocked(player, input.state.drawJustPressed);
+      // Nur beim tatsächlichen Abdocken (false → true) – nicht beim Abbrechen
+      // (true → false), dafür ist kein eigener Sound vorgesehen.
+      if (!wasUndocked && player.isUndocked) audioManager.play('undock');
+
       session = tryEnterDrawing(player, field, input.state);
       if (session) {
         // Zeichenversuch beginnt: Foreground-Zustand sichern (Rückgängig bei Kollision).
         foregroundSnapshot = foreground.snapshot();
+        // Zeichnen-Loop starten (Instruktion 18, Punkt 3) – der `!drawLoopNode`-
+        // Guard verhindert ein doppeltes Starten, falls dieser Zweig aus
+        // irgendeinem Grund mehrfach durchlaufen würde.
+        if (!drawLoopNode) drawLoopNode = audioManager.play('draw_loop', { loop: true });
       } else {
         movePlayerAlongEdge(player, field, input.state, dt, speedMultiplier);
       }
@@ -581,6 +647,12 @@ function start(
           session = null;
           foregroundSnapshot = null; // Versuch beendet (Split oder blosses Andocken)
           spark = null; // erreicht → der Spieler ist dem Stromball entkommen
+          // Automatisches Andocken (Instruktion 15, Punkt 6): das ist seit der
+          // Bereinigung in Instruktion 15 der EINZIGE verbleibende Grund, aus
+          // dem `advanceDrawing` hier `true` liefert (Rand erreicht).
+          audioManager.stop(drawLoopNode);
+          drawLoopNode = null;
+          audioManager.play('dock');
           // Neu abgeschlossene Linie(n) sofort verarbeiten und aus dem Kanal
           // nehmen (nach dem Split sind sie Teil der Feld-Polygon-Kanten).
           completedLines.splice(before).forEach((line) => handleCompletedLine(line.points));
@@ -604,7 +676,10 @@ function start(
 
     // Gegner schiessen (auf die aktuelle Spielerposition gezielt).
     const shot = tickEnemyShooting(mainEnemy, level.mainEnemy.shooting, player.position, dt);
-    if (shot) projectiles.push(shot);
+    if (shot) {
+      projectiles.push(shot);
+      audioManager.play('enemy_shot');
+    }
     for (const mini of miniEnemies) {
       const miniShot = tickEnemyShooting(
         mini,
@@ -612,7 +687,10 @@ function start(
         player.position,
         dt,
       );
-      if (miniShot) projectiles.push(miniShot);
+      if (miniShot) {
+        projectiles.push(miniShot);
+        audioManager.play('enemy_shot');
+      }
     }
 
     // Projektile bewegen und die aus dem Bereich geflogenen aufräumen.
@@ -650,7 +728,10 @@ function start(
       level.bonusStones.cannon,
       dt,
     );
-    if (cannonShot) playerProjectiles.push(cannonShot);
+    if (cannonShot) {
+      playerProjectiles.push(cannonShot);
+      audioManager.play('player_cannon_shot');
+    }
     for (const p of playerProjectiles) advanceProjectile(p, dt);
     playerProjectiles = playerProjectiles.filter(
       (p) => !isProjectileOutOfBounds(p, FIELD_WIDTH, FIELD_HEIGHT),
@@ -668,6 +749,7 @@ function start(
       // unten (Stromball-/Rand-Kollision) noch denselben Frame mitzählen.
       allEnemies = allEnemies.filter((e) => e !== miniHit.enemy);
       defeatMiniEnemy(miniHit.enemy, scoring, explosions, level.scoring);
+      audioManager.play('mini_enemy_explosion');
       hud.setScore(scoring.score);
     }
 
@@ -1003,16 +1085,21 @@ function start(
     }
   }
 
-  /** Räumt Loop, Input-Listener, Resize-Listener und HUD-DOM auf. */
+  /** Räumt Loop, Input-Listener, Resize-Listener, HUD-DOM und Musik auf. */
   function teardown(): void {
     loop.stop();
     input.dispose();
     view.dispose();
     hud.dispose();
+    audioManager.stop(musicNode);
+    musicNode = null;
   }
 
   const loop = createGameLoop(view.ctx, { update, render });
   loop.start();
+  // Hintergrundmusik dieser Partie starten (kein Effekt, falls das Level
+  // keine `musicSrc` konfiguriert hat – `play()` liefert dann `null`).
+  musicNode = audioManager.play(MUSIC_SOUND_KEY, { loop: true, volume: MUSIC_VOLUME });
 
   // Vite HMR: laufende Ressourcen beim Hot-Reload sauber abbauen (löst NICHT
   // `donePromise` auf – das würde die alte `boot()`-Instanz nach dem Modul-
@@ -1027,14 +1114,22 @@ function start(
 async function boot(): Promise<void> {
   showLoading(gameCanvas);
   const level = levels[0];
-  // Levelbilder + Spieler-Sprite (inkl. Lauf-Pose) + Logo parallel laden –
-  // Spieler und Logo sind bewusst NICHT Teil von `LevelConfig`
-  // (levelübergreifend gleich, Instruktion 13).
+  // Levelspezifische Hintergrundmusik (falls konfiguriert) zu den globalen
+  // SFX dazumischen – bewusst nicht Teil von `SOUND_SOURCES`, da sie über
+  // `level.musicSrc` kommt, nicht fest wie die übrigen Sound-Keys.
+  const soundSources: Record<string, string> = { ...SOUND_SOURCES };
+  if (level.musicSrc) soundSources[MUSIC_SOUND_KEY] = level.musicSrc;
+
+  // Levelbilder + Spieler-Sprite (inkl. Lauf-Pose) + Logo + Sounds parallel
+  // laden – Spieler und Logo sind bewusst NICHT Teil von `LevelConfig`
+  // (levelübergreifend gleich, Instruktion 13); Sounds analog (Instruktion
+  // 18, Punkt 2) im selben Ladebildschirm-Zustand abgewartet.
   const [assets, playerImage, playerWalkImage, logoImage] = await Promise.all([
     loadLevelImages(level),
     loadImage(PLAYER_ASSET_SRC),
     loadImage(PLAYER_WALK_ASSET_SRC),
     loadImage(LOGO_ASSET_SRC),
+    audioManager.loadAll(soundSources),
   ]);
   // Startbildschirm ↔ Partie im Wechsel: eine Partie endet entweder gar
   // nicht (Fenster bleibt offen) oder – nach einem Game Over, per Enter oder

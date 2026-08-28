@@ -86,6 +86,8 @@ export interface LevelConfig {
   };
   scoring?: DefeatScoring;
   bonusStones: BonusStonesConfig;
+  /** Hintergrundmusik-Loop für dieses Level. Optional – fehlt sie, bleibt es still. */
+  musicSrc?: string;
   // TODO(später): hier kommen weitere level-spezifische Eigenheiten rein
   // (Bewegungsmuster-Varianten, Spezialverhalten einzelner Level, Power-ups …).
 }

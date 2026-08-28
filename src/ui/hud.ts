@@ -61,10 +61,15 @@ function buildOverlay(
 /**
  * HUD als DOM-Elemente unter bzw. über dem Canvas (`#hud`, `#gameover`,
  * `#levelcomplete` aus `index.html`) – nicht ins Canvas gezeichnet, das lässt
- * sich einfacher stylen. Enthält Score, Erobert-Prozent, Leben, Schild sowie
- * die Game-Over- / Level-Complete-Overlays.
+ * sich einfacher stylen. Enthält Score, Erobert-Prozent, Leben, Schild, den
+ * Mute-Toggle sowie die Game-Over- / Level-Complete-Overlays.
+ *
+ * `onMuteChange` (Instruktion 18, Punkt 6): der Mute-Button hält seinen
+ * eigenen Sichtbarkeits-Zustand selbst; `main.ts` bekommt nur den neuen Wert
+ * gemeldet, um `audioManager.setMuted()` aufzurufen – reicht als einfacher
+ * Toggle, keine aufwändige Einstellungs-UI, kein Persistieren.
  */
-export function createHud(): Hud {
+export function createHud(onMuteChange: (muted: boolean) => void): Hud {
   const bar = document.getElementById('hud');
   const gameOverEl = document.getElementById('gameover');
   const levelCompleteEl = document.getElementById('levelcomplete');
@@ -77,7 +82,24 @@ export function createHud(): Hud {
   const livesEl = document.createElement('span');
   const shieldEl = document.createElement('span');
   for (const el of [scoreEl, claimedEl, livesEl, shieldEl]) el.className = 'hud__item';
-  bar.append(scoreEl, claimedEl, livesEl, shieldEl);
+
+  let muted = false;
+  const muteButton = document.createElement('button');
+  muteButton.type = 'button';
+  muteButton.className = 'hud__mute';
+  const updateMuteButton = (): void => {
+    muteButton.textContent = muted ? '🔇' : '🔊';
+    muteButton.setAttribute('aria-label', t(muted ? 'unmuteLabel' : 'muteLabel'));
+    muteButton.title = t(muted ? 'unmuteLabel' : 'muteLabel');
+  };
+  updateMuteButton();
+  muteButton.addEventListener('click', () => {
+    muted = !muted;
+    updateMuteButton();
+    onMuteChange(muted);
+  });
+
+  bar.append(scoreEl, claimedEl, livesEl, shieldEl, muteButton);
 
   // Game Over führt (per Enter oder automatisch nach GAME_OVER_DISPLAY_MS,
   // main.ts) zurück zum Startbildschirm statt direkt zu einer neuen Partie
@@ -133,6 +155,7 @@ export function createHud(): Hud {
       claimedEl.remove();
       livesEl.remove();
       shieldEl.remove();
+      muteButton.remove();
       gameOverEl.hidden = true;
       levelCompleteEl.hidden = true;
     },

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   applyBonusStoneEffect,
+  bonusStoneSoundKey,
   createBonusStone,
   createBonusStoneSpawner,
   findBonusStoneSpawnPosition,
@@ -152,5 +153,12 @@ describe('findBonusStoneSpawnPosition', () => {
   it('liefert eine Position innerhalb des Polygons mit Abstand zum Rand', () => {
     const pos = findBonusStoneSpawnPosition(field, [], SPAWNING, () => 0.5);
     expect(pos).not.toBeNull();
+  });
+});
+
+describe('bonusStoneSoundKey (Instruktion 18)', () => {
+  it('liefert den passenden Pickup-Sound je Bonustyp', () => {
+    expect(bonusStoneSoundKey('speedBoost')).toBe('pickup_speed');
+    expect(bonusStoneSoundKey('cannon')).toBe('pickup_cannon');
   });
 });

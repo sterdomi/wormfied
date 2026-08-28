@@ -9,4 +9,6 @@ export const en: Record<TranslationKey, string> = {
   levelComplete: 'Level complete!',
   restartHint: 'Press Enter to restart',
   backToStartHint: 'Press Enter or wait – back to start',
+  muteLabel: 'Mute sound',
+  unmuteLabel: 'Unmute sound',
 };

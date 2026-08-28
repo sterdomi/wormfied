@@ -87,4 +87,5 @@ export const level1: LevelConfig = {
       projectileAssetSrc: '/assets/projectiles/kugel.svg',
     },
   },
+  musicSrc: '/assets/levels/level1/arcade-music-loop.wav',
 };

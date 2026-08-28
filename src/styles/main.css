@@ -54,6 +54,23 @@ body {
   animation: hud-flash 0.5s ease-out;
 }
 
+/* Mute-Toggle (Instruktion 18): rechtsbündig, schlichtes Icon statt Text. */
+.hud__mute {
+  margin-left: auto;
+  padding: 4px 10px;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background: #14171f;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.hud__mute:hover {
+  border-color: #555;
+}
+
 @keyframes hud-flash {
   0% {
     color: #a3be8c;

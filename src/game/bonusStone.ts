@@ -20,6 +20,11 @@ export const BONUS_STONE_EXPLOSION_COLOR: Record<BonusStoneType, string> = {
   cannon: '#ff9e00', // Orange, wie in bonus-cannon.svg
 };
 
+/** Pickup-Sound-Key je Bonustyp (Instruktion 18, Punkt 3). */
+export function bonusStoneSoundKey(type: BonusStoneType): 'pickup_speed' | 'pickup_cannon' {
+  return type === 'speedBoost' ? 'pickup_speed' : 'pickup_cannon';
+}
+
 export function createBonusStone(
   position: Point,
   type: BonusStoneType,
