@@ -57,6 +57,27 @@ import {
   type Scoring,
 } from '../game/scoring';
 import { advanceSpark, createSpark, type Spark } from '../game/spark';
+import {
+  bonusStonePulseIntensity,
+  createScreenFlash,
+  enemyEyeGlowBlur,
+  screenFlashOpacity,
+  shieldAuraOpacity,
+  type ScreenFlash,
+} from '../game/visualEffects';
+import {
+  BONUS_PULSE_COLOR_RGB,
+  BONUS_PULSE_GLOW_MAX_ALPHA,
+  BONUS_PULSE_GLOW_RADIUS_EXTRA,
+  DRAW_PATH_GLOW_ALPHA,
+  DRAW_PATH_GLOW_COLOR_RGB,
+  DRAW_PATH_GLOW_WIDTH,
+  ENEMY_EYE_GLOW_COLOR,
+  SCREEN_FLASH_COLOR_RGB,
+  SCREEN_FLASH_MAX_ALPHA,
+  SHIELD_AURA_COLOR_RGB,
+  SHIELD_AURA_RADIUS_EXTRA,
+} from '../game/visualEffectsConfig';
 import { levels } from '../levels';
 import { type LevelConfig } from '../levels/types';
 import { createHud } from '../ui/hud';
@@ -130,7 +151,7 @@ const PLAYER_HIT_RADIUS = playerSize / 2;
  * Bein-Lauf-Animation für Gegner UND Spieler (Instruktion 16): simpler
  * Sprite-Swap zwischen dem Standbild und einer zweiten Bein-Pose statt
  * prozeduraler Bein-Animation – ein gemeinsamer, wanduhrzeitbasierter Takt
- * für alle (kein Per-Entität-Zustand nötig), analog zu `damageFlashUntil`.
+ * für alle (kein Per-Entität-Zustand nötig), analog zum `ScreenFlash`-Timing.
  */
 const WALK_FRAME_INTERVAL_MS = 220;
 /**
@@ -141,6 +162,28 @@ const WALK_FRAME_INTERVAL_MS = 220;
 const GAME_OVER_DISPLAY_MS = 10_000;
 /** Mindestabstand der Mini-Gegner-Startpositionen zueinander und zum Hauptgegner. */
 const MIN_MINI_SPACING = 70;
+
+/**
+ * Augenposition eines Gegners als Bruchteil der Sprite-Grösse relativ zum
+ * Mittelpunkt (0,0) – aus den `cx`/`cy`/`r`-Werten der beiden grossen Augen
+ * in `gegner.svg` (viewBox 220) bzw. `gegner-mini.svg` (viewBox 90)
+ * abgeleitet, für den pulsierenden Glow-Überzug in `drawEnemySprite`
+ * (Instruktion 17, Punkt 4). Rein artwork-abhängig, deshalb hier bei der
+ * Verwendung statt in `visualEffectsConfig.ts`.
+ */
+interface EyeSpot {
+  x: number;
+  y: number;
+  radiusFraction: number;
+}
+const MAIN_ENEMY_EYE_SPOTS: readonly EyeSpot[] = [
+  { x: 98 / 220 - 0.5, y: 72 / 220 - 0.5, radiusFraction: 8 / 220 },
+  { x: 122 / 220 - 0.5, y: 72 / 220 - 0.5, radiusFraction: 8 / 220 },
+];
+const MINI_ENEMY_EYE_SPOTS: readonly EyeSpot[] = [
+  { x: 40 / 90 - 0.5, y: 30 / 90 - 0.5, radiusFraction: 3.5 / 90 },
+  { x: 50 / 90 - 0.5, y: 30 / 90 - 0.5, radiusFraction: 3.5 / 90 },
+];
 
 const foundCanvas = document.querySelector<HTMLCanvasElement>('#game');
 if (!foundCanvas) {
@@ -250,8 +293,9 @@ function start(
   // Foreground-Pixelzustand beim Start des aktuellen Zeichenversuchs – zum
   // Rückgängigmachen bei einer Kollision (Punkt 1, Instruktion 8).
   let foregroundSnapshot: ImageData | null = null;
-  // Zeitpunkt, bis zu dem der Schaden-Blitz gezeichnet wird (ms, performance.now).
-  let damageFlashUntil = 0;
+  // Screen-Flash bei Lebensverlust (Instruktion 17, Punkt 5) – strukturell
+  // wie `Explosion` (Instruktion 12), `null` solange keiner läuft.
+  let screenFlash: ScreenFlash | null = null;
   // Zeitpunkt des Game Over (ms, performance.now) – `null`, solange keins
   // läuft. Steuert die automatische Rückkehr zum Startbildschirm.
   let gameOverAt: number | null = null;
@@ -399,7 +443,7 @@ function start(
     handleLifeLoss(playerState);
     hud.setLives(playerState.lives);
     hud.setShield(playerState.shield);
-    damageFlashUntil = performance.now() + 140;
+    screenFlash = createScreenFlash();
 
     if (playerState.isGameOver) {
       hud.setGameOver(true);
@@ -427,7 +471,7 @@ function start(
         bonusSpawner.timeSinceLastSpawn = 0;
         playerProjectiles = [];
         foregroundSnapshot = null;
-        damageFlashUntil = 0;
+        screenFlash = null;
         gameOverAt = null;
         hud.setGameOver(false);
         hud.setLevelComplete(false);
@@ -459,11 +503,14 @@ function start(
     input.tick();
     const restartPressed = restartTrigger.pressed(input.state.restart);
 
-    // Explosions-Fortschritt hängt an `performance.now()`, nicht an `dt` –
-    // dieser Aufräumschritt läuft deshalb bewusst VOR den Freeze-Checks
-    // unten, damit der Levelabschluss-Bonus (Instruktion 12) auch bei
-    // eingefrorenem Game-Loop sichtbar zu Ende animiert.
+    // Explosions-/Flash-Fortschritt hängt an `performance.now()`, nicht an
+    // `dt` – dieser Aufräumschritt läuft deshalb bewusst VOR den
+    // Freeze-Checks unten, damit der Levelabschluss-Bonus (Instruktion 12)
+    // auch bei eingefrorenem Game-Loop sichtbar zu Ende animiert.
     explosions = pruneExplosions(explosions, performance.now());
+    if (screenFlash && screenFlashOpacity(screenFlash, performance.now()) <= 0) {
+      screenFlash = null;
+    }
 
     if (playerState.isGameOver) {
       // Keine Spieler-/Gegnerbewegung mehr – zurück zum Startbildschirm,
@@ -693,6 +740,8 @@ function start(
     walkSprite: HTMLImageElement | undefined,
     useWalkFrame: boolean,
     e: Enemy,
+    eyeSpots: readonly EyeSpot[],
+    now: number,
   ): void {
     // In Bewegungsrichtung ausrichten (Sprite-Kopf zeigt lokal nach oben).
     const activeSprite = useWalkFrame && walkSprite ? walkSprite : sprite;
@@ -700,10 +749,30 @@ function start(
     ctx.translate(e.position.x, e.position.y);
     ctx.rotate(enemyFacingAngle(e.direction));
     ctx.drawImage(activeSprite, -e.size / 2, -e.size / 2, e.size, e.size);
+
+    // Pulsierender Glow auf den Augen (Instruktion 17, Punkt 4). `shadowBlur`
+    // ist hier unproblematisch (siehe Performance-Hinweis der Instruktion):
+    // nur auf die zwei kleinen Augen-Kreise angewendet, nicht auf den ganzen
+    // Gegner oder eine grosse Fläche.
+    ctx.shadowColor = ENEMY_EYE_GLOW_COLOR;
+    ctx.shadowBlur = enemyEyeGlowBlur(now);
+    ctx.fillStyle = ENEMY_EYE_GLOW_COLOR;
+    for (const spot of eyeSpots) {
+      ctx.beginPath();
+      ctx.arc(spot.x * e.size, spot.y * e.size, spot.radiusFraction * e.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+
     ctx.restore();
   }
 
   function render(ctx: CanvasRenderingContext2D): void {
+    // Eine gemeinsame Wanduhrzeit für alle zeitbasierten Effekte dieses
+    // Frames (Bein-Animation, Bonusstein-Puls, Augen-Puls, Explosionen,
+    // Screen-Flash) – ein `performance.now()`-Aufruf statt vieler.
+    const now = performance.now();
+
     ctx.fillStyle = COLOR_BACKDROP;
     ctx.fillRect(0, 0, view.width, view.height);
 
@@ -732,24 +801,67 @@ function start(
     // skaliert auf ihre konfigurierte Grösse. Bein-Pose wechselt im
     // gemeinsamen Takt (`WALK_FRAME_INTERVAL_MS`) für eine einfache
     // Zwei-Bild-Lauf-Animation.
-    const useWalkFrame = Math.floor(performance.now() / WALK_FRAME_INTERVAL_MS) % 2 === 1;
-    drawEnemySprite(ctx, assets.mainEnemy, assets.mainEnemyWalk, useWalkFrame, mainEnemy);
+    const useWalkFrame = Math.floor(now / WALK_FRAME_INTERVAL_MS) % 2 === 1;
+    drawEnemySprite(
+      ctx,
+      assets.mainEnemy,
+      assets.mainEnemyWalk,
+      useWalkFrame,
+      mainEnemy,
+      MAIN_ENEMY_EYE_SPOTS,
+      now,
+    );
     for (const mini of miniEnemies) {
-      drawEnemySprite(ctx, assets.miniEnemy, assets.miniEnemyWalk, useWalkFrame, mini);
+      drawEnemySprite(
+        ctx,
+        assets.miniEnemy,
+        assets.miniEnemyWalk,
+        useWalkFrame,
+        mini,
+        MINI_ENEMY_EYE_SPOTS,
+        now,
+      );
     }
 
     // Bonussteine: mit ihrem typspezifischen Sprite, in der letzten Sekunde
-    // vor Ablauf sanft ausblendend (Instruktion 14, Punkt 4).
-    const bonusStoneNow = performance.now();
+    // vor Ablauf sanft ausblendend (Instruktion 14, Punkt 4), zusätzlich mit
+    // kontinuierlich pulsierendem Glow dahinter (Instruktion 17, Punkt 2) –
+    // Puls beschleunigt sich in den letzten Sekunden als Warnsignal.
     for (const stone of bonusStones) {
       const sprite = stone.type === 'speedBoost' ? assets.bonusSpeed : assets.bonusCannon;
       const diameter = level.bonusStones.spawning.radius * 2;
-      ctx.save();
-      ctx.globalAlpha = bonusStoneOpacity(
-        stone,
+      const fadeOpacity = bonusStoneOpacity(stone, level.bonusStones.spawning.lifetimeSeconds, now);
+      const pulse = bonusStonePulseIntensity(
+        stone.spawnedAt,
         level.bonusStones.spawning.lifetimeSeconds,
-        bonusStoneNow,
+        now,
       );
+
+      // Glow als radialer Gradient (kein `shadowBlur`, siehe
+      // Performance-Hinweis – läuft potenziell über mehrere Steine
+      // gleichzeitig und ist grösser als die Augen-Glows oben).
+      const glowColor = BONUS_PULSE_COLOR_RGB[stone.type];
+      const glowRadius = level.bonusStones.spawning.radius + BONUS_PULSE_GLOW_RADIUS_EXTRA * pulse;
+      const glowGradient = ctx.createRadialGradient(
+        stone.position.x,
+        stone.position.y,
+        0,
+        stone.position.x,
+        stone.position.y,
+        glowRadius,
+      );
+      const glowAlpha = pulse * fadeOpacity * BONUS_PULSE_GLOW_MAX_ALPHA;
+      glowGradient.addColorStop(0, `rgba(${glowColor}, ${glowAlpha})`);
+      glowGradient.addColorStop(1, `rgba(${glowColor}, 0)`);
+      ctx.save();
+      ctx.fillStyle = glowGradient;
+      ctx.beginPath();
+      ctx.arc(stone.position.x, stone.position.y, glowRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalAlpha = fadeOpacity;
       ctx.drawImage(
         sprite,
         stone.position.x - diameter / 2,
@@ -783,14 +895,23 @@ function start(
     }
 
     // Explosionen: nach Gegnern/Projektilen, vor der Zeichenlinie/Spieler-Ebene.
-    const explosionNow = performance.now();
-    for (const explosion of explosions) renderExplosion(ctx, explosion, explosionNow);
+    for (const explosion of explosions) renderExplosion(ctx, explosion, now);
 
     // Aktuell gezeichnete Linie (grün): aufgezeichnete Punkte + live bis zum Spieler.
     if (session) {
+      const linePoints = [...session.line.points, player.position];
+      // Glühender Unterzug (Instruktion 17, Punkt 3): eine breitere,
+      // halbtransparente Kopie derselben Linie darunter statt `shadowBlur`
+      // (siehe Performance-Hinweis – kann bei langen Zeichenversuchen aus
+      // vielen Punkten bestehen). Gleiche Farbfamilie wie die Linie selbst,
+      // damit die "hier bin ich verwundbar"-Symbolik erhalten bleibt.
+      ctx.strokeStyle = `rgba(${DRAW_PATH_GLOW_COLOR_RGB}, ${DRAW_PATH_GLOW_ALPHA})`;
+      ctx.lineWidth = DRAW_PATH_GLOW_WIDTH;
+      strokePolyline(ctx, linePoints);
+
       ctx.strokeStyle = COLOR_DRAWING;
       ctx.lineWidth = 3;
-      strokePolyline(ctx, [...session.line.points, player.position]);
+      strokePolyline(ctx, linePoints);
     }
 
     // Stromball: heller Kern mit Glow, fährt die Linie entlang.
@@ -807,6 +928,31 @@ function start(
       ctx.arc(spark.position.x, spark.position.y, 2.5, 0, Math.PI * 2);
       ctx.fillStyle = COLOR_SPARK_CORE;
       ctx.fill();
+    }
+
+    // Schild-Aura hinter dem Spieler (Instruktion 17, Punkt 1): radialer
+    // Gradient statt `shadowBlur` (siehe Performance-Hinweis), Deckkraft
+    // proportional zu `shield` – keine Aura mehr bei aufgebrauchtem Schild,
+    // konsistent mit der Ungeschützt-Regel aus Instruktion 8.
+    const auraOpacity = shieldAuraOpacity(playerState.shield);
+    if (auraOpacity > 0) {
+      const auraRadius = playerSize / 2 + SHIELD_AURA_RADIUS_EXTRA;
+      const auraGradient = ctx.createRadialGradient(
+        player.position.x,
+        player.position.y,
+        playerSize * 0.2,
+        player.position.x,
+        player.position.y,
+        auraRadius,
+      );
+      auraGradient.addColorStop(0, `rgba(${SHIELD_AURA_COLOR_RGB}, ${auraOpacity})`);
+      auraGradient.addColorStop(1, `rgba(${SHIELD_AURA_COLOR_RGB}, 0)`);
+      ctx.save();
+      ctx.fillStyle = auraGradient;
+      ctx.beginPath();
+      ctx.arc(player.position.x, player.position.y, auraRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
 
     // Spieler: Marienkäfer-Sprite, in aktuelle Bewegungsrichtung gedreht,
@@ -830,10 +976,30 @@ function start(
       LOGO_HEIGHT,
     );
 
-    // Schaden-Feedback: kurzes rotes Aufblitzen über dem ganzen Canvas.
-    if (performance.now() < damageFlashUntil) {
-      ctx.fillStyle = 'rgba(191, 97, 106, 0.4)';
-      ctx.fillRect(0, 0, view.width, view.height);
+    // Schaden-Feedback bei Lebensverlust (Instruktion 17, Punkt 5): rötlicher
+    // Vignetten-Flash, der in der Mitte transparent bleibt und zum Rand hin
+    // sichtbarer wird – blendet über SCREEN_FLASH_DURATION_MS linear aus
+    // (Pruning/Timing siehe `update`, strukturell wie `Explosion`).
+    if (screenFlash) {
+      const flashOpacity = screenFlashOpacity(screenFlash, now);
+      if (flashOpacity > 0) {
+        const flashRadius = Math.max(view.width, view.height) * 0.75;
+        const flashGradient = ctx.createRadialGradient(
+          view.width / 2,
+          view.height / 2,
+          0,
+          view.width / 2,
+          view.height / 2,
+          flashRadius,
+        );
+        flashGradient.addColorStop(0, `rgba(${SCREEN_FLASH_COLOR_RGB}, 0)`);
+        flashGradient.addColorStop(
+          1,
+          `rgba(${SCREEN_FLASH_COLOR_RGB}, ${flashOpacity * SCREEN_FLASH_MAX_ALPHA})`,
+        );
+        ctx.fillStyle = flashGradient;
+        ctx.fillRect(0, 0, view.width, view.height);
+      }
     }
   }
 
