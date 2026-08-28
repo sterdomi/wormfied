@@ -11,4 +11,7 @@ export const en: Record<TranslationKey, string> = {
   backToStartHint: 'Press Enter or wait – back to start',
   muteLabel: 'Mute sound',
   unmuteLabel: 'Unmute sound',
+  rotateDeviceHint: '📱 Please rotate your device – landscape only',
+  controlsHintDesktop: 'Arrow keys/WASD to move · Space to dock/undock/fire',
+  controlsHintTouch: 'Joystick to move · Button to dock/undock/fire',
 };

@@ -182,3 +182,25 @@ body {
 .touch-action-button--active {
   background: rgb(191 97 106 / 55%);
 }
+
+/* "Bitte Gerät drehen"-Hinweis: höchster z-index, verdeckt alles darunter
+ * (Canvas, HUD, Touch-Steuerung, Overlays) vollständig, solange ein
+ * Touch-Gerät im Hochformat gehalten wird (nur von orientationWarning.ts
+ * erzeugt, siehe dort). */
+.orientation-warning {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  text-align: center;
+  background: #0b0e14;
+  color: #e5e9f0;
+  font: 20px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.orientation-warning[hidden] {
+  display: none;
+}

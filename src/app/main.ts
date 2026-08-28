@@ -83,13 +83,16 @@ import {
 import { levels } from '../levels';
 import { type LevelConfig } from '../levels/types';
 import { createHud } from '../ui/hud';
+import { setupOrientationWarning } from '../ui/orientationWarning';
+import { isTouchCapable } from '../ui/touchControls';
 import { t } from '../i18n';
 import '../styles/main.css';
 
-// Mindestabstand des (jetzt fest grossen) Spielfelds zum linken/rechten
-// Fensterrand, falls das Fenster schmaler als das Feld selbst ist – sonst
-// ist das Feld horizontal zentriert. Später über CSS-Variablen / Theme
-// steuerbar.
+// Abstand des (fest grossen) Spielfelds zu Logo/Rand in "logischen" Pixeln,
+// bevor `render()` den gesamten Logo+Feld-Block auf die tatsächliche
+// Viewport-Grösse herunterskaliert (siehe dort) – bleibt also bei jeder
+// Fenster-/Bildschirmgrösse proportional gleich gross. Später über
+// CSS-Variablen / Theme steuerbar.
 const FIELD_MARGIN = 40;
 /**
  * Feste Spielfeld-Grösse, unabhängig von der Fenstergrösse – ein Resize
@@ -142,6 +145,10 @@ const FIELD_MARGIN_TOP = LOGO_MARGIN_TOP + LOGO_HEIGHT + LOGO_MARGIN_BOTTOM;
 const START_SCREEN_LOGO_WIDTH = 480;
 /** Abstand zwischen Logo-Unterkante und dem "Enter"-Hinweis darunter. */
 const START_SCREEN_LOGO_GAP = 56;
+/** Abstand des kleinen Steuerungs-Hinweises unter dem "Enter"-CTA. */
+const START_SCREEN_CONTROLS_GAP = 28;
+/** Dezentere Farbe für den Steuerungs-Hinweis, damit der "Enter"-CTA oben führend bleibt. */
+const COLOR_START_SCREEN_HINT = '#8a93a6';
 /**
  * Kollisions-Toleranzradius für "Gegner/Projektil berührt Spieler direkt"
  * (Instruktion 8/11): an `playerSize` ausgerichtet statt am generischen
@@ -200,6 +207,11 @@ const gameCanvas: HTMLCanvasElement = foundCanvas;
  * pro `start()`-Aufruf neu erzeugt.
  */
 const audioManager = createAudioManager();
+
+// Läuft für die gesamte Seiten-Lebensdauer, unabhängig vom Start-/Game-Over-
+// Zyklus (nichts zu `dispose()`n) – Nutzer-Feedback: Wormfied ist fürs
+// Querformat gedacht.
+setupOrientationWarning();
 
 /** Pfad je Sound-Key – liegt unter `public/assets/sound/` (nicht `sounds/`,
  *  siehe Abschluss-Bericht). `pickup_generic.wav` bewusst nicht geladen, da
@@ -260,7 +272,15 @@ function renderStartScreen(
   ctx.font = 'bold 28px system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(t('pressEnterToPlay'), width / 2, top + logoHeight + START_SCREEN_LOGO_GAP / 2);
+  const enterHintY = top + logoHeight + START_SCREEN_LOGO_GAP / 2;
+  ctx.fillText(t('pressEnterToPlay'), width / 2, enterHintY);
+
+  // Kleiner Steuerungs-Hinweis, dezenter als der Haupt-CTA oben – nur die
+  // fürs aktuelle Gerät passende Zeile (Nutzer-Feedback: nicht beide).
+  ctx.fillStyle = COLOR_START_SCREEN_HINT;
+  ctx.font = '16px system-ui, sans-serif';
+  const controlsHint = isTouchCapable() ? t('controlsHintTouch') : t('controlsHintDesktop');
+  ctx.fillText(controlsHint, width / 2, enterHintY + START_SCREEN_CONTROLS_GAP);
 }
 
 /**
@@ -858,12 +878,36 @@ function start(
     ctx.fillStyle = COLOR_BACKDROP;
     ctx.fillRect(0, 0, view.width, view.height);
 
-    // Horizontal zentriert (mit `FIELD_MARGIN` als Mindestabstand, falls das
-    // Fenster schmaler als das feste Spielfeld + Ränder ist), vertikal fix
-    // unterhalb des Logos.
-    const fieldOffsetX = Math.max(FIELD_MARGIN, (view.width - FIELD_WIDTH) / 2);
+    // Logo + Spielfeld + Ränder zusammen so weit herunterskalieren, dass sie
+    // auf kleine Viewports (z.B. iPhone-Breite/-Höhe) passen, statt einfach
+    // rechts/unten abgeschnitten zu werden – das feste FIELD_WIDTH/HEIGHT
+    // bleibt dabei die LOGISCHE Spielfeld-Grösse (Kollisionen, Positionen
+    // usw. unverändert), nur die Darstellung schrumpft. `Math.min(1, …)`:
+    // auf grossen Bildschirmen bleibt alles wie bisher unskaliert.
+    const contentWidth = FIELD_WIDTH + FIELD_MARGIN * 2;
+    const contentHeight = FIELD_MARGIN_TOP + FIELD_HEIGHT + FIELD_MARGIN;
+    const scale = Math.min(1, view.width / contentWidth, view.height / contentHeight);
+    const originX = (view.width - contentWidth * scale) / 2;
+    const originY = (view.height - contentHeight * scale) / 2;
+
     ctx.save();
-    ctx.translate(fieldOffsetX, FIELD_MARGIN_TOP);
+    ctx.translate(originX, originY);
+    ctx.scale(scale, scale);
+
+    // Logo statt Text-Schriftzug, horizontal mittig oben, oberhalb des
+    // Spielfelds (siehe FIELD_MARGIN_TOP) statt darüber zu liegen – jetzt
+    // Teil desselben skalierten Blocks wie das Feld, damit beide zusammen
+    // schrumpfen/zentrieren.
+    ctx.drawImage(
+      logoImage,
+      (contentWidth - LOGO_WIDTH) / 2,
+      LOGO_MARGIN_TOP,
+      LOGO_WIDTH,
+      LOGO_HEIGHT,
+    );
+
+    ctx.save();
+    ctx.translate(FIELD_MARGIN, FIELD_MARGIN_TOP);
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
 
@@ -1044,19 +1088,10 @@ function start(
     ctx.translate(player.position.x, player.position.y);
     ctx.rotate(playerFacingAngle(player.facing));
     ctx.drawImage(activePlayerSprite, -playerSize / 2, -playerSize / 2, playerSize, playerSize);
-    ctx.restore();
+    ctx.restore(); // Ende Spieler-Rotate
 
-    ctx.restore();
-
-    // Logo statt Text-Schriftzug, horizontal mittig oben, oberhalb des
-    // Spielfelds (siehe FIELD_MARGIN_TOP) statt darüber zu liegen.
-    ctx.drawImage(
-      logoImage,
-      (view.width - LOGO_WIDTH) / 2,
-      LOGO_MARGIN_TOP,
-      LOGO_WIDTH,
-      LOGO_HEIGHT,
-    );
+    ctx.restore(); // Ende der Feld-Translate (siehe `ctx.translate(FIELD_MARGIN, FIELD_MARGIN_TOP)` oben)
+    ctx.restore(); // Ende des skalierten Logo+Feld-Blocks (siehe `ctx.scale(scale, scale)` oben)
 
     // Schaden-Feedback bei Lebensverlust (Instruktion 17, Punkt 5): rötlicher
     // Vignetten-Flash, der in der Mitte transparent bleibt und zum Rand hin
