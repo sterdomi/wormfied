@@ -21,6 +21,13 @@ describe('createExplosion', () => {
     position.x = 999;
     expect(explosion.position.x).toBe(10);
   });
+
+  it('erlaubt eine überschriebene Farbe (Instruktion 14: Bonusstein-Aufnahme-Effekte)', () => {
+    const withDefault = createExplosion({ x: 0, y: 0 });
+    const withCustom = createExplosion({ x: 0, y: 0 }, '#48cae4');
+    expect(withCustom.color).toBe('#48cae4');
+    expect(withCustom.color).not.toBe(withDefault.color);
+  });
 });
 
 describe('isExplosionExpired / pruneExplosions', () => {

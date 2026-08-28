@@ -87,7 +87,7 @@ export function anyUnshieldedEnemyHit(
 }
 
 /** Trefferradius für ein Projektil = Basis-Toleranz + halber Projektil-Durchmesser. */
-function projectileRadius(p: Projectile, baseRadius: number = ENEMY_TOUCH_RADIUS): number {
+export function projectileRadius(p: Projectile, baseRadius: number = ENEMY_TOUCH_RADIUS): number {
   return baseRadius + p.size / 2;
 }
 
@@ -114,6 +114,32 @@ export function projectileIndexTouchingLine(
  * Basis-Toleranz auf die tatsächliche Spieler-Sprite-Grösse abzustimmen
  * (Instruktion 13) statt sie an die generische Gegner-Toleranz zu koppeln.
  */
+export interface PlayerProjectileHit {
+  projectileIndex: number;
+  enemy: Enemy;
+}
+
+/**
+ * Erster Treffer eines Spieler-Projektils (Kanone-Bonus, Instruktion 14) auf
+ * einen Mini-Gegner – oder `null`. Bekommt bewusst NUR `miniEnemies` übergeben
+ * (nicht den Hauptgegner): der Hauptgegner bestimmt die Eroberungs-Seite und
+ * soll durch Beschuss unverwundbar bleiben (Punkt 9).
+ */
+export function findPlayerProjectileHittingMiniEnemy(
+  playerProjectiles: readonly Projectile[],
+  miniEnemies: readonly Enemy[],
+): PlayerProjectileHit | null {
+  for (let i = 0; i < playerProjectiles.length; i++) {
+    const p = playerProjectiles[i];
+    const radius = projectileRadius(p);
+    const enemy = miniEnemies.find(
+      (e) => Math.hypot(e.position.x - p.position.x, e.position.y - p.position.y) <= radius,
+    );
+    if (enemy) return { projectileIndex: i, enemy };
+  }
+  return null;
+}
+
 export function projectileIndexHittingUnshieldedPlayer(
   projectiles: readonly Projectile[],
   playerPos: Point,

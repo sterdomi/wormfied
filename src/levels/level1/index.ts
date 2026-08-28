@@ -48,4 +48,41 @@ export const level1: LevelConfig = {
     miniEnemyPoints: defaultMiniEnemyDefeatedPoints,
     mainEnemyPoints: defaultMainEnemyDefeatedPoints,
   },
+  /**
+   * Bonussteine (Instruktion 14). Spawn alle 8–12 s (10 s Mittelwert), max. 2
+   * gleichzeitig, 10 s Lebensdauer – oft genug, um beim Spielen regelmässig
+   * Gelegenheiten zu haben, aber nicht so oft, dass das Feld überladen wirkt.
+   * Radius 16 (Durchmesser 32) liegt zwischen Mini- (22) und Hauptgegner (40)
+   * – gut sichtbar, aber nicht dominant.
+   *
+   * Speed-Boost: 2× für 5 s – spürbar, aber kurz genug, um kein Dauerzustand
+   * zu werden.
+   *
+   * Kanone: 6 s aktiv, alle 0.35 s ein Schuss (~3/s) – reicht, um während des
+   * Zeichnens gezielt ein, zwei nahe Mini-Gegner auszuschalten, ohne den
+   * Bildschirm mit Projektilen zu fluten. Etwas schneller (260 px/s) und
+   * kleiner (14 px) als die Gegner-Kugel (200 px/s, 18 px), damit sich der
+   * Spieler-Schuss "flinker" anfühlt; wiederverwendet `kugel.svg`.
+   */
+  bonusStones: {
+    spawning: {
+      spawnIntervalSeconds: 10,
+      maxSimultaneous: 2,
+      lifetimeSeconds: 10,
+      radius: 16,
+    },
+    speedBoost: {
+      assetSrc: '/assets/bonuses/bonus-speed.svg',
+      speedMultiplier: 2,
+      effectDurationSeconds: 5,
+    },
+    cannon: {
+      assetSrc: '/assets/bonuses/bonus-cannon.svg',
+      effectDurationSeconds: 6,
+      fireIntervalSeconds: 0.35,
+      projectileSpeed: 260,
+      projectileSize: 14,
+      projectileAssetSrc: '/assets/projectiles/kugel.svg',
+    },
+  },
 };

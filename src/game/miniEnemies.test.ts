@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { createEnemy, type EnemySpec } from './enemy';
 import { createRectangularField } from './field';
-import { removeCapturedMiniEnemies, spawnMiniEnemies } from './miniEnemies';
+import { defeatMiniEnemy, removeCapturedMiniEnemies, spawnMiniEnemies } from './miniEnemies';
 import { isPointInPolygon } from './polygon';
+import { createScoring, defaultMiniEnemyDefeatedPoints } from './scoring';
+import type { Explosion } from './explosion';
 
 const SPEC: EnemySpec = { speed: 120, size: 22 };
 
@@ -60,5 +62,29 @@ describe('removeCapturedMiniEnemies', () => {
       createEnemy({ x: 500, y: 500 }, SPEC),
     ];
     expect(removeCapturedMiniEnemies(list, claimed)).toHaveLength(1);
+  });
+});
+
+describe('defeatMiniEnemy (geteilte Logik: Einschliessen UND Spieler-Projektil-Treffer)', () => {
+  it('erzeugt eine Explosion an der Gegnerposition und vergibt Bonus-Punkte', () => {
+    const enemy = createEnemy({ x: 42, y: 84 }, SPEC);
+    const scoring = createScoring(1000);
+    const explosions: Explosion[] = [];
+
+    defeatMiniEnemy(enemy, scoring, explosions);
+
+    expect(scoring.score).toBe(defaultMiniEnemyDefeatedPoints);
+    expect(explosions).toHaveLength(1);
+    expect(explosions[0].position).toEqual({ x: 42, y: 84 });
+  });
+
+  it('nutzt die level-eigenen Punkte, falls angegeben', () => {
+    const enemy = createEnemy({ x: 0, y: 0 }, SPEC);
+    const scoring = createScoring(1000);
+    const explosions: Explosion[] = [];
+
+    defeatMiniEnemy(enemy, scoring, explosions, { miniEnemyPoints: 777, mainEnemyPoints: 3000 });
+
+    expect(scoring.score).toBe(777);
   });
 });

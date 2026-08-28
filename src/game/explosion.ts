@@ -7,10 +7,16 @@ const DEFAULT_MAX_RADIUS = 34;
 /** Anzahl der radial wegfliegenden Partikel-Linien. */
 const PARTICLE_COUNT = 8;
 
-/** Warme Farbtöne, passend zur `kugel.svg`-Farbwelt aus Instruktion 11. */
-const COLOR_RING = '#f77f00';
-const COLOR_FILL = 'rgba(193, 68, 14, 0.35)';
-const COLOR_PARTICLE = '#ffd60a';
+/**
+ * Warmer Ton, passend zur `kugel.svg`-Farbwelt aus Instruktion 11 – Default
+ * für Gegner-Explosionen. Ring, Füllung und Partikel nutzen alle dieselbe
+ * `color` (Füllung nur transparenter, siehe `FILL_ALPHA_FACTOR`); Aufrufer
+ * können sie überschreiben (Instruktion 14: Bonusstein-Aufnahme-Effekte in
+ * typspezifischer Farbe statt eines komplett neuen Effekt-Systems).
+ */
+const DEFAULT_COLOR = '#f77f00';
+/** Füllung deutlich transparenter als Ring/Partikel derselben Farbe. */
+const FILL_ALPHA_FACTOR = 0.35;
 
 /**
  * Rein visueller, zeitgesteuerter Effekt: kein Bild/Sprite, nur eine
@@ -25,14 +31,16 @@ export interface Explosion {
   startTime: number;
   durationMs: number;
   maxRadius: number;
+  color: string;
 }
 
-export function createExplosion(position: Point): Explosion {
+export function createExplosion(position: Point, color: string = DEFAULT_COLOR): Explosion {
   return {
     position: { x: position.x, y: position.y },
     startTime: performance.now(),
     durationMs: DEFAULT_DURATION_MS,
     maxRadius: DEFAULT_MAX_RADIUS,
+    color,
   };
 }
 
@@ -70,14 +78,15 @@ export function renderExplosion(
   const opacity = 1 - progress;
 
   ctx.save();
-  ctx.globalAlpha = opacity;
 
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, Math.PI * 2);
-  ctx.fillStyle = COLOR_FILL;
+  ctx.globalAlpha = opacity * FILL_ALPHA_FACTOR;
+  ctx.fillStyle = explosion.color;
   ctx.fill();
+  ctx.globalAlpha = opacity;
   ctx.lineWidth = 3;
-  ctx.strokeStyle = COLOR_RING;
+  ctx.strokeStyle = explosion.color;
   ctx.stroke();
 
   const particleLength = explosion.maxRadius * 0.4;
@@ -89,7 +98,7 @@ export function renderExplosion(
     ctx.moveTo(x + dx * radius, y + dy * radius);
     ctx.lineTo(x + dx * (radius + particleLength), y + dy * (radius + particleLength));
     ctx.lineWidth = 2;
-    ctx.strokeStyle = COLOR_PARTICLE;
+    ctx.strokeStyle = explosion.color;
     ctx.stroke();
   }
 

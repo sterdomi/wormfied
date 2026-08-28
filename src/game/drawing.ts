@@ -165,6 +165,12 @@ export function advanceDrawing(
   input: DrawInput,
   dt: number,
   completedLines: DrawnLine[],
+  /** Liefert `true`, wenn `p` ein Hindernis (z.B. ein Bonusstein, Instruktion
+   *  14) schneiden würde – die Bewegung diesen Frame wird dann verworfen. */
+  isBlocked?: (p: Point) => boolean,
+  /** Multiplikator auf `DRAW_SPEED`, z.B. für einen aktiven Geschwindigkeits-
+   *  Boost (Instruktion 14) – die Konstante selbst bleibt dabei unverändert. */
+  speedMultiplier = 1,
 ): boolean {
   const from: Point = { x: player.position.x, y: player.position.y };
 
@@ -210,8 +216,13 @@ export function advanceDrawing(
 
   session.heading = heading;
 
-  const step = DRAW_SPEED * dt;
+  const step = DRAW_SPEED * speedMultiplier * dt;
   const to: Point = { x: from.x + heading.x * step, y: from.y + heading.y * step };
+
+  // Bonusstein wirkt wie eine feste Wand (Instruktion 14, Punkt 5): einfache
+  // "Bewegung blockieren"-Lösung, keine Ausweich-/Gleit-Physik – der Spieler
+  // bleibt diesen Frame auf der letzten gültigen Position stehen.
+  if (isBlocked?.(to)) return false;
 
   // Rand-Kontakt zählt erst als Andocken, wenn der Spieler sich vom Rand gelöst
   // hat – sonst würde der Startpunkt auf der Einfahrtskante sofort treffen.

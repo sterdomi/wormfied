@@ -145,6 +145,46 @@ describe('advanceDrawing – grün, aber nur Cursor bewegen', () => {
   });
 });
 
+describe('advanceDrawing – Bonusstein blockiert die Bewegung (Instruktion 14)', () => {
+  // Hinweis: Instruktion 14, Punkt 10 nennt für diesen Test
+  // `playerMovement.test.ts` – die eigentliche Blockier-Logik sitzt aber in
+  // `advanceDrawing` (Zeichenbewegung, Instruktion 3), daher hier in
+  // `drawing.test.ts`, wo `advanceDrawing` bereits getestet wird.
+  it('verwirft den Frame-Schritt, wenn die Zielposition blockiert ist', () => {
+    const p = playerOnTopEdge();
+    const session = beginDrawing(p, true)!;
+    const before = { ...p.position };
+    const alwaysBlocked = () => true;
+
+    const done = advanceDrawing(session, p, field, { ...HELD, down: true }, 0.1, [], alwaysBlocked);
+
+    expect(done).toBe(false);
+    expect(p.position).toEqual(before);
+  });
+
+  it('bewegt sich normal, wenn die Zielposition NICHT blockiert ist', () => {
+    const p = playerOnTopEdge();
+    const session = beginDrawing(p, true)!;
+    const neverBlocked = () => false;
+
+    advanceDrawing(session, p, field, { ...HELD, down: true }, 0.1, [], neverBlocked);
+
+    expect(p.position.y).toBeCloseTo(DRAW_SPEED * 0.1);
+  });
+});
+
+describe('advanceDrawing – speedMultiplier (Instruktion 14, Geschwindigkeits-Boost)', () => {
+  it('skaliert DRAW_SPEED, ohne die Konstante selbst zu verändern', () => {
+    const p = playerOnTopEdge();
+    const session = beginDrawing(p, true)!;
+
+    advanceDrawing(session, p, field, { ...HELD, down: true }, 0.1, [], undefined, 2);
+
+    expect(p.position.y).toBeCloseTo(DRAW_SPEED * 2 * 0.1);
+    expect(DRAW_SPEED).toBe(160); // unverändert
+  });
+});
+
 describe('advanceDrawing – Leertaste loslassen', () => {
   it('losgelassen, ohne sich bewegt zu haben: wieder "rot" auf dem Rand', () => {
     const p = playerOnTopEdge();

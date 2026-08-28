@@ -106,6 +106,9 @@ export function movePlayerAlongEdge(
   polygon: Point[],
   keys: KeyInput,
   dt: number,
+  /** Multiplikator auf `EDGE_SPEED`, z.B. für einen aktiven Geschwindigkeits-
+   *  Boost (Instruktion 14) – die Konstante selbst bleibt dabei unverändert. */
+  speedMultiplier = 1,
 ): void {
   const n = polygon.length;
   let segmentIndex = player.segmentIndex;
@@ -141,7 +144,12 @@ export function movePlayerAlongEdge(
     const edgeLen = Math.hypot(b.x - a.x, b.y - a.y) || 1;
     player.facing = { x: ((b.x - a.x) / edgeLen) * dir, y: ((b.y - a.y) / edgeLen) * dir };
 
-    const next = advanceAlongPerimeter(polygon, segmentIndex, progress, dir * EDGE_SPEED * dt);
+    const next = advanceAlongPerimeter(
+      polygon,
+      segmentIndex,
+      progress,
+      dir * EDGE_SPEED * speedMultiplier * dt,
+    );
     segmentIndex = next.segmentIndex;
     progress = next.progress;
   }

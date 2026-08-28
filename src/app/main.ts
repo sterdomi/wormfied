@@ -6,9 +6,21 @@ import {
   anyUnshieldedEnemyHit,
   ENEMY_TOUCH_RADIUS,
   enemyTouchingLine,
+  findPlayerProjectileHittingMiniEnemy,
   projectileIndexHittingUnshieldedPlayer,
   projectileIndexTouchingLine,
 } from '../game/collision';
+import {
+  applyBonusStoneEffect,
+  BONUS_STONE_EXPLOSION_COLOR,
+  bonusStoneOpacity,
+  createBonusStoneSpawner,
+  isBlockedByBonusStone,
+  partitionCapturedBonusStones,
+  pruneExpiredBonusStones,
+  tickBonusStoneSpawning,
+  type BonusStone,
+} from '../game/bonusStone';
 import { advanceDrawing, beginDrawing, EdgeTrigger, type DrawSession } from '../game/drawing';
 import { createEnemy, enemyFacingAngle, type Enemy } from '../game/enemy';
 import { moveEnemies, randomDirection } from '../game/enemyMovement';
@@ -18,21 +30,21 @@ import { createForegroundLayer, type ForegroundLayer } from '../game/foregroundL
 import { closestPointOnPerimeter } from '../game/geometry';
 import { type DrawnLine } from '../game/line';
 import { handleLifeLoss } from '../game/lifecycle';
-import { partitionCapturedMiniEnemies, spawnMiniEnemies } from '../game/miniEnemies';
+import { defeatMiniEnemy, partitionCapturedMiniEnemies, spawnMiniEnemies } from '../game/miniEnemies';
 import { Player, playerFacingAngle } from '../game/player';
-import { createPlayerState, decayShield } from '../game/playerState';
+import { createPlayerState, decayBoostTimers, decayShield } from '../game/playerState';
 import { movePlayerAlongEdge } from '../game/playerMovement';
 import { applyCompletedLine, polygonArea } from '../game/polygon';
 import {
   advanceProjectile,
   isProjectileOutOfBounds,
   tickEnemyShooting,
+  tickPlayerShooting,
   type Projectile,
 } from '../game/projectile';
 import { resetGame } from '../game/resetGame';
 import {
   applyLevelClearBonus,
-  awardMiniEnemyDefeated,
   createScoring,
   getClaimedPercentage,
   registerClaim,
@@ -130,6 +142,11 @@ function start(
   let miniEnemies: Enemy[] = [];
   let projectiles: Projectile[] = [];
   let explosions: Explosion[] = [];
+  let bonusStones: BonusStone[] = [];
+  const bonusSpawner = createBonusStoneSpawner();
+  // Spieler-Projektile (Kanone-Bonus, Instruktion 14) – eigene Liste, klar
+  // getrennt von den Gegner-Projektilen (`projectiles`).
+  let playerProjectiles: Projectile[] = [];
 
   /** Level-Initialisierung (auch Resize- und Neustart-Pfad nutzen sie). */
   function rebuildField(width: number, height: number): Point[] {
@@ -165,6 +182,9 @@ function start(
     );
     projectiles = [];
     explosions = [];
+    bonusStones = [];
+    bonusSpawner.timeSinceLastSpawn = 0;
+    playerProjectiles = [];
     return field;
   }
 
@@ -188,9 +208,16 @@ function start(
     // Punkte + eine Explosion an ihrer letzten Position (Instruktion 12).
     const { survivors, captured } = partitionCapturedMiniEnemies(miniEnemies, result.claimed);
     miniEnemies = survivors;
-    for (const enemy of captured) {
-      explosions.push(createExplosion(enemy.position));
-      awardMiniEnemyDefeated(scoring, level.scoring);
+    for (const enemy of captured) defeatMiniEnemy(enemy, scoring, explosions, level.scoring);
+
+    // Bonussteine, die in der eroberten Fläche liegen, sind ebenfalls
+    // "gefangen": Effekt aktivieren + Aufnahme-Explosion in typspezifischer
+    // Farbe (Instruktion 14, Punkt 6).
+    const bonusCapture = partitionCapturedBonusStones(bonusStones, result.claimed);
+    bonusStones = bonusCapture.survivors;
+    for (const stone of bonusCapture.captured) {
+      applyBonusStoneEffect(stone, playerState, level.bonusStones);
+      explosions.push(createExplosion(stone.position, BONUS_STONE_EXPLOSION_COLOR[stone.type]));
     }
 
     scoring.claimedArea += result.claimedArea;
@@ -265,6 +292,9 @@ function start(
         spark = null;
         projectiles = [];
         explosions = [];
+        bonusStones = [];
+        bonusSpawner.timeSinceLastSpawn = 0;
+        playerProjectiles = [];
         foregroundSnapshot = null;
         damageFlashUntil = 0;
         hud.setGameOver(false);
@@ -308,6 +338,13 @@ function start(
       return;
     }
 
+    // Boost-Timer laufen unabhängig vom Modus herunter (Instruktion 14).
+    decayBoostTimers(playerState, dt);
+    const speedMultiplier =
+      playerState.speedBoostRemainingSeconds > 0
+        ? level.bonusStones.speedBoost.speedMultiplier
+        : 1;
+
     const drawPressed = drawTrigger.pressed(input.state.draw);
     const prevPos = { x: player.position.x, y: player.position.y };
     // Ob der befahrene Pfad diesen Frame ausgeschnitten werden soll: nur wenn
@@ -320,7 +357,7 @@ function start(
         // Zeichenversuch beginnt: Foreground-Zustand sichern (Rückgängig bei Kollision).
         foregroundSnapshot = foreground.snapshot();
       } else {
-        movePlayerAlongEdge(player, field, input.state, dt);
+        movePlayerAlongEdge(player, field, input.state, dt, speedMultiplier);
       }
     }
 
@@ -331,7 +368,20 @@ function start(
         spark = null;
       } else {
         const before = completedLines.length;
-        if (advanceDrawing(session, player, field, input.state, dt, completedLines)) {
+        const isBlockedByStone = (p: Point): boolean =>
+          isBlockedByBonusStone(bonusStones, p, level.bonusStones.spawning.radius);
+        if (
+          advanceDrawing(
+            session,
+            player,
+            field,
+            input.state,
+            dt,
+            completedLines,
+            isBlockedByStone,
+            speedMultiplier,
+          )
+        ) {
           session = null;
           foregroundSnapshot = null; // Versuch beendet (Split oder blosses Andocken)
           spark = null; // erreicht → der Spieler ist dem Stromball entkommen
@@ -353,7 +403,7 @@ function start(
 
     // Alle Gegner (Hauptgegner + Mini-Gegner) bewegen und für Kollisionen als
     // eine Liste behandeln – Mini-Gegner sind gleichwertig gefährlich.
-    const allEnemies = [mainEnemy, ...miniEnemies];
+    let allEnemies = [mainEnemy, ...miniEnemies];
     moveEnemies(allEnemies, field, dt);
 
     // Gegner schiessen (auf die aktuelle Spielerposition gezielt).
@@ -372,6 +422,54 @@ function start(
     // Projektile bewegen und die aus dem Bereich geflogenen aufräumen.
     for (const p of projectiles) advanceProjectile(p, dt);
     projectiles = projectiles.filter((p) => !isProjectileOutOfBounds(p, fieldWidth, fieldHeight));
+
+    // Bonussteine: abgelaufene entfernen, ggf. einen neuen spawnen
+    // (Instruktion 14, Punkt 3/4).
+    bonusStones = pruneExpiredBonusStones(
+      bonusStones,
+      level.bonusStones.spawning.lifetimeSeconds,
+      performance.now(),
+    );
+    const spawnedStone = tickBonusStoneSpawning(
+      bonusSpawner,
+      bonusStones,
+      field,
+      level.bonusStones.spawning,
+      dt,
+      performance.now(),
+    );
+    if (spawnedStone) bonusStones.push(spawnedStone);
+
+    // Kanone-Bonus: solange aktiv UND der Spieler zeichnet, automatisch in
+    // die aktuelle Blickrichtung feuern (Design-Entscheidung Instruktion 14).
+    const cannonShot = tickPlayerShooting(
+      playerState,
+      player.mode === 'drawing',
+      player.facing,
+      player.position,
+      level.bonusStones.cannon,
+      dt,
+    );
+    if (cannonShot) playerProjectiles.push(cannonShot);
+    for (const p of playerProjectiles) advanceProjectile(p, dt);
+    playerProjectiles = playerProjectiles.filter(
+      (p) => !isProjectileOutOfBounds(p, fieldWidth, fieldHeight),
+    );
+
+    // Spieler-Projektil trifft Mini-Gegner: gleicher Ablauf wie beim
+    // Einschliessen (Explosion + Punkte), Hauptgegner bleibt unverwundbar
+    // dagegen (Instruktion 14, Punkt 9).
+    const miniHit = findPlayerProjectileHittingMiniEnemy(playerProjectiles, miniEnemies);
+    if (miniHit) {
+      playerProjectiles.splice(miniHit.projectileIndex, 1);
+      miniEnemies = miniEnemies.filter((e) => e !== miniHit.enemy);
+      // `allEnemies` wurde oben bereits VOR diesem Treffer gebaut – ohne
+      // dieses Herausfiltern würde der gerade besiegte Mini-Gegner weiter
+      // unten (Stromball-/Rand-Kollision) noch denselben Frame mitzählen.
+      allEnemies = allEnemies.filter((e) => e !== miniHit.enemy);
+      defeatMiniEnemy(miniHit.enemy, scoring, explosions, level.scoring);
+      hud.setScore(scoring.score);
+    }
 
     // Irgendein Gegner ↔ aktive Linie: löst einen Stromball aus, der die Linie
     // entlang Richtung Spieler fährt (doppelte Zeichengeschwindigkeit). Ein
@@ -475,6 +573,28 @@ function start(
     drawEnemySprite(ctx, assets.mainEnemy, mainEnemy);
     for (const mini of miniEnemies) drawEnemySprite(ctx, assets.miniEnemy, mini);
 
+    // Bonussteine: mit ihrem typspezifischen Sprite, in der letzten Sekunde
+    // vor Ablauf sanft ausblendend (Instruktion 14, Punkt 4).
+    const bonusStoneNow = performance.now();
+    for (const stone of bonusStones) {
+      const sprite = stone.type === 'speedBoost' ? assets.bonusSpeed : assets.bonusCannon;
+      const diameter = level.bonusStones.spawning.radius * 2;
+      ctx.save();
+      ctx.globalAlpha = bonusStoneOpacity(
+        stone,
+        level.bonusStones.spawning.lifetimeSeconds,
+        bonusStoneNow,
+      );
+      ctx.drawImage(
+        sprite,
+        stone.position.x - diameter / 2,
+        stone.position.y - diameter / 2,
+        diameter,
+        diameter,
+      );
+      ctx.restore();
+    }
+
     // Projektile: nach den Gegnern, vor Spielfigur/Linie.
     if (assets.projectile) {
       for (const p of projectiles) {
@@ -486,6 +606,15 @@ function start(
           p.size,
         );
       }
+    }
+    for (const p of playerProjectiles) {
+      ctx.drawImage(
+        assets.playerProjectile,
+        p.position.x - p.size / 2,
+        p.position.y - p.size / 2,
+        p.size,
+        p.size,
+      );
     }
 
     // Explosionen: nach Gegnern/Projektilen, vor der Zeichenlinie/Spieler-Ebene.

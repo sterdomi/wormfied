@@ -1,7 +1,10 @@
 import { createEnemy, type Enemy, type EnemySpec } from './enemy';
+import { createExplosion, type Explosion } from './explosion';
 import type { Point } from './field';
 import { randomDirection } from './enemyMovement';
 import { isPointInPolygon } from './polygon';
+import { awardMiniEnemyDefeated, type Scoring } from './scoring';
+import type { DefeatScoring } from '../levels/types';
 
 /** Obergrenze an Platzierungsversuchen (verhindert Endlosschleife bei engem Feld). */
 const SPAWN_MAX_TRIES = 300;
@@ -68,4 +71,21 @@ export function removeCapturedMiniEnemies(
   claimedPolygon: Point[],
 ): Enemy[] {
   return partitionCapturedMiniEnemies(miniEnemies, claimedPolygon).survivors;
+}
+
+/**
+ * Ablauf bei einem besiegten Mini-Gegner (Instruktion 12/14): Explosion an
+ * seiner Position + Bonus-Punkte gemäss `defeatScoring`. Von BEIDEN
+ * Auslösern genutzt – Einschliessen (`partitionCapturedMiniEnemies`) UND
+ * Spieler-Projektil-Treffer (Instruktion 14, Punkt 9) – damit die Logik nicht
+ * dupliziert wird. Mutiert `scoring` und `explosions`.
+ */
+export function defeatMiniEnemy(
+  enemy: Enemy,
+  scoring: Scoring,
+  explosions: Explosion[],
+  defeatScoring?: DefeatScoring,
+): void {
+  explosions.push(createExplosion(enemy.position));
+  awardMiniEnemyDefeated(scoring, defeatScoring);
 }

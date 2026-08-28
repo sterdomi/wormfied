@@ -64,7 +64,7 @@ describe('loadImage', () => {
 });
 
 describe('loadLevelImages', () => {
-  it('lädt Foreground, Background und beide Gegner-Sprites, benannt zurückgegeben', async () => {
+  it('lädt Foreground, Background, Gegner- und Bonusstein-Sprites, benannt zurückgegeben', async () => {
     const promise = loadLevelImages({
       id: 'l',
       name: 'L',
@@ -72,6 +72,18 @@ describe('loadLevelImages', () => {
       backgroundSrc: 'bg.png',
       mainEnemy: { assetSrc: 'main.svg', speed: 90, size: 40 },
       miniEnemies: { count: 3, config: { assetSrc: 'mini.svg', speed: 120, size: 22 } },
+      bonusStones: {
+        spawning: { spawnIntervalSeconds: 10, maxSimultaneous: 2, lifetimeSeconds: 10, radius: 16 },
+        speedBoost: { assetSrc: 'speed.svg', speedMultiplier: 2, effectDurationSeconds: 5 },
+        cannon: {
+          assetSrc: 'cannon.svg',
+          effectDurationSeconds: 6,
+          fireIntervalSeconds: 0.35,
+          projectileSpeed: 260,
+          projectileSize: 14,
+          projectileAssetSrc: 'playerBullet.svg',
+        },
+      },
     });
     await flush();
     fakes().forEach((f) => f.onload?.());
@@ -81,5 +93,8 @@ describe('loadLevelImages', () => {
     expect((images.background as unknown as FakeImage).src).toBe('bg.png');
     expect((images.mainEnemy as unknown as FakeImage).src).toBe('main.svg');
     expect((images.miniEnemy as unknown as FakeImage).src).toBe('mini.svg');
+    expect((images.bonusSpeed as unknown as FakeImage).src).toBe('speed.svg');
+    expect((images.bonusCannon as unknown as FakeImage).src).toBe('cannon.svg');
+    expect((images.playerProjectile as unknown as FakeImage).src).toBe('playerBullet.svg');
   });
 });

@@ -2,17 +2,30 @@ import { describe, it, expect } from 'vitest';
 import { createEnemy } from './enemy';
 import {
   advanceProjectile,
+  createDirectionalProjectile,
   createProjectile,
   isProjectileOutOfBounds,
   tickEnemyShooting,
+  tickPlayerShooting,
+  type PlayerShootingState,
   type ShootingSpec,
 } from './projectile';
+import type { CannonBoostConfig } from '../levels/types';
 
 const SHOOTING: ShootingSpec = {
   enabled: true,
   cooldownSeconds: 2,
   projectileSpeed: 100,
   projectileSize: 16,
+};
+
+const CANNON: CannonBoostConfig = {
+  assetSrc: 'cannon.svg',
+  effectDurationSeconds: 6,
+  fireIntervalSeconds: 0.35,
+  projectileSpeed: 260,
+  projectileSize: 14,
+  projectileAssetSrc: 'bullet.svg',
 };
 
 describe('createProjectile', () => {
@@ -89,5 +102,51 @@ describe('tickEnemyShooting', () => {
     expect(shot.velocity.x).toBeCloseTo(0);
     expect(shot.velocity.y).toBeCloseTo(SHOOTING.projectileSpeed);
     expect(shot.size).toBe(SHOOTING.projectileSize);
+  });
+});
+
+describe('createDirectionalProjectile', () => {
+  it('fliegt in die übergebene (normierte) Richtung, unabhängig von jedem Ziel', () => {
+    const p = createDirectionalProjectile({ x: 5, y: 5 }, { x: 0, y: -1 }, 100, 14);
+    expect(p.position).toEqual({ x: 5, y: 5 });
+    expect(p.velocity).toEqual({ x: 0, y: -100 });
+    expect(p.size).toBe(14);
+  });
+
+  it('normiert einen nicht normierten Richtungsvektor selbst', () => {
+    const p = createDirectionalProjectile({ x: 0, y: 0 }, { x: 3, y: 4 }, 100, 14);
+    expect(p.velocity.x).toBeCloseTo(60);
+    expect(p.velocity.y).toBeCloseTo(80);
+  });
+});
+
+describe('tickPlayerShooting (Kanone-Bonus, Instruktion 14)', () => {
+  const freshState = (): PlayerShootingState => ({
+    cannonRemainingSeconds: CANNON.effectDurationSeconds,
+    timeSinceLastPlayerShot: 0,
+  });
+
+  it('schiesst nicht, solange die Kanone inaktiv ist', () => {
+    const state: PlayerShootingState = { cannonRemainingSeconds: 0, timeSinceLastPlayerShot: 0 };
+    expect(tickPlayerShooting(state, true, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 1)).toBeNull();
+  });
+
+  it('schiesst nicht, solange der Spieler nicht zeichnet (Design-Entscheidung Instruktion 14)', () => {
+    const state = freshState();
+    expect(tickPlayerShooting(state, false, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 1)).toBeNull();
+  });
+
+  it('feuert nach Ablauf des fireIntervalSeconds automatisch in die Blickrichtung', () => {
+    const state = freshState();
+    expect(
+      tickPlayerShooting(state, true, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 0.3),
+    ).toBeNull();
+
+    const shot = tickPlayerShooting(state, true, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 0.05)!;
+    expect(shot).not.toBeNull();
+    expect(shot.velocity.x).toBeCloseTo(CANNON.projectileSpeed);
+    expect(shot.velocity.y).toBeCloseTo(0);
+    expect(shot.size).toBe(CANNON.projectileSize);
+    expect(state.timeSinceLastPlayerShot).toBe(0);
   });
 });

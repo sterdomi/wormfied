@@ -1,5 +1,6 @@
 import type { Enemy, Vec } from './enemy';
 import type { Point } from './field';
+import type { CannonBoostConfig } from '../levels/types';
 
 export interface Projectile {
   position: Point;
@@ -36,6 +37,27 @@ export function createProjectile(
   return {
     position: { x: from.x, y: from.y },
     velocity: { x: (dx / len) * speed, y: (dy / len) * speed },
+    size,
+  };
+}
+
+/**
+ * Erzeugt ein Projektil an `from`, das direkt in `direction` fliegt (wird
+ * intern normiert) – im Gegensatz zu `createProjectile` also NICHT auf einen
+ * Zielpunkt ausgerichtet. Für den Spieler-Kanone-Bonus (Instruktion 14):
+ * Schussrichtung ist die aktuelle Bewegungs-/Blickrichtung (`Player.facing`),
+ * kein Ziel.
+ */
+export function createDirectionalProjectile(
+  from: Point,
+  direction: Vec,
+  speed: number,
+  size: number,
+): Projectile {
+  const len = Math.hypot(direction.x, direction.y) || 1;
+  return {
+    position: { x: from.x, y: from.y },
+    velocity: { x: (direction.x / len) * speed, y: (direction.y / len) * speed },
     size,
   };
 }
@@ -87,5 +109,40 @@ export function tickEnemyShooting(
     playerPos,
     shooting.projectileSpeed,
     shooting.projectileSize,
+  );
+}
+
+/** Die für `tickPlayerShooting` relevanten Felder von `PlayerState`. */
+export interface PlayerShootingState {
+  cannonRemainingSeconds: number;
+  timeSinceLastPlayerShot: number;
+}
+
+/**
+ * Automatisches Kanone-Feuer, solange der Bonus aktiv ist UND der Spieler
+ * zeichnet (Instruktion 14 – Design-Entscheidung: kein separates Abfeuern,
+ * die Kanone ist "während des Zeichnens zusätzlich aktiv"). Cooldown-Logik
+ * wie `tickEnemyShooting`, aber Schussrichtung = aktuelle Blickrichtung
+ * (`facing`) statt Ziel auf den Spieler.
+ */
+export function tickPlayerShooting(
+  state: PlayerShootingState,
+  isDrawing: boolean,
+  facing: Vec,
+  playerPos: Point,
+  cannon: CannonBoostConfig,
+  dt: number,
+): Projectile | null {
+  if (state.cannonRemainingSeconds <= 0 || !isDrawing) return null;
+
+  state.timeSinceLastPlayerShot += dt;
+  if (state.timeSinceLastPlayerShot < cannon.fireIntervalSeconds) return null;
+
+  state.timeSinceLastPlayerShot = 0;
+  return createDirectionalProjectile(
+    playerPos,
+    facing,
+    cannon.projectileSpeed,
+    cannon.projectileSize,
   );
 }

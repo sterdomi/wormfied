@@ -28,25 +28,44 @@ export interface LevelImages {
   miniEnemy: HTMLImageElement;
   /** Projektil-Sprite – nur vorhanden, wenn im Level ein Gegner schiesst. */
   projectile?: HTMLImageElement;
+  /** Bonusstein-Sprites (Instruktion 14). */
+  bonusSpeed: HTMLImageElement;
+  bonusCannon: HTMLImageElement;
+  /** Sprite für Spieler-Projektile (Kanone-Bonus, Instruktion 14). */
+  playerProjectile: HTMLImageElement;
 }
 
 /**
- * Lädt alle Bilder eines Levels: Foreground, Background, Gegner-Sprites sowie
- * (falls ein Gegner schiesst) das Projektil-Sprite. SVGs laden wie PNGs über
- * `Image()`, keine Sonderbehandlung.
+ * Lädt alle Bilder eines Levels: Foreground, Background, Gegner-Sprites,
+ * Bonusstein-Sprites + Spieler-Projektil sowie (falls ein Gegner schiesst)
+ * das Gegner-Projektil-Sprite. SVGs laden wie PNGs über `Image()`, keine
+ * Sonderbehandlung.
  */
 export async function loadLevelImages(level: LevelConfig): Promise<LevelImages> {
   const projectileSrc =
     level.mainEnemy.shooting?.projectileAssetSrc ??
     level.miniEnemies.config.shooting?.projectileAssetSrc;
 
-  const [foreground, background, mainEnemy, miniEnemy, projectile] = await loadImages([
-    level.foregroundSrc,
-    level.backgroundSrc,
-    level.mainEnemy.assetSrc,
-    level.miniEnemies.config.assetSrc,
-    ...(projectileSrc ? [projectileSrc] : []),
-  ]);
+  const [foreground, background, mainEnemy, miniEnemy, bonusSpeed, bonusCannon, playerProjectile, projectile] =
+    await loadImages([
+      level.foregroundSrc,
+      level.backgroundSrc,
+      level.mainEnemy.assetSrc,
+      level.miniEnemies.config.assetSrc,
+      level.bonusStones.speedBoost.assetSrc,
+      level.bonusStones.cannon.assetSrc,
+      level.bonusStones.cannon.projectileAssetSrc,
+      ...(projectileSrc ? [projectileSrc] : []),
+    ]);
 
-  return { foreground, background, mainEnemy, miniEnemy, projectile };
+  return {
+    foreground,
+    background,
+    mainEnemy,
+    miniEnemy,
+    bonusSpeed,
+    bonusCannon,
+    playerProjectile,
+    projectile,
+  };
 }

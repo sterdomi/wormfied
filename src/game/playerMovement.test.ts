@@ -89,6 +89,13 @@ describe('movePlayerAlongEdge', () => {
     expect(p.segmentProgress).toBeCloseTo(0.4);
   });
 
+  it('skaliert EDGE_SPEED über speedMultiplier (Instruktion 14, Geschwindigkeits-Boost), Konstante bleibt unverändert', () => {
+    const p = new Player(0, 0);
+    movePlayerAlongEdge(p, field, { ...NONE, right: true }, 1, 2);
+    expect(p.position.x).toBeCloseTo(EDGE_SPEED * 2);
+    expect(EDGE_SPEED).toBe(220);
+  });
+
   it('an einer Ecke: quer stehende Eingabe biegt aufs Nachbarsegment ab (vorwärts)', () => {
     // Spieler exakt auf der oberen-rechten Ecke, aber noch auf Segment 0 (obere
     // Kante). "runter" steht quer zu Segment 0 → muss auf Segment 1 abbiegen.

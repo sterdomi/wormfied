@@ -5,6 +5,7 @@ import {
   checkUnshieldedPlayerCollision,
   enemyTouchingLine,
   ENEMY_TOUCH_RADIUS,
+  findPlayerProjectileHittingMiniEnemy,
   projectileIndexHittingUnshieldedPlayer,
   projectileIndexTouchingLine,
 } from './collision';
@@ -120,5 +121,32 @@ describe('Projektil-Kollisionen (gleiche Regeln wie Gegner-Berührung)', () => {
     expect(projectileIndexHittingUnshieldedPlayer([projAt(700, 500)], { x: 200, y: 200 }, 0)).toBe(
       -1,
     );
+  });
+});
+
+describe('findPlayerProjectileHittingMiniEnemy (Kanone-Bonus, Instruktion 14)', () => {
+  const projAt = (x: number, y: number) => {
+    const p = createProjectile({ x: 0, y: 0 }, { x: 1, y: 0 }, 1, 16);
+    p.position = { x, y };
+    return p;
+  };
+  const mini = createEnemy({ x: 200, y: 200 }, SPEC);
+  const mainEnemy = createEnemy({ x: 500, y: 500 }, SPEC);
+
+  it('findet den Index + Mini-Gegner bei Treffer', () => {
+    const hit = findPlayerProjectileHittingMiniEnemy([projAt(204, 200)], [mini]);
+    expect(hit).not.toBeNull();
+    expect(hit!.projectileIndex).toBe(0);
+    expect(hit!.enemy).toBe(mini);
+  });
+
+  it('kein Treffer, wenn kein Mini-Gegner in Reichweite ist', () => {
+    expect(findPlayerProjectileHittingMiniEnemy([projAt(700, 700)], [mini])).toBeNull();
+  });
+
+  it('Regression: der Hauptgegner ist NICHT Ziel – ein Treffer auf seine Position bleibt wirkungslos, solange er nicht in der übergebenen Liste steckt', () => {
+    const projectileAtMainEnemy = projAt(mainEnemy.position.x, mainEnemy.position.y);
+    // main.ts übergibt hier bewusst nur `miniEnemies`, nie den Hauptgegner.
+    expect(findPlayerProjectileHittingMiniEnemy([projectileAtMainEnemy], [mini])).toBeNull();
   });
 });

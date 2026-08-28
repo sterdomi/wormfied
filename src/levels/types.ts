@@ -29,6 +29,41 @@ export interface DefeatScoring {
   mainEnemyPoints: number;
 }
 
+/** Spawning-Parameter für Bonussteine (Instruktion 14). */
+export interface BonusStoneSpawning {
+  spawnIntervalSeconds: number;
+  maxSimultaneous: number;
+  /** Wie lange ein Stein sichtbar bleibt, bevor er ungefangen wieder verschwindet. */
+  lifetimeSeconds: number;
+  /** Für Rendering + Kollision/Hindernis-Verhalten. */
+  radius: number;
+}
+
+/** Geschwindigkeits-Boost: Rand- UND Zeichen-Bewegung werden vorübergehend schneller. */
+export interface SpeedBoostConfig {
+  assetSrc: string;
+  speedMultiplier: number;
+  effectDurationSeconds: number;
+}
+
+/** Kanone: Spieler kann für begrenzte Zeit Mini-Gegner aus der Distanz treffen. */
+export interface CannonBoostConfig {
+  assetSrc: string;
+  effectDurationSeconds: number;
+  /** Zeit zwischen zwei automatischen Schüssen, solange die Kanone aktiv ist. */
+  fireIntervalSeconds: number;
+  projectileSpeed: number;
+  projectileSize: number;
+  /** Kann `kugel.svg` aus Instruktion 11 wiederverwenden. */
+  projectileAssetSrc: string;
+}
+
+export interface BonusStonesConfig {
+  spawning: BonusStoneSpawning;
+  speedBoost: SpeedBoostConfig;
+  cannon: CannonBoostConfig;
+}
+
 /**
  * Vollständige Konfiguration eines Levels. Jedes Level ist ein eigenes
  * Unterpackage unter `src/levels/` und exportiert genau ein solches Objekt.
@@ -44,6 +79,7 @@ export interface LevelConfig {
     config: EnemyConfig;
   };
   scoring?: DefeatScoring;
+  bonusStones: BonusStonesConfig;
   // TODO(später): hier kommen weitere level-spezifische Eigenheiten rein
   // (Bewegungsmuster-Varianten, Spezialverhalten einzelner Level, Power-ups …).
 }
