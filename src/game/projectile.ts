@@ -119,23 +119,38 @@ export interface PlayerShootingState {
 }
 
 /**
- * Automatisches Kanone-Feuer, solange der Bonus aktiv ist UND der Spieler
- * zeichnet (Instruktion 14 – Design-Entscheidung: kein separates Abfeuern,
- * die Kanone ist "während des Zeichnens zusätzlich aktiv"). Cooldown-Logik
- * wie `tickEnemyShooting`, aber Schussrichtung = aktuelle Blickrichtung
- * (`facing`) statt Ziel auf den Spieler.
+ * Kanone-Feuer, solange der Bonus aktiv ist: Tap-to-Fire statt Dauerfeuer
+ * (Instruktion 15, Punkt 8 – löst die automatische Dauerfeuer-Lösung aus
+ * Instruktion 14 ab). `fireRequested` ist der EDGE-getriggerte Tastendruck
+ * (`InputState.drawJustPressed`, nur wahr im Frame des Drucks) – nicht
+ * "Taste gehalten". `cannon.fireIntervalSeconds` wird dabei zur MINIMALEN
+ * Abklingzeit zwischen zwei Tap-Schüssen uminterpretiert (statt komplett
+ * entfernt zu werden): ein einzelner Tastendruck löst zwar direkt einen
+ * Schuss aus, ohne diese Untergrenze liesse sich durch sehr schnelles
+ * Tippen aber trotzdem praktisch dauerfeuern – die Konfiguration bleibt so
+ * weiterhin die "Feuerrate", jetzt eben als Obergrenze statt als fixes
+ * Intervall. Schussrichtung = aktuelle Blickrichtung (`facing`), kein Ziel.
+ *
+ * Kein Modus-Check hier: die Kanone feuert sowohl im `drawing`- als auch im
+ * `onEdge`-Modus (dort geschützt vom Rand aus, ohne loszufahren – der
+ * Aufrufer entscheidet nicht anhand des Modus, ob `fireRequested` gesetzt
+ * wird).
+ *
+ * Der Cooldown läuft unabhängig vom Tastendruck im Hintergrund weiter
+ * (`timeSinceLastPlayerShot` wird IMMER erhöht, nicht erst bei
+ * `fireRequested`), damit er zwischen zwei Taps schon vorlaufen kann.
  */
 export function tickPlayerShooting(
   state: PlayerShootingState,
-  isDrawing: boolean,
+  fireRequested: boolean,
   facing: Vec,
   playerPos: Point,
   cannon: CannonBoostConfig,
   dt: number,
 ): Projectile | null {
-  if (state.cannonRemainingSeconds <= 0 || !isDrawing) return null;
-
   state.timeSinceLastPlayerShot += dt;
+
+  if (state.cannonRemainingSeconds <= 0 || !fireRequested) return null;
   if (state.timeSinceLastPlayerShot < cannon.fireIntervalSeconds) return null;
 
   state.timeSinceLastPlayerShot = 0;

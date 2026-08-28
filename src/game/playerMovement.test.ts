@@ -125,3 +125,37 @@ describe('movePlayerAlongEdge', () => {
     expect(p.segmentProgress).toBeCloseTo(1);
   });
 });
+
+describe('movePlayerAlongEdge – Zielen ohne Bewegung (Nutzer-Feedback nach Instruktion 15)', () => {
+  it('Eingabe quer zur Kante bewegt nicht, dreht den Spieler aber dorthin (geschützt vom Rand aus feuern können)', () => {
+    const p = new Player(0, 0.5); // obere Kante, "innen" = runter
+    p.syncPosition(field);
+    const posBefore = { ...p.position };
+
+    movePlayerAlongEdge(p, field, { ...NONE, down: true }, 1);
+
+    expect(p.position).toEqual(posBefore); // keine Bewegung
+    expect(p.segmentIndex).toBe(0);
+    expect(p.facing).toEqual({ x: 0, y: 1 }); // schaut trotzdem nach unten
+  });
+
+  it('funktioniert auch für die nach aussen zeigende Richtung', () => {
+    const p = new Player(0, 0.5);
+    movePlayerAlongEdge(p, field, { ...NONE, up: true }, 1);
+    expect(p.position).toEqual({ x: 400, y: 0 });
+    expect(p.facing).toEqual({ x: 0, y: -1 });
+  });
+
+  it('ohne jede Eingabe bleibt die zuletzt bekannte Blickrichtung erhalten', () => {
+    const p = new Player(0, 0.5);
+    const facingBefore = { ...p.facing };
+    movePlayerAlongEdge(p, field, NONE, 1);
+    expect(p.facing).toEqual(facingBefore);
+  });
+
+  it('tatsächliche Rand-Bewegung setzt weiterhin die Kanten-Tangente als Blickrichtung (nicht die rohe Zieleingabe)', () => {
+    const p = new Player(0, 0.5); // obere Kante, Tangente = (1, 0)
+    movePlayerAlongEdge(p, field, { ...NONE, right: true }, 1);
+    expect(p.facing).toEqual({ x: 1, y: 0 });
+  });
+});

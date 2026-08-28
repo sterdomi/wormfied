@@ -152,6 +152,18 @@ export function movePlayerAlongEdge(
     );
     segmentIndex = next.segmentIndex;
     progress = next.progress;
+  } else {
+    // Zielen ohne Bewegung: zeigt die Eingabe quer zur Kante (z.B. nach innen
+    // Richtung Feldmitte, ohne dass das eine Rand-Bewegung auslöst), dreht
+    // sich der Spieler trotzdem dorthin – bleibt dabei geschützt (`onEdge`),
+    // kann so z.B. mit einem aktiven Kanone-Bonus vom Rand aus feuern, ohne
+    // sich vom Rand zu lösen.
+    const wishX = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+    const wishY = (keys.down ? 1 : 0) - (keys.up ? 1 : 0);
+    if (wishX !== 0 || wishY !== 0) {
+      const len = Math.hypot(wishX, wishY);
+      player.facing = { x: wishX / len, y: wishY / len };
+    }
   }
 
   player.segmentIndex = segmentIndex;

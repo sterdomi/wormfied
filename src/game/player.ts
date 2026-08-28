@@ -31,14 +31,24 @@ export class Player {
   /** Aktueller Bewegungsmodus. */
   mode: PlayerMode;
   /**
-   * Zuletzt bekannter Bewegungsvektor (nicht zwingend normiert), fürs Sprite-
-   * Rendering (Instruktion 13). Wird NUR aktualisiert, wenn sich der Spieler
-   * diesen Frame tatsächlich bewegt (siehe `movePlayerAlongEdge` /
-   * `advanceDrawing`) – steht er kurzzeitig still (z.B. exakt beim Wechsel
-   * zwischen Rand- und Zeichenmodus), bleibt die zuletzt bekannte Richtung
-   * erhalten, statt auf 0 zurückzufallen.
+   * Zuletzt bekannte Blick-/Schussrichtung (nicht zwingend normiert), fürs
+   * Sprite-Rendering (Instruktion 13) UND als Schussrichtung für den
+   * Kanone-Bonus (Instruktion 14/15). Aktualisiert bei tatsächlicher
+   * Bewegung (`movePlayerAlongEdge` / `advanceDrawing`) UND – ohne dabei zu
+   * bewegen – bei reiner Richtungseingabe quer zur Kante, während der
+   * Spieler geschützt auf dem Rand steht (Zielen ohne loszufahren, siehe
+   * `movePlayerAlongEdge`). Ohne jede Eingabe bleibt die zuletzt bekannte
+   * Richtung erhalten, statt auf 0 zurückzufallen.
    */
   facing: Point;
+  /**
+   * "Bereit, ins Feld vorzudringen" (Instruktion 15). Nur relevant, solange
+   * `mode === 'onEdge'` – schaltet für sich genommen NICHTS an der Position,
+   * gibt aber Richtungseingabe nach innen erst frei (siehe `tryEnterDrawing`).
+   * Wird beim automatischen Andocken wieder auf `false` gesetzt (der Spieler
+   * muss sich für den nächsten Ausflug erneut abdocken).
+   */
+  isUndocked: boolean;
 
   constructor(segmentIndex = 0, segmentProgress = 0) {
     this.segmentIndex = segmentIndex;
@@ -46,6 +56,7 @@ export class Player {
     this.position = { x: 0, y: 0 };
     this.mode = 'onEdge';
     this.facing = { x: 1, y: 0 };
+    this.isUndocked = false;
   }
 
   /**

@@ -21,7 +21,13 @@ import {
   tickBonusStoneSpawning,
   type BonusStone,
 } from '../game/bonusStone';
-import { advanceDrawing, beginDrawing, EdgeTrigger, type DrawSession } from '../game/drawing';
+import {
+  advanceDrawing,
+  EdgeTrigger,
+  toggleUndocked,
+  tryEnterDrawing,
+  type DrawSession,
+} from '../game/drawing';
 import { createEnemy, enemyFacingAngle, type Enemy } from '../game/enemy';
 import { moveEnemies, randomDirection } from '../game/enemyMovement';
 import { createExplosion, pruneExplosions, renderExplosion, type Explosion } from '../game/explosion';
@@ -127,8 +133,8 @@ function start(
   let foregroundSnapshot: ImageData | null = null;
   // Zeitpunkt, bis zu dem der Schaden-Blitz gezeichnet wird (ms, performance.now).
   let damageFlashUntil = 0;
-  // Leertaste / Enter lösen nur auf ihrer steigenden Flanke aus.
-  const drawTrigger = new EdgeTrigger();
+  // Enter löst nur auf seiner steigenden Flanke aus (Leertaste liefert das
+  // seit Instruktion 15 bereits fertig über `input.state.drawJustPressed`).
   const restartTrigger = new EdgeTrigger();
 
   const hud = createHud();
@@ -270,6 +276,10 @@ function start(
     projectiles = []; // Gefahr zurücksetzen – keine noch fliegenden Kugeln
     foregroundSnapshot = null;
     player.mode = 'onEdge';
+    // Wie beim automatischen Andocken (Instruktion 15, Punkt 6) – der
+    // erzwungene Rand-Reset nach Lebensverlust ist ebenfalls ein Rückkehr zu
+    // `onEdge` und sollte den Spieler nicht weiter "scharf" abgedockt lassen.
+    player.isUndocked = false;
 
     handleLifeLoss(playerState);
     hud.setLives(playerState.lives);
@@ -317,6 +327,11 @@ function start(
   document.title = t('gameTitle');
 
   function update(dt: number): void {
+    // Berechnet `drawJustPressed` für diesen Frame (Flankenerkennung) – muss
+    // VOR jedem Lesen von `input.state.drawJustPressed` laufen, auch während
+    // eines Freezes unten, damit kein "gehalten seit dem Einfrieren"-Rest
+    // beim Auftauen fälschlich als frischer Druck zählt.
+    input.tick();
     const restartPressed = restartTrigger.pressed(input.state.restart);
 
     // Explosions-Fortschritt hängt an `performance.now()`, nicht an `dt` –
@@ -345,14 +360,17 @@ function start(
         ? level.bonusStones.speedBoost.speedMultiplier
         : 1;
 
-    const drawPressed = drawTrigger.pressed(input.state.draw);
     const prevPos = { x: player.position.x, y: player.position.y };
     // Ob der befahrene Pfad diesen Frame ausgeschnitten werden soll: nur wenn
     // der Spieler sich wirklich vom Rand gelöst hat (vor ODER nach dem Schritt).
     let carve = session?.hasLeftEdge === true;
 
     if (player.mode === 'onEdge') {
-      session = beginDrawing(player, drawPressed);
+      // Andock/Abdock-Toggle (Instruktion 15): ändert nur `isUndocked`, keine
+      // Positionsänderung. Der eigentliche Übergang zu `drawing` passiert erst
+      // bei tatsächlicher Richtungseingabe nach innen, siehe `tryEnterDrawing`.
+      toggleUndocked(player, input.state.drawJustPressed);
+      session = tryEnterDrawing(player, field, input.state);
       if (session) {
         // Zeichenversuch beginnt: Foreground-Zustand sichern (Rückgängig bei Kollision).
         foregroundSnapshot = foreground.snapshot();
@@ -440,11 +458,15 @@ function start(
     );
     if (spawnedStone) bonusStones.push(spawnedStone);
 
-    // Kanone-Bonus: solange aktiv UND der Spieler zeichnet, automatisch in
-    // die aktuelle Blickrichtung feuern (Design-Entscheidung Instruktion 14).
+    // Kanone-Bonus: Tap-to-Fire, in JEDEM Modus möglich – auch geschützt vom
+    // Rand aus (Nutzer-Feedback nach Instruktion 15: Richtung anpeilen per
+    // Pfeiltaste, ohne loszufahren, siehe `movePlayerAlongEdge`, dann mit
+    // Leertaste feuern, ohne den Schild-Schutz aufzugeben). Ohne aktiven
+    // Bonus bewirkt der Druck nichts, da `tickPlayerShooting` bei
+    // `cannonRemainingSeconds <= 0` `null` liefert.
     const cannonShot = tickPlayerShooting(
       playerState,
-      player.mode === 'drawing',
+      input.state.drawJustPressed,
       player.facing,
       player.position,
       level.bonusStones.cannon,

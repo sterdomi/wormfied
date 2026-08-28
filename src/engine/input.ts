@@ -11,8 +11,18 @@ export interface InputState {
   down: boolean;
   left: boolean;
   right: boolean;
-  /** "Ins Feld hineinfahren und zeichnen" gewünscht. Keyboard: Leertaste. */
-  draw: boolean;
+  /**
+   * `true` NUR in dem einen Frame, in dem die Leertaste frisch gedrückt wurde
+   * (steigende Flanke) – nicht bei durchgehendem Halten (Instruktion 15,
+   * löst das haltebasierte Modell aus Instruktion 3 ab). Bedeutung ist
+   * kontextabhängig in der Spiellogik: Abdocken/Abbrechen auf dem Rand,
+   * Tap-to-Fire beim Zeichnen.
+   *
+   * Input-quellen-agnostisch: jede Eingabequelle, die `InputState` befüllt
+   * (Gamepad-Knopf, Touch-Tap), profitiert vom selben Mechanismus – die
+   * Spiellogik liest nur dieses Feld, nie einen rohen "gehalten"-Zustand.
+   */
+  drawJustPressed: boolean;
   /** Neustart nach Game Over gewünscht. Keyboard: Enter. */
   restart: boolean;
 }
@@ -20,6 +30,13 @@ export interface InputState {
 export interface InputHandle {
   /** In-place aktualisierter Zustand – Referenz einmal holen, pro Frame lesen. */
   readonly state: Readonly<InputState>;
+  /**
+   * Einmal pro Frame VOR dem Lesen von `state` aufrufen (z.B. am Anfang von
+   * `update(dt)`): berechnet `drawJustPressed` für diesen Frame durch
+   * Vergleich des vorherigen mit dem aktuellen Leertasten-Zustand und
+   * setzt es danach wieder zurück, bis erneut gedrückt wird.
+   */
+  tick: () => void;
   dispose: () => void;
 }
 
@@ -36,8 +53,8 @@ const KEY_MAP: Readonly<Record<string, InputDirection>> = {
 
 /**
  * Desktop-Keyboard-Handler: übersetzt Pfeiltasten/WASD → Richtungen, Leertaste
- * → `draw` und Enter → `restart`. Die Spiellogik kennt nur `InputState`, nicht
- * die konkreten Tasten.
+ * → `drawJustPressed` (Flanke, s.u.) und Enter → `restart`. Die Spiellogik
+ * kennt nur `InputState`, nicht die konkreten Tasten.
  */
 export function setupInput(): InputHandle {
   const state: InputState = {
@@ -45,9 +62,15 @@ export function setupInput(): InputHandle {
     down: false,
     left: false,
     right: false,
-    draw: false,
+    drawJustPressed: false,
     restart: false,
   };
+  // Roher (gehaltener) Leertasten-Zustand – bewusst NICHT Teil von
+  // `InputState`: seit Instruktion 15 braucht die Spiellogik nur noch die
+  // Flanke (`drawJustPressed`), kein durchgehendes Halten mehr. Dieser Wert
+  // lebt rein intern zur Flankenerkennung in `tick()`.
+  let drawHeld = false;
+  let wasDrawHeld = false;
 
   const setDirection = (code: string, pressed: boolean): void => {
     const dir = KEY_MAP[code];
@@ -56,7 +79,7 @@ export function setupInput(): InputHandle {
 
   const onKeyDown = (e: KeyboardEvent): void => {
     if (e.code === 'Space') {
-      state.draw = true;
+      drawHeld = true;
       e.preventDefault(); // Seiten-Scroll durch Leertaste unterdrücken
       return;
     }
@@ -69,7 +92,7 @@ export function setupInput(): InputHandle {
 
   const onKeyUp = (e: KeyboardEvent): void => {
     if (e.code === 'Space') {
-      state.draw = false;
+      drawHeld = false;
       return;
     }
     if (e.code === 'Enter' || e.code === 'NumpadEnter') {
@@ -82,7 +105,7 @@ export function setupInput(): InputHandle {
   // Fokusverlust: sonst "klebt" eine Taste, deren keyup das Fenster nie erreicht.
   const onBlur = (): void => {
     state.up = state.down = state.left = state.right = false;
-    state.draw = false;
+    drawHeld = false;
     state.restart = false;
   };
 
@@ -92,6 +115,10 @@ export function setupInput(): InputHandle {
 
   return {
     state,
+    tick(): void {
+      state.drawJustPressed = drawHeld && !wasDrawHeld;
+      wasDrawHeld = drawHeld;
+    },
     dispose(): void {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);

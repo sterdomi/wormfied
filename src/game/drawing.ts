@@ -20,27 +20,29 @@ const EDGE_EPSILON = 0.5;
  * Nur die für das Zeichnen relevanten Felder des abstrakten `InputState`.
  * Entkoppelt `drawing.ts` von `engine/input.ts` – jede Eingabequelle, die ein
  * strukturell passendes Objekt liefert, funktioniert (auch ein Test-Literal).
+ *
+ * Seit Instruktion 15 nur noch die Richtungstasten: das frühere `draw`-Feld
+ * (durchgehend gehalten) brauchte einzig der inzwischen entfernte
+ * "Leertaste loslassen"-Mechanismus (siehe `advanceDrawing`).
  */
 export interface DrawInput {
   up: boolean;
   down: boolean;
   left: boolean;
   right: boolean;
-  /**
-   * Leertaste GEHALTEN. Solange `true`, ist der Spieler "grün"/gelöst; wird sie
-   * losgelassen, dockt er wieder an den Rand an (wenn er noch dort ist) bzw.
-   * bleibt stehen (Platzhalter, wenn schon im Feldinneren). Das AUSLÖSEN läuft
-   * über die steigende Flanke (siehe `EdgeTrigger`), nicht über diesen Wert.
-   */
-  draw: boolean;
 }
 
 /** Laufende Zeichen-Session: die entstehende Linie + die aktuelle Fahrtrichtung. */
 export interface DrawSession {
   line: DrawnLine;
   /**
-   * Achsparalleler Einheitsvektor – (±1,0) / (0,±1) – oder `null`, solange der
-   * Spieler seit dem Lösen noch keine Cursor-Richtung gewählt hat.
+   * Achsparalleler Einheitsvektor – (±1,0) / (0,±1). Seit Instruktion 15
+   * immer ab dem ersten Frame gesetzt: `tryEnterDrawing` bestimmt die
+   * Anfangsrichtung direkt aus der Richtungseingabe, die den Übergang
+   * `onEdge → drawing` überhaupt erst auslöst – anders als früher (Leertaste
+   * löste den Wechsel ohne Richtung aus, Cursor kam ggf. erst später), daher
+   * bleibt der `| null`-Typ hier nur aus Symmetrie zu `headingFromInput`
+   * erhalten (dessen `current`-Parameter weiterhin `null` sein kann).
    */
   heading: Point | null;
   /**
@@ -60,12 +62,13 @@ export interface PerimeterHit {
 }
 
 /**
- * Steigende-Flanke-Detektor für einen booleschen Trigger (hier: Leertaste).
+ * Steigende-Flanke-Detektor für einen booleschen Trigger – im Spiel noch für
+ * den Neustart (Enter) genutzt (`restartTrigger` in `main.ts`). Die Leertaste
+ * hat seit Instruktion 15 ihre eigene, input.ts-interne Flankenerkennung
+ * (`InputState.drawJustPressed`), braucht diese Klasse also nicht mehr.
  *
  * `pressed(true)` liefert nur im ERSTEN Frame `true`, danach erst wieder nach
- * einem `pressed(false)` dazwischen. Dadurch kann man nach dem Wieder-Andocken
- * an den Rand nicht durch blosses Gedrückthalten sofort erneut lösen – die
- * Leertaste muss dafür neu gedrückt werden.
+ * einem `pressed(false)` dazwischen.
  */
 export class EdgeTrigger {
   private wasActive = false;
@@ -78,20 +81,47 @@ export class EdgeTrigger {
 }
 
 /**
- * "Löst" den Spieler vom Rand, wenn er dort ist (`mode === 'onEdge'`) UND die
- * Leertaste in DIESEM Frame neu gedrückt wurde (`drawPressed`).
- *
- * Wichtig: Der Spieler bewegt sich dabei NICHT. Er wird nur "grün" und wartet
- * auf Cursor-Eingabe. Ohne Cursor-Eingabe – und anschliessendem Loslassen der
- * Leertaste – dockt er unverändert wieder an (siehe `advanceDrawing`).
+ * Andock/Abdock-Toggle (Instruktion 15): auf dem Rand (`mode === 'onEdge'`)
+ * schaltet ein frischer Tastendruck `player.isUndocked` um – ein zweiter
+ * Druck, bevor der Spieler sich tatsächlich vom Rand entfernt hat, nimmt das
+ * Abdocken wieder zurück (Punkt 3 UND 5 sind derselbe einfache Toggle). Für
+ * sich genommen bewirkt das KEINE Positionsänderung – die normale
+ * Rand-Bewegung (Instruktion 2) läuft unabhängig davon weiter.
  */
-export function beginDrawing(player: Player, drawPressed: boolean): DrawSession | null {
-  if (player.mode !== 'onEdge' || !drawPressed) return null;
+export function toggleUndocked(player: Player, drawJustPressed: boolean): void {
+  if (player.mode !== 'onEdge' || !drawJustPressed) return;
+  player.isUndocked = !player.isUndocked;
+}
+
+/**
+ * Übergang `onEdge → drawing` (Instruktion 15, löst das leertasten-getriebene
+ * `beginDrawing` aus Instruktion 3 ab): nur wenn der Spieler abgedockt ist
+ * (`player.isUndocked`) UND die Richtungseingabe klar nach INNEN zeigt (per
+ * Skalarprodukt mit der einwärts zeigenden Rand-Normale, wie zuvor der
+ * "noch nicht losgefahren"-Schutz in `advanceDrawing`). Eingabe entlang der
+ * Kante oder nach aussen hat hier bewusst KEINE Wirkung – der Spieler bleibt
+ * dann auf der normalen Rand-Bewegung.
+ *
+ * Die Anfangsrichtung steht damit von Anfang an fest (kein "grün, aber noch
+ * ohne Richtung"-Zwischenzustand mehr wie früher).
+ */
+export function tryEnterDrawing(
+  player: Player,
+  polygon: Point[],
+  input: DrawInput,
+): DrawSession | null {
+  if (player.mode !== 'onEdge' || !player.isUndocked) return null;
+
+  const wish = headingFromInput(null, input);
+  if (!wish) return null;
+
+  const inward = inwardNormal(polygon, player.segmentIndex);
+  if (wish.x * inward.x + wish.y * inward.y <= 0) return null;
 
   player.mode = 'drawing';
   return {
     line: createLine(player.position),
-    heading: null,
+    heading: wish,
     hasLeftEdge: false,
   };
 }
@@ -148,15 +178,15 @@ export function crossesOwnLine(line: DrawnLine, from: Point, to: Point): boolean
  * Ein Frame Zeichen-Bewegung. Mutiert `player` und `session`.
  *
  * Rückgabe `true`, wenn die Session verbraucht ist – der Spieler ist wieder
- * `onEdge`:
- *  - Linie hat den Rand erreicht → fertige Linie kommt in `completedLines`
- *  - Leertaste im Feldinneren losgelassen → gerade Verbindung zum
- *    nächstgelegenen Randpunkt, fertige Linie kommt in `completedLines`
- *  - Leertaste losgelassen, bevor der Spieler je losgefahren ist → er dockt
- *    unverändert wieder an, die (leere/entartete) Linie wird verworfen
+ * `onEdge`: die Linie hat geometrisch den Rand erreicht (automatisches
+ * Andocken, Instruktion 5/15 – die fertige Linie kommt in `completedLines`).
+ * Ein "Loslassen der Leertaste, um mitten im Feld zum nächsten Randpunkt zu
+ * verbinden" gibt es seit Instruktion 15 NICHT mehr (Toggle-Modell statt
+ * Halten) – der Spieler bewegt sich frei weiter, bis er selbst zurück zum
+ * Rand findet oder kollidiert.
  *
  * Rückgabe `false`, wenn weitergezeichnet wird ODER der Spieler stehen bleibt
- * (keine oder rein aussenwärtige Cursor-Eingabe, während die Leertaste hält).
+ * (keine oder rein aussenwärtige Cursor-Eingabe, oder ein Bonusstein blockiert).
  */
 export function advanceDrawing(
   session: DrawSession,
@@ -173,36 +203,6 @@ export function advanceDrawing(
   speedMultiplier = 1,
 ): boolean {
   const from: Point = { x: player.position.x, y: player.position.y };
-
-  if (!input.draw) {
-    const snap = closestPointOnPerimeter(polygon, from);
-
-    if (!session.hasLeftEdge) {
-      // Nie vom Rand gelöst → unverändert wieder andocken, "rot". Die
-      // (leere/entartete) Linie wird verworfen.
-      player.segmentIndex = snap.segmentIndex;
-      player.segmentProgress = snap.progress;
-      player.position = { x: snap.point.x, y: snap.point.y };
-      player.mode = 'onEdge';
-      return true;
-    }
-
-    // Leertaste mitten im Feld losgelassen: gerade Verbindung zum
-    // nächstgelegenen Randpunkt ergänzen, dann die Linie normal abschliessen
-    // (der Aufrufer splittet daraufhin das Feld).
-    //
-    // TODO(später): Der Gegner existiert inzwischen; das eigentliche Abbrechen
-    // bzw. Bestrafen (Linie bricht ab ohne Fläche zu erobern, oder kostet ein
-    // Leben) hängt am Leben-/Schild-System der nächsten Instruktion. Bis dahin
-    // ist diese Regel ein Platzhalter ohne Risiko.
-    appendPoint(session.line, snap.point, 0);
-    player.position = { x: snap.point.x, y: snap.point.y };
-    player.segmentIndex = snap.segmentIndex;
-    player.segmentProgress = snap.progress;
-    player.mode = 'onEdge';
-    completedLines.push(session.line);
-    return true;
-  }
 
   const heading = headingFromInput(session.heading, input);
   if (!heading) return false; // keine Cursor-Eingabe → "grün" stehen bleiben
@@ -234,6 +234,9 @@ export function advanceDrawing(
       player.segmentIndex = hit.segmentIndex;
       player.segmentProgress = hit.progress;
       player.mode = 'onEdge';
+      // Automatisches Andocken (Instruktion 15, Punkt 6): der Spieler muss
+      // sich für den nächsten Ausflug erneut abdocken.
+      player.isUndocked = false;
       completedLines.push(session.line);
       return true;
     }

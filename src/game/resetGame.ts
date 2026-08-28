@@ -24,6 +24,7 @@ export function resetGame(
   player.segmentIndex = 0;
   player.segmentProgress = 0;
   player.mode = 'onEdge';
+  player.isUndocked = false;
   player.syncPosition(field);
 
   finalize();

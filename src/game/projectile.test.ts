@@ -120,33 +120,61 @@ describe('createDirectionalProjectile', () => {
   });
 });
 
-describe('tickPlayerShooting (Kanone-Bonus, Instruktion 14)', () => {
+describe('tickPlayerShooting – Tap-to-Fire (Instruktion 15, löst das Dauerfeuer aus Instruktion 14 ab)', () => {
+  // `timeSinceLastPlayerShot` startet hier bereits bei `fireIntervalSeconds`
+  // ("Abklingzeit schon abgelaufen") – isoliert die Tap-vs-Halten-Semantik in
+  // den Tests unten von der (separat unten getesteten) Cooldown-Mechanik.
   const freshState = (): PlayerShootingState => ({
     cannonRemainingSeconds: CANNON.effectDurationSeconds,
-    timeSinceLastPlayerShot: 0,
+    timeSinceLastPlayerShot: CANNON.fireIntervalSeconds,
   });
 
-  it('schiesst nicht, solange die Kanone inaktiv ist', () => {
-    const state: PlayerShootingState = { cannonRemainingSeconds: 0, timeSinceLastPlayerShot: 0 };
-    expect(tickPlayerShooting(state, true, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 1)).toBeNull();
+  it('schiesst nicht, solange die Kanone inaktiv ist – selbst bei fireRequested', () => {
+    const state: PlayerShootingState = { cannonRemainingSeconds: 0, timeSinceLastPlayerShot: 1 };
+    expect(tickPlayerShooting(state, true, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 0)).toBeNull();
   });
 
-  it('schiesst nicht, solange der Spieler nicht zeichnet (Design-Entscheidung Instruktion 14)', () => {
+  it('schiesst nicht ohne fireRequested (kein frischer Tastendruck), auch bei aktiver Kanone', () => {
     const state = freshState();
     expect(tickPlayerShooting(state, false, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 1)).toBeNull();
   });
 
-  it('feuert nach Ablauf des fireIntervalSeconds automatisch in die Blickrichtung', () => {
+  it('ein einzelner Tap löst sofort einen Schuss in die Blickrichtung aus', () => {
     const state = freshState();
-    expect(
-      tickPlayerShooting(state, true, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 0.3),
-    ).toBeNull();
-
-    const shot = tickPlayerShooting(state, true, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 0.05)!;
+    const shot = tickPlayerShooting(state, true, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 0)!;
     expect(shot).not.toBeNull();
     expect(shot.velocity.x).toBeCloseTo(CANNON.projectileSpeed);
     expect(shot.velocity.y).toBeCloseTo(0);
     expect(shot.size).toBe(CANNON.projectileSize);
     expect(state.timeSinceLastPlayerShot).toBe(0);
+  });
+
+  it('kein Dauerfeuer: ohne erneuten Tap bleibt es über mehrere Frames hinweg beim einen Schuss', () => {
+    const state = freshState();
+    expect(tickPlayerShooting(state, true, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 0)).not.toBeNull();
+
+    // Taste losgelassen: kein Schuss mehr, auch wenn die Kanone weiter aktiv bleibt.
+    expect(tickPlayerShooting(state, false, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 1)).toBeNull();
+    expect(tickPlayerShooting(state, false, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 1)).toBeNull();
+  });
+
+  it('fireIntervalSeconds wirkt als minimale Abklingzeit zwischen zwei Tap-Schüssen (Spam-Schutz)', () => {
+    const state = freshState();
+    expect(tickPlayerShooting(state, true, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 0)).not.toBeNull();
+
+    // Sofortiger zweiter Tap, bevor die Abklingzeit erreicht ist: kein Schuss.
+    expect(
+      tickPlayerShooting(
+        state,
+        true,
+        { x: 1, y: 0 },
+        { x: 0, y: 0 },
+        CANNON,
+        CANNON.fireIntervalSeconds - 0.01,
+      ),
+    ).toBeNull();
+
+    // Nach Ablauf der Abklingzeit löst ein erneuter Tap wieder aus.
+    expect(tickPlayerShooting(state, true, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 0.02)).not.toBeNull();
   });
 });
