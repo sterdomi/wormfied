@@ -1,3 +1,5 @@
+import type { DefeatScoring } from '../levels/types';
+
 /**
  * Punkte pro Prozentpunkt eroberter Fläche. Grössere Claims geben dadurch
  * automatisch proportional mehr Punkte – kein zusätzlicher Bonus-Faktor für
@@ -10,6 +12,62 @@ export const EXTRA_LIFE_SCORE_THRESHOLD = 10_000;
 
 /** Ab diesem Prozentwert gilt das Level als abgeschlossen (Volfields Wert). */
 export const LEVEL_COMPLETE_THRESHOLD = 80;
+
+/**
+ * Fallback-Punkte für besiegte Gegner (Instruktion 12), falls ein Level keine
+ * eigene `scoring`-Konfiguration mitgibt (`LevelConfig.scoring`). Bewusst
+ * deutlich grösser als die flächenbasierten Punkte oben (`POINTS_PER_PERCENT`
+ * pro Prozent) – ein besiegter Gegner ist ein klar abgegrenzter, seltenerer
+ * Erfolg und darf sich entsprechend lohnender anfühlen als ein einzelnes
+ * Flächenprozent.
+ */
+export const defaultMiniEnemyDefeatedPoints = 500;
+export const defaultMainEnemyDefeatedPoints = 2000;
+
+/**
+ * Punkte für einen gefangenen (besiegten) Mini-Gegner (Instruktion 12).
+ * Mutiert `scoring.score` und liefert die vergebenen Punkte zurück – fällt
+ * auf `defaultMiniEnemyDefeatedPoints` zurück, falls `defeatScoring` fehlt.
+ */
+export function awardMiniEnemyDefeated(scoring: Scoring, defeatScoring?: DefeatScoring): number {
+  const points = defeatScoring?.miniEnemyPoints ?? defaultMiniEnemyDefeatedPoints;
+  scoring.score += points;
+  return points;
+}
+
+export interface LevelClearBonusOutcome {
+  mainEnemyPoints: number;
+  miniEnemyPoints: number;
+  totalPointsAwarded: number;
+}
+
+/**
+ * Levelabschluss-"Aufräum-Bonus": Hauptgegner + alle noch verbliebenen
+ * Mini-Gegner geben Punkte. Feuert NUR, wenn `levelJustCompleted` (das
+ * Ergebnisfeld von `registerClaim`) gesetzt ist – das ist per Konstruktion
+ * bereits nur beim false→true-Übergang von `scoring.isLevelComplete` der
+ * Fall, weshalb hier kein zusätzlicher Guard nötig ist: ruft der Aufrufer
+ * diese Funktion über mehrere Frames hinweg auf, während `isLevelComplete`
+ * weiterhin `true` bleibt, ist `levelJustCompleted` ab dem zweiten Aufruf
+ * bereits `false` und die Funktion liefert `null`, ohne den Score erneut zu
+ * erhöhen.
+ */
+export function applyLevelClearBonus(
+  scoring: Scoring,
+  levelJustCompleted: boolean,
+  remainingMiniEnemyCount: number,
+  defeatScoring?: DefeatScoring,
+): LevelClearBonusOutcome | null {
+  if (!levelJustCompleted) return null;
+
+  const mainEnemyPoints = defeatScoring?.mainEnemyPoints ?? defaultMainEnemyDefeatedPoints;
+  const miniEnemyPoints =
+    (defeatScoring?.miniEnemyPoints ?? defaultMiniEnemyDefeatedPoints) * remainingMiniEnemyCount;
+  const totalPointsAwarded = mainEnemyPoints + miniEnemyPoints;
+  scoring.score += totalPointsAwarded;
+
+  return { mainEnemyPoints, miniEnemyPoints, totalPointsAwarded };
+}
 
 /**
  * Fortschritts-Zustand eines Levels: eroberte Fläche, Score und

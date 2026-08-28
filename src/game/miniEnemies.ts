@@ -42,15 +42,30 @@ export function spawnMiniEnemies(
 }
 
 /**
+ * Teilt Mini-Gegner danach auf, ob sie im soeben eroberten Teilpolygon liegen
+ * ("gefangen" beim Einschliessen) oder nicht. `captured` erlaubt es dem
+ * Aufrufer, für jeden gefangenen Mini-Gegner Punkte gutzuschreiben und eine
+ * Explosion an dessen Position auszulösen (Instruktion 12).
+ */
+export function partitionCapturedMiniEnemies(
+  miniEnemies: readonly Enemy[],
+  claimedPolygon: Point[],
+): { survivors: Enemy[]; captured: Enemy[] } {
+  const survivors: Enemy[] = [];
+  const captured: Enemy[] = [];
+  for (const e of miniEnemies) {
+    (isPointInPolygon(e.position, claimedPolygon) ? captured : survivors).push(e);
+  }
+  return { survivors, captured };
+}
+
+/**
  * Entfernt Mini-Gegner, die im soeben eroberten Teilpolygon liegen ("gefangen"
  * beim Einschliessen). Liefert die übrigen.
- *
- * TODO(später): gefangene Mini-Gegner sollten Bonuspunkte geben (siehe
- * Instruktion 9), aktuell verschwinden sie ohne Score-Effekt.
  */
 export function removeCapturedMiniEnemies(
   miniEnemies: readonly Enemy[],
   claimedPolygon: Point[],
 ): Enemy[] {
-  return miniEnemies.filter((e) => !isPointInPolygon(e.position, claimedPolygon));
+  return partitionCapturedMiniEnemies(miniEnemies, claimedPolygon).survivors;
 }

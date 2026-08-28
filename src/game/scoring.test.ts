@@ -1,8 +1,13 @@
 import { describe, it, expect } from 'vitest';
+import type { DefeatScoring } from '../levels/types';
 import { createRectangularField } from './field';
 import { polygonArea, splitFieldByLine } from './polygon';
 import {
+  applyLevelClearBonus,
+  awardMiniEnemyDefeated,
   createScoring,
+  defaultMainEnemyDefeatedPoints,
+  defaultMiniEnemyDefeatedPoints,
   EXTRA_LIFE_SCORE_THRESHOLD,
   extraLivesFromScore,
   formatClaimedPercentage,
@@ -159,5 +164,80 @@ describe('isLevelComplete bei 80 %', () => {
     expect(registerClaim(s, 0.35 * total).levelJustCompleted).toBe(true);
     s.claimedArea = 0.9 * total;
     expect(registerClaim(s, 0.05 * total).levelJustCompleted).toBe(false); // schon complete
+  });
+});
+
+describe('awardMiniEnemyDefeated', () => {
+  it('erhöht den Score um den konfigurierten Wert', () => {
+    const scoring = createScoring(1000);
+    const defeatScoring: DefeatScoring = { miniEnemyPoints: 777, mainEnemyPoints: 3000 };
+
+    const awarded = awardMiniEnemyDefeated(scoring, defeatScoring);
+
+    expect(awarded).toBe(777);
+    expect(scoring.score).toBe(777);
+  });
+
+  it('fällt ohne Level-Konfiguration auf den Default-Wert zurück', () => {
+    const scoring = createScoring(1000);
+    const awarded = awardMiniEnemyDefeated(scoring, undefined);
+
+    expect(awarded).toBe(defaultMiniEnemyDefeatedPoints);
+    expect(scoring.score).toBe(defaultMiniEnemyDefeatedPoints);
+  });
+
+  it('addiert bei mehreren gefangenen Mini-Gegnern kumulativ', () => {
+    const scoring = createScoring(1000);
+    awardMiniEnemyDefeated(scoring, undefined);
+    awardMiniEnemyDefeated(scoring, undefined);
+    expect(scoring.score).toBe(2 * defaultMiniEnemyDefeatedPoints);
+  });
+});
+
+describe('applyLevelClearBonus', () => {
+  it('vergibt Punkte für Hauptgegner UND alle noch verbliebenen Mini-Gegner', () => {
+    const scoring = createScoring(1000);
+    const defeatScoring: DefeatScoring = { miniEnemyPoints: 500, mainEnemyPoints: 2000 };
+
+    const bonus = applyLevelClearBonus(scoring, true, 2, defeatScoring);
+
+    expect(bonus).not.toBeNull();
+    expect(bonus!.mainEnemyPoints).toBe(2000);
+    expect(bonus!.miniEnemyPoints).toBe(1000); // 2 × 500
+    expect(bonus!.totalPointsAwarded).toBe(3000);
+    expect(scoring.score).toBe(3000);
+  });
+
+  it('fällt ohne Level-Konfiguration auf die Default-Werte zurück', () => {
+    const scoring = createScoring(1000);
+    const bonus = applyLevelClearBonus(scoring, true, 0, undefined);
+
+    expect(bonus!.mainEnemyPoints).toBe(defaultMainEnemyDefeatedPoints);
+    expect(bonus!.miniEnemyPoints).toBe(0);
+    expect(scoring.score).toBe(defaultMainEnemyDefeatedPoints);
+  });
+
+  it('feuert nicht, wenn levelJustCompleted false ist', () => {
+    const scoring = createScoring(1000);
+    const bonus = applyLevelClearBonus(scoring, false, 3, undefined);
+
+    expect(bonus).toBeNull();
+    expect(scoring.score).toBe(0);
+  });
+
+  it('wird nur einmal ausgelöst, auch wenn isLevelComplete über mehrere Frames true bleibt', () => {
+    const scoring = createScoring(1000);
+    scoring.isLevelComplete = true; // Level bereits seit einem früheren Frame abgeschlossen
+
+    // Frame 1: levelJustCompleted wahr (frisch erreicht) → Bonus feuert.
+    const firstFrame = applyLevelClearBonus(scoring, true, 1, undefined);
+    expect(firstFrame).not.toBeNull();
+    const scoreAfterFirstFrame = scoring.score;
+
+    // Frame 2 und 3: isLevelComplete bleibt true, aber levelJustCompleted ist
+    // (wie von registerClaim geliefert) ab jetzt false → kein erneuter Bonus.
+    expect(applyLevelClearBonus(scoring, false, 1, undefined)).toBeNull();
+    expect(applyLevelClearBonus(scoring, false, 1, undefined)).toBeNull();
+    expect(scoring.score).toBe(scoreAfterFirstFrame);
   });
 });

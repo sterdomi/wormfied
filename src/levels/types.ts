@@ -22,6 +22,13 @@ export interface EnemyConfig {
   shooting?: ShootingConfig;
 }
 
+/** Punkte für besiegte Gegner (Instruktion 12). Fehlt sie, gelten die
+ *  Fallback-Werte aus `src/game/scoring.ts`. */
+export interface DefeatScoring {
+  miniEnemyPoints: number;
+  mainEnemyPoints: number;
+}
+
 /**
  * Vollständige Konfiguration eines Levels. Jedes Level ist ein eigenes
  * Unterpackage unter `src/levels/` und exportiert genau ein solches Objekt.
@@ -36,6 +43,7 @@ export interface LevelConfig {
     count: number;
     config: EnemyConfig;
   };
+  scoring?: DefeatScoring;
   // TODO(später): hier kommen weitere level-spezifische Eigenheiten rein
   // (Bewegungsmuster-Varianten, Spezialverhalten einzelner Level, Power-ups …).
 }

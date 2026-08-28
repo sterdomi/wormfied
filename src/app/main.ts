@@ -12,12 +12,13 @@ import {
 import { advanceDrawing, beginDrawing, EdgeTrigger, type DrawSession } from '../game/drawing';
 import { createEnemy, enemyFacingAngle, type Enemy } from '../game/enemy';
 import { moveEnemies, randomDirection } from '../game/enemyMovement';
+import { createExplosion, pruneExplosions, renderExplosion, type Explosion } from '../game/explosion';
 import { createRectangularField, type Point } from '../game/field';
 import { createForegroundLayer, type ForegroundLayer } from '../game/foregroundLayer';
 import { closestPointOnPerimeter } from '../game/geometry';
 import { type DrawnLine } from '../game/line';
 import { handleLifeLoss } from '../game/lifecycle';
-import { removeCapturedMiniEnemies, spawnMiniEnemies } from '../game/miniEnemies';
+import { partitionCapturedMiniEnemies, spawnMiniEnemies } from '../game/miniEnemies';
 import { Player } from '../game/player';
 import { createPlayerState, decayShield } from '../game/playerState';
 import { movePlayerAlongEdge } from '../game/playerMovement';
@@ -29,7 +30,14 @@ import {
   type Projectile,
 } from '../game/projectile';
 import { resetGame } from '../game/resetGame';
-import { createScoring, getClaimedPercentage, registerClaim, type Scoring } from '../game/scoring';
+import {
+  applyLevelClearBonus,
+  awardMiniEnemyDefeated,
+  createScoring,
+  getClaimedPercentage,
+  registerClaim,
+  type Scoring,
+} from '../game/scoring';
 import { advanceSpark, createSpark, type Spark } from '../game/spark';
 import { levels } from '../levels';
 import { type LevelConfig } from '../levels/types';
@@ -102,6 +110,7 @@ function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImage
   let mainEnemy: Enemy = createEnemy({ x: 0, y: 0 }, level.mainEnemy);
   let miniEnemies: Enemy[] = [];
   let projectiles: Projectile[] = [];
+  let explosions: Explosion[] = [];
 
   /** Level-Initialisierung (auch Resize- und Neustart-Pfad nutzen sie). */
   function rebuildField(width: number, height: number): Point[] {
@@ -136,6 +145,7 @@ function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImage
       MIN_MINI_SPACING,
     );
     projectiles = [];
+    explosions = [];
     return field;
   }
 
@@ -155,8 +165,14 @@ function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImage
     player.syncPosition(field);
     foreground.carveRegion(result.claimed);
 
-    // Mini-Gegner, die in der eroberten Fläche liegen, sind "gefangen".
-    miniEnemies = removeCapturedMiniEnemies(miniEnemies, result.claimed);
+    // Mini-Gegner, die in der eroberten Fläche liegen, sind "gefangen": Bonus-
+    // Punkte + eine Explosion an ihrer letzten Position (Instruktion 12).
+    const { survivors, captured } = partitionCapturedMiniEnemies(miniEnemies, result.claimed);
+    miniEnemies = survivors;
+    for (const enemy of captured) {
+      explosions.push(createExplosion(enemy.position));
+      awardMiniEnemyDefeated(scoring, level.scoring);
+    }
 
     scoring.claimedArea += result.claimedArea;
     const percent = getClaimedPercentage(scoring.claimedArea, scoring.totalFieldArea);
@@ -165,15 +181,28 @@ function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImage
     // Punkte proportional zur neu eroberten Fläche + daraus resultierende
     // Extra-Leben + 80%-Levelabschluss.
     const outcome = registerClaim(scoring, result.claimedArea);
-    hud.setScore(scoring.score);
     if (outcome.extraLives > 0) {
       playerState.lives += outcome.extraLives; // kein Cap – bewusst (Arcade-Mechanik)
       hud.setLives(playerState.lives);
       hud.flashLives();
     }
-    if (outcome.levelJustCompleted) {
+
+    // Levelabschluss-Bonus ("Aufräum-Bonus"): `applyLevelClearBonus` feuert
+    // nur beim false→true-Übergang (siehe dortiger Kommentar), also genau
+    // einmal, auch falls dieser Frame-Handler danach nochmal liefe.
+    const bonus = applyLevelClearBonus(
+      scoring,
+      outcome.levelJustCompleted,
+      miniEnemies.length,
+      level.scoring,
+    );
+    if (bonus) {
+      explosions.push(createExplosion(mainEnemy.position));
+      for (const enemy of miniEnemies) explosions.push(createExplosion(enemy.position));
+      miniEnemies = [];
       hud.setLevelComplete(true, percent, scoring.score);
     }
+    hud.setScore(scoring.score);
   }
 
   /**
@@ -216,6 +245,7 @@ function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImage
         session = null;
         spark = null;
         projectiles = [];
+        explosions = [];
         foregroundSnapshot = null;
         damageFlashUntil = 0;
         hud.setGameOver(false);
@@ -239,6 +269,12 @@ function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImage
 
   function update(dt: number): void {
     const restartPressed = restartTrigger.pressed(input.state.restart);
+
+    // Explosions-Fortschritt hängt an `performance.now()`, nicht an `dt` –
+    // dieser Aufräumschritt läuft deshalb bewusst VOR den Freeze-Checks
+    // unten, damit der Levelabschluss-Bonus (Instruktion 12) auch bei
+    // eingefrorenem Game-Loop sichtbar zu Ende animiert.
+    explosions = pruneExplosions(explosions, performance.now());
 
     if (playerState.isGameOver) {
       // Keine Spieler-/Gegnerbewegung mehr – nur auf Neustart warten.
@@ -431,6 +467,10 @@ function start(canvas: HTMLCanvasElement, level: LevelConfig, assets: LevelImage
         );
       }
     }
+
+    // Explosionen: nach Gegnern/Projektilen, vor der Zeichenlinie/Spieler-Ebene.
+    const explosionNow = performance.now();
+    for (const explosion of explosions) renderExplosion(ctx, explosion, explosionNow);
 
     // Aktuell gezeichnete Linie (grün): aufgezeichnete Punkte + live bis zum Spieler.
     if (session) {

@@ -1,3 +1,4 @@
+import { defaultMainEnemyDefeatedPoints, defaultMiniEnemyDefeatedPoints } from '../../game/scoring';
 import type { LevelConfig } from '../types';
 
 /**
@@ -40,5 +41,11 @@ export const level1: LevelConfig = {
       size: 22,
       // Mini-Gegner schiessen in Level 1 bewusst nicht.
     },
+  },
+  // Entspricht den Default-Werten aus scoring.ts – Level 1 braucht (noch)
+  // keine eigene Abstufung, macht die Konfiguration aber explizit.
+  scoring: {
+    miniEnemyPoints: defaultMiniEnemyDefeatedPoints,
+    mainEnemyPoints: defaultMainEnemyDefeatedPoints,
   },
 };
