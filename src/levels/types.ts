@@ -111,6 +111,12 @@ export interface LevelConfig {
   bonusStones: BonusStonesConfig;
   /** Hintergrundmusik-Loop für dieses Level. Optional – fehlt sie, bleibt es still. */
   musicSrc?: string;
+  /**
+   * Schild-Abnahme pro Sekunde auf dem Rand (Nutzer-Feedback: pro Level
+   * konfigurierbar). Fehlt sie, gilt `SHIELD_DECAY_PER_SECOND` aus
+   * `playerState.ts`. Kleinerer Wert = Schild hält länger.
+   */
+  shieldDecayPerSecond?: number;
   // TODO(später): hier kommen weitere level-spezifische Eigenheiten rein
   // (Bewegungsmuster-Varianten, Spezialverhalten einzelner Level, Power-ups …).
 }

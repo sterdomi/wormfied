@@ -1,4 +1,5 @@
 import { defaultMainEnemyDefeatedPoints, defaultMiniEnemyDefeatedPoints } from '../../game/scoring';
+import { SHIELD_DECAY_PER_SECOND } from '../../game/playerState';
 import type { LevelConfig } from '../types';
 
 /**
@@ -28,7 +29,7 @@ export const level1: LevelConfig = {
     assetSrc: '/assets/levels/level1/gegner.svg',
     walkAssetSrc: '/assets/levels/level1/gegner-walk.svg',
     speed: 240,
-    size: 80,
+    size: 120,
     shooting: {
       enabled: true,
       cooldownSeconds: 2.6,
@@ -53,6 +54,10 @@ export const level1: LevelConfig = {
     miniEnemyPoints: defaultMiniEnemyDefeatedPoints,
     mainEnemyPoints: defaultMainEnemyDefeatedPoints,
   },
+  // Entspricht dem Default aus playerState.ts – Level 1 macht die
+  // Konfigurierbarkeit (Nutzer-Feedback) explizit, statt sich stillschweigend
+  // auf den globalen Fallback zu verlassen.
+  shieldDecayPerSecond: SHIELD_DECAY_PER_SECOND,
   /**
    * Bonussteine (Instruktion 14). Spawn alle 8–12 s (10 s Mittelwert), max. 2
    * gleichzeitig, 10 s Lebensdauer – oft genug, um beim Spielen regelmässig

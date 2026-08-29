@@ -2,8 +2,14 @@
 export const STARTING_LIVES = 3;
 /** Schild zu Spielbeginn (Skala 0–100). */
 export const STARTING_SHIELD = 100;
-/** Schild-Abnahme pro Sekunde, solange der Spieler auf dem Rand steht. */
-export const SHIELD_DECAY_PER_SECOND = 8;
+/**
+ * Default-Schild-Abnahme pro Sekunde, solange der Spieler auf dem Rand
+ * steht, falls ein Level `shieldDecayPerSecond` nicht selbst festlegt (siehe
+ * `LevelConfig`). Nutzer-Feedback: von 8 auf 5 gesenkt (100 / 5 = 20s statt
+ * 12.5s bis das Schild komplett aufgebraucht ist), damit es spürbar länger
+ * hält.
+ */
+export const SHIELD_DECAY_PER_SECOND = 5;
 
 /**
  * Leben-/Schild-/Game-Over-Zustand des Spielers. Getrennt von der Spielfigur
@@ -66,7 +72,16 @@ export function decayBoostTimers(state: PlayerState, dt: number): void {
 /**
  * Schild-Abnahme für einen Frame (Delta-Time-basiert), minimal 0. Aufrufen,
  * solange `mode === 'onEdge'`; beim Zeichnen bleibt das Schild unverändert.
+ *
+ * `decayPerSecond` (Default `SHIELD_DECAY_PER_SECOND`) erlaubt es dem
+ * Aufrufer, die Abnahme pro Level zu konfigurieren (Nutzer-Feedback, siehe
+ * `LevelConfig.shieldDecayPerSecond`), statt sie fest an die globale
+ * Standardrate zu koppeln.
  */
-export function decayShield(state: PlayerState, dt: number): void {
-  state.shield = Math.max(0, state.shield - SHIELD_DECAY_PER_SECOND * dt);
+export function decayShield(
+  state: PlayerState,
+  dt: number,
+  decayPerSecond: number = SHIELD_DECAY_PER_SECOND,
+): void {
+  state.shield = Math.max(0, state.shield - decayPerSecond * dt);
 }

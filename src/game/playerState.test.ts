@@ -40,6 +40,12 @@ describe('decayShield', () => {
     decayShield(state, 1);
     expect(state.shield).toBe(0);
   });
+
+  it('erlaubt eine überschriebene Abnahmerate pro Level (Nutzer-Feedback: konfigurierbar)', () => {
+    const state = createPlayerState();
+    decayShield(state, 1, 2);
+    expect(state.shield).toBe(STARTING_SHIELD - 2);
+  });
 });
 
 describe('resetPlayerState', () => {

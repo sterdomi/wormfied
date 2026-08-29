@@ -52,7 +52,12 @@ import {
   spawnMiniEnemies,
 } from '../game/miniEnemies';
 import { Player, playerFacingAngle } from '../game/player';
-import { createPlayerState, decayBoostTimers, decayShield } from '../game/playerState';
+import {
+  createPlayerState,
+  decayBoostTimers,
+  decayShield,
+  SHIELD_DECAY_PER_SECOND,
+} from '../game/playerState';
 import { movePlayerAlongEdge } from '../game/playerMovement';
 import { applyCompletedLine, polygonArea } from '../game/polygon';
 import {
@@ -202,6 +207,14 @@ const WALK_FRAME_INTERVAL_MS = 220;
  * Wartezeit und geht sofort dorthin.
  */
 const GAME_OVER_DISPLAY_MS = 10_000;
+/**
+ * Wartezeit nach Levelabschluss, bevor das Highscore-/"Level geschafft"-
+ * Overlay erscheint (Nutzer-Feedback): lässt die Explosionen von Haupt- +
+ * Mini-Gegnern erst sichtbar ablaufen, bevor sie zugedeckt werden. Etwas
+ * über der Explosions-Animationsdauer (`DEFAULT_DURATION_MS` in
+ * `explosion.ts`, aktuell 500ms), damit sie sicher fertig ist.
+ */
+const LEVEL_COMPLETE_REVEAL_DELAY_MS = 700;
 /** Mindestabstand der Mini-Gegner-Startpositionen zueinander und zum Hauptgegner. */
 const MIN_MINI_SPACING = 70;
 
@@ -462,6 +475,14 @@ function start(
   // Zeitpunkt des Game Over (ms, performance.now) – `null`, solange keins
   // läuft. Steuert die automatische Rückkehr zum Startbildschirm.
   let gameOverAt: number | null = null;
+  // Levelabschluss (Nutzer-Feedback): das Highscore-/"Level geschafft"-Overlay
+  // soll die Explosionen von Haupt- + Mini-Gegnern nicht sofort zudecken.
+  // `scoring.isLevelComplete` friert die Spiellogik schon beim Treffer ein
+  // (Explosionen laufen über `pruneExplosions` weiter), das Overlay selbst
+  // erscheint erst `LEVEL_COMPLETE_REVEAL_DELAY_MS` später. `null` = kein
+  // Overlay ausstehend.
+  let levelCompleteRevealAt: number | null = null;
+  let pendingLevelCompletePercent = 0;
   // Enter löst nur auf seiner steigenden Flanke aus (Leertaste liefert das
   // seit Instruktion 15 bereits fertig über `input.state.drawJustPressed`).
   const restartTrigger = new EdgeTrigger();
@@ -632,9 +653,12 @@ function start(
       explosions.push(createExplosion(mainEnemy.position));
       for (const enemy of miniEnemies) explosions.push(createExplosion(enemy.position));
       miniEnemies = [];
-      hud.setLevelComplete(true, percent, scoring.score);
       audioManager.play('main_enemy_explosion');
-      audioManager.play('level_complete');
+      // Overlay + Sieges-Sound erst nach der Explosions-Animation (siehe
+      // `LEVEL_COMPLETE_REVEAL_DELAY_MS`), nicht sofort – `update()` löst das
+      // aus, sobald die Wartezeit um ist.
+      levelCompleteRevealAt = performance.now() + LEVEL_COMPLETE_REVEAL_DELAY_MS;
+      pendingLevelCompletePercent = percent;
     }
     hud.setScore(scoring.score);
   }
@@ -704,6 +728,7 @@ function start(
         foregroundSnapshot = null;
         screenFlash = null;
         gameOverAt = null;
+        levelCompleteRevealAt = null;
         hud.setGameOver(false);
         hud.setLevelComplete(false);
         hud.setClaimedPercentage(0);
@@ -758,6 +783,17 @@ function start(
     // Level-Complete-Check nur, wenn nicht bereits Game Over (schliessen sich
     // gegenseitig aus). Auch hier alles eingefroren bis Enter.
     if (scoring.isLevelComplete) {
+      if (levelCompleteRevealAt !== null) {
+        // Noch in der Wartephase (Explosionen laufen sichtbar, siehe oben in
+        // `update` `pruneExplosions`) – Overlay/Sound erst danach, Restart in
+        // dieser Phase bewusst ignoriert.
+        if (performance.now() >= levelCompleteRevealAt) {
+          levelCompleteRevealAt = null;
+          hud.setLevelComplete(true, pendingLevelCompletePercent, scoring.score);
+          audioManager.play('level_complete');
+        }
+        return;
+      }
       if (restartPressed) restartGame();
       return;
     }
@@ -970,7 +1006,7 @@ function start(
     // Auf dem Rand: Schild nimmt ab; bei leerem Schild ist der Spieler dort
     // ebenfalls verwundbar – für jeden Gegner UND jedes Projektil.
     if (player.mode === 'onEdge') {
-      decayShield(playerState, dt);
+      decayShield(playerState, dt, level.shieldDecayPerSecond ?? SHIELD_DECAY_PER_SECOND);
       hud.setShield(playerState.shield);
       if (
         anyUnshieldedEnemyHit(allEnemies, player.position, playerState.shield, PLAYER_HIT_RADIUS)
@@ -1171,16 +1207,21 @@ function start(
     // Mini-Gegner bleiben unverändert (Default `sizeScale = 1`). Wert kommt
     // aus dem Cache (`recomputeMainEnemyEncirclementScale`), nicht pro Frame
     // neu berechnet.
-    drawEnemySprite(
-      ctx,
-      assets.mainEnemy,
-      assets.mainEnemyWalk,
-      useWalkFrame,
-      mainEnemy,
-      MAIN_ENEMY_EYE_SPOTS,
-      now,
-      mainEnemyEncirclementScaleValue,
-    );
+    // Beim Levelabschluss verschwindet der Hauptgegner mit seiner Explosion
+    // (Nutzer-Feedback) – analog zu den Mini-Gegnern, die zum selben
+    // Zeitpunkt aus `miniEnemies` entfernt werden (siehe `handleCompletedLine`).
+    if (!scoring.isLevelComplete) {
+      drawEnemySprite(
+        ctx,
+        assets.mainEnemy,
+        assets.mainEnemyWalk,
+        useWalkFrame,
+        mainEnemy,
+        MAIN_ENEMY_EYE_SPOTS,
+        now,
+        mainEnemyEncirclementScaleValue,
+      );
+    }
     for (const mini of miniEnemies) {
       drawEnemySprite(
         ctx,
