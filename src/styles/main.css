@@ -168,15 +168,19 @@ body {
 /*
  * Touch-Steuerung (Instruktion 19): HTML-Overlay über dem Canvas, nur von
  * `touchControls.ts` erzeugt (also nur auf touch-fähigen Geräten im DOM
- * vorhanden). z-index unter den Overlays (10), aber über Canvas/HUD, damit
- * ein Game-Over-/Level-Complete-Bildschirm die Bedienelemente überdeckt.
- * `env(safe-area-inset-*)` hält beide Elemente aus der iPhone-Notch- bzw.
- * Home-Indicator-Zone heraus.
+ * vorhanden). z-index ÜBER den Game-Over-/Level-Complete-Overlays (10)
+ * (Nutzer-Feedback: die Overlays deckten die Bedienelemente vorher
+ * vollständig ab, dadurch liess sich auf dem Handy ohne Tastatur nicht mehr
+ * weiterspielen – Joystick/Action-Button bleiben jetzt sichtbar UND bedienbar,
+ * siehe `touchControls.ts` fürs Tap-auf-Joystick-zählt-auch-als-Enter).
+ * Unter dem "Bitte Gerät drehen"-Hinweis (20), der wirklich alles verdecken
+ * soll. `env(safe-area-inset-*)` hält beide Elemente aus der iPhone-Notch-
+ * bzw. Home-Indicator-Zone heraus.
  */
 .touch-joystick,
 .touch-action-button {
   position: fixed;
-  z-index: 5;
+  z-index: 15;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;

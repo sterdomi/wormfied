@@ -109,26 +109,6 @@ export function formatClaimedPercentage(percent: number): string {
   return `${intPart.padStart(2, '0')}.${fracPart}%`;
 }
 
-/** Minimaler Render-Skalierungsfaktor des Hauptgegners bei (fast) 100%
- *  eroberter Fläche (Nutzer-Feedback: "soll kleiner werden bis min 30% der
- *  Originalgrösse"). */
-export const MAIN_ENEMY_MIN_SIZE_SCALE = 0.3;
-
-/**
- * Render-Skalierungsfaktor für den Hauptgegner, abhängig vom eroberten
- * Flächenanteil (Nutzer-Feedback: "wenn der Gegner eingekesselt wird, soll
- * er kleiner werden") – 1 bei 0% erobert, linear runter bis
- * `MAIN_ENEMY_MIN_SIZE_SCALE` bei 100% erobert. Rein visuell (reine Funktion,
- * kein State) – Kollisions-Trefferradius (`ENEMY_TOUCH_RADIUS` in
- * `collision.ts`) hängt NICHT an `Enemy.size` und bleibt unverändert, damit
- * sich Hitbox und schrumpfendes Sprite nicht auseinanderentwickeln (die
- * Hitbox war schon vorher unabhängig von der Sprite-Grösse).
- */
-export function mainEnemyEncirclementScale(percent: number): number {
-  const t = Math.max(0, Math.min(100, percent)) / 100;
-  return 1 - t * (1 - MAIN_ENEMY_MIN_SIZE_SCALE);
-}
-
 /**
  * Anzahl neu überschrittener Extra-Leben-Schwellen zwischen zwei Score-Ständen.
  * Über `Math.floor(after / T) - Math.floor(before / T)` werden auch grosse

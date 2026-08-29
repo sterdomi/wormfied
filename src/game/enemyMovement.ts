@@ -44,11 +44,23 @@ function nextPauseIntervalSeconds(rng: () => number): number {
  * gegen das Polygon testete – unabhängig von der tatsächlichen
  * Sprite-Ausdehnung. `margin` = `enemy.size / 2` (der Sprite-Radius) macht
  * daraus effektiv "passt der GANZE Gegner rein, nicht nur sein Mittelpunkt".
+ *
+ * Exportiert, da `enemyEncirclement.ts` dieselbe Definition von "erreichbar"
+ * braucht (die dort geschätzte Fläche soll nur zählen, was der Gegner
+ * tatsächlich befahren kann – exakt das, was diese Funktion hier für die
+ * Bewegung selbst schon entscheidet).
  */
-function fitsInPolygon(point: Point, polygon: Point[], margin: number): boolean {
+export function fitsInPolygon(point: Point, polygon: Point[], margin: number): boolean {
   if (!isPointInPolygon(point, polygon)) return false;
   if (margin <= 0) return true;
   return closestPointOnPerimeter(polygon, point).distance >= margin;
+}
+
+/** Sicherheitsabstand zum Rand für Bewegung UND Erreichbarkeits-Schätzung
+ *  (`enemyEncirclement.ts`) – an einer Stelle, damit beide dieselbe
+ *  Definition von "passt rein" verwenden. */
+export function enemyMovementMargin(enemy: Enemy): number {
+  return enemy.size / 2;
 }
 
 /**
@@ -122,7 +134,7 @@ export function moveEnemy(
     return; // Pause beginnt erst DIESEN Frame – noch keine Bewegung.
   }
 
-  const margin = enemy.size / 2;
+  const margin = enemyMovementMargin(enemy);
   const step = enemy.speed * dt;
   const advanced = (dir: Vec): Point => ({
     x: enemy.position.x + dir.x * step,

@@ -16,6 +16,13 @@
  * gelesen, `restart` nur auf dem eingefrorenen Game-Over-/Level-Complete-
  * bzw. dem Startbildschirm (dort läuft keine Bewegungs-/Zeichenlogik, die
  * ein gleichzeitig "gehaltenes" `restart` stören könnte).
+ *
+ * Zusätzlich (Nutzer-Feedback): ein Tap auf den JOYSTICK zählt ebenfalls als
+ * "Enter" – auf dem Game-Over-/Level-Complete-Screen tippt man naheliegend
+ * eher auf den grossen, linken Joystick als gezielt den kleineren
+ * Action-Button zu treffen. Während einer laufenden Partie hat das
+ * (wie beim Action-Button) keine Nebenwirkung, da `restart` dort nicht
+ * gelesen wird.
  */
 export interface TouchInputState {
   up: boolean;
@@ -220,10 +227,11 @@ export function setupTouchControls(): TouchControlsHandle {
       // erneut beim Loslassen.
       state.drawJustPressed = actionHeld && !wasActionHeld;
       wasActionHeld = actionHeld;
-      // Tap auf den Action-Button zählt auch als "Enter" (Nutzer-Feedback) –
-      // roh gehalten wie bei der Tastatur, die Flankenerkennung übernimmt
-      // main.ts' `restartTrigger` (EdgeTrigger) für beide Quellen gleich.
-      state.restart = actionHeld;
+      // Tap auf den Action-Button ODER den Joystick zählt auch als "Enter"
+      // (Nutzer-Feedback) – roh gehalten wie bei der Tastatur, die
+      // Flankenerkennung übernimmt main.ts' `restartTrigger` (EdgeTrigger)
+      // für alle Quellen gleich.
+      state.restart = actionHeld || joystickTouchId !== null;
     },
     dispose(): void {
       joystickBase.removeEventListener('touchstart', onJoystickStart);

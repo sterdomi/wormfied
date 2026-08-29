@@ -33,7 +33,7 @@ import {
   type DrawSession,
 } from '../game/drawing';
 import { createEnemy, enemyFacingAngle, type Enemy } from '../game/enemy';
-import { moveEnemies, randomDirection } from '../game/enemyMovement';
+import { enemyMovementMargin, moveEnemies, randomDirection } from '../game/enemyMovement';
 import {
   createExplosion,
   pruneExplosions,
@@ -61,12 +61,16 @@ import {
   tickPlayerShooting,
   type Projectile,
 } from '../game/projectile';
+import {
+  enemyOwnArea,
+  estimateReachableArea,
+  mainEnemyEncirclementScale,
+} from '../game/enemyEncirclement';
 import { resetGame } from '../game/resetGame';
 import {
   applyLevelClearBonus,
   createScoring,
   getClaimedPercentage,
-  mainEnemyEncirclementScale,
   registerClaim,
   type Scoring,
 } from '../game/scoring';
@@ -478,6 +482,36 @@ function start(
   // Feld-Block lässt auf einem breiten Phone-Querformat grosse, komplett
   // leere schwarze Balken seitlich übrig) – siehe `getBackdrop` unten.
   let backdropCache: { width: number; height: number; canvas: HTMLCanvasElement } | null = null;
+  // Render-Skalierungsfaktor des Hauptgegners (Nutzer-Feedback: schrumpft nur,
+  // wenn die für IHN tatsächlich erreichbare Fläche knapp wird, nicht schon
+  // bei irgendeiner Eroberung irgendwo im Feld) – NUR bei einer echten
+  // Feldänderung oder einem besiegten Mini-Gegner neu berechnet
+  // (`recomputeMainEnemyEncirclementScale`), nicht pro Frame, siehe
+  // Docstring in `enemyEncirclement.ts`.
+  let mainEnemyEncirclementScaleValue = 1;
+
+  /**
+   * Aktualisiert `mainEnemyEncirclementScaleValue` anhand der aktuellen
+   * `field`/`mainEnemy`-Position – siehe `enemyEncirclement.ts`.
+   *
+   * Nutzer-Feedback ("verschärfe Voraussetzungen"): schrumpft NUR, solange
+   * ausserdem `miniEnemies` leer ist (alle Mini-Gegner besiegt) – bleibt
+   * sonst unabhängig von der Fläche bei voller Grösse. Diese Bedingung
+   * gehört bewusst hierher (Spielzustand des laufenden Levels), nicht in
+   * die reine `mainEnemyEncirclementScale`-Funktion in `enemyEncirclement.ts`.
+   */
+  function recomputeMainEnemyEncirclementScale(): void {
+    if (miniEnemies.length > 0) {
+      mainEnemyEncirclementScaleValue = 1;
+      return;
+    }
+    const margin = enemyMovementMargin(mainEnemy);
+    const reachableArea = estimateReachableArea(field, mainEnemy.position, margin);
+    mainEnemyEncirclementScaleValue = mainEnemyEncirclementScale(
+      reachableArea,
+      enemyOwnArea(mainEnemy.size),
+    );
+  }
 
   /** Level-Initialisierung (Neustart-Pfad nutzt sie ebenfalls). Feste
    *  Grösse (`FIELD_WIDTH`/`FIELD_HEIGHT`) – ein Fenster-Resize ruft das
@@ -511,6 +545,7 @@ function start(
     bonusStones = [];
     bonusSpawner.timeSinceLastSpawn = 0;
     playerProjectiles = [];
+    recomputeMainEnemyEncirclementScale();
     return field;
   }
 
@@ -538,6 +573,12 @@ function start(
       defeatMiniEnemy(enemy, scoring, explosions, level.scoring);
       audioManager.play('mini_enemy_explosion');
     }
+    // Neues Feld kann dem Hauptgegner plötzlich mehr oder weniger Raum lassen,
+    // UND das Einschliessen kann gerade den letzten Mini-Gegner gefangen haben
+    // (Nutzer-Feedback, siehe `enemyEncirclement.ts`) – deshalb NACH dem
+    // Mini-Gegner-Update, nur hier + in `rebuildField` + beim Erschiessen
+    // eines Mini-Gegners neu berechnet, nicht pro Frame.
+    recomputeMainEnemyEncirclementScale();
 
     // Bonussteine, die in der eroberten Fläche liegen, sind ebenfalls
     // "gefangen": Effekt aktivieren + Aufnahme-Explosion in typspezifischer
@@ -867,6 +908,10 @@ function start(
       defeatMiniEnemy(miniHit.enemy, scoring, explosions, level.scoring);
       audioManager.play('mini_enemy_explosion');
       hud.setScore(scoring.score);
+      // Könnte gerade der letzte Mini-Gegner gewesen sein (Nutzer-Feedback:
+      // Hauptgegner schrumpft erst, wenn alle besiegt sind) – neu berechnen,
+      // nicht erst beim nächsten Feld-Split.
+      recomputeMainEnemyEncirclementScale();
     }
 
     // Irgendein Gegner ↔ aktive Linie: löst einen Stromball aus, der die Linie
@@ -941,9 +986,9 @@ function start(
     eyeSpots: readonly EyeSpot[],
     now: number,
     /** Zusätzlicher Render-Skalierungsfaktor über `e.size` hinaus (Nutzer-
-     *  Feedback: Hauptgegner schrumpft mit zunehmend eroberter Fläche, siehe
-     *  `mainEnemyEncirclementScale` in `scoring.ts`) – Default 1 für
-     *  Mini-Gegner, die davon unberührt bleiben. */
+     *  Feedback: Hauptgegner schrumpft, wenn ihm wenig erreichbarer Raum
+     *  bleibt, siehe `enemyEncirclement.ts`) – Default 1 für Mini-Gegner,
+     *  die davon unberührt bleiben. */
     sizeScale: number = 1,
   ): void {
     // In Bewegungsrichtung ausrichten (Sprite-Kopf zeigt lokal nach oben).
@@ -1091,12 +1136,11 @@ function start(
     // gemeinsamen Takt (`WALK_FRAME_INTERVAL_MS`) für eine einfache
     // Zwei-Bild-Lauf-Animation.
     const useWalkFrame = Math.floor(now / WALK_FRAME_INTERVAL_MS) % 2 === 1;
-    // Hauptgegner schrumpft mit zunehmend eroberter Fläche (Nutzer-Feedback:
-    // "wenn der Gegner eingekesselt wird, soll er kleiner werden") – NUR der
-    // Hauptgegner, Mini-Gegner bleiben unverändert (Default `sizeScale = 1`).
-    const mainEnemyScale = mainEnemyEncirclementScale(
-      getClaimedPercentage(scoring.claimedArea, scoring.totalFieldArea),
-    );
+    // Hauptgegner schrumpft, wenn ihm wenig ERREICHBARER Raum bleibt
+    // (Nutzer-Feedback, siehe `enemyEncirclement.ts`) – NUR der Hauptgegner,
+    // Mini-Gegner bleiben unverändert (Default `sizeScale = 1`). Wert kommt
+    // aus dem Cache (`recomputeMainEnemyEncirclementScale`), nicht pro Frame
+    // neu berechnet.
     drawEnemySprite(
       ctx,
       assets.mainEnemy,
@@ -1105,7 +1149,7 @@ function start(
       mainEnemy,
       MAIN_ENEMY_EYE_SPOTS,
       now,
-      mainEnemyScale,
+      mainEnemyEncirclementScaleValue,
     );
     for (const mini of miniEnemies) {
       drawEnemySprite(
