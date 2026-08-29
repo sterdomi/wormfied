@@ -33,7 +33,7 @@ import {
   tryEnterDrawing,
   type DrawSession,
 } from '../game/drawing';
-import { createEnemy, enemyFacingAngle, type Enemy } from '../game/enemy';
+import { createEnemy, type Enemy } from '../game/enemy';
 import { enemyMovementMargin, moveEnemies, randomDirection } from '../game/enemyMovement';
 import {
   createExplosion,
@@ -84,7 +84,6 @@ import { advanceSpark, createSpark, type Spark } from '../game/spark';
 import {
   bonusStonePulseIntensity,
   createScreenFlash,
-  enemyEyeGlowBlur,
   screenFlashOpacity,
   shieldAuraOpacity,
   type ScreenFlash,
@@ -96,7 +95,6 @@ import {
   DRAW_PATH_GLOW_ALPHA,
   DRAW_PATH_GLOW_COLOR_RGB,
   DRAW_PATH_GLOW_WIDTH,
-  ENEMY_EYE_GLOW_COLOR,
   SCREEN_FLASH_COLOR_RGB,
   SCREEN_FLASH_MAX_ALPHA,
   SHIELD_AURA_COLOR_RGB,
@@ -219,35 +217,14 @@ const LEVEL_COMPLETE_REVEAL_DELAY_MS = 700;
 const MIN_MINI_SPACING = 70;
 
 /**
- * Augenposition eines Gegners als Bruchteil der Sprite-Grösse relativ zum
- * Mittelpunkt (0,0) – aus den `cx`/`cy`/`r`-Werten der beiden grossen Augen
- * in `gegner.svg` (viewBox 220) bzw. `gegner-mini.svg` (viewBox 90)
- * abgeleitet, für den pulsierenden Glow-Überzug in `drawEnemySprite`
- * (Instruktion 17, Punkt 4). Rein artwork-abhängig, deshalb hier bei der
- * Verwendung statt in `visualEffectsConfig.ts`.
- */
-interface EyeSpot {
-  x: number;
-  y: number;
-  radiusFraction: number;
-}
-const MAIN_ENEMY_EYE_SPOTS: readonly EyeSpot[] = [
-  { x: 98 / 220 - 0.5, y: 72 / 220 - 0.5, radiusFraction: 8 / 220 },
-  { x: 122 / 220 - 0.5, y: 72 / 220 - 0.5, radiusFraction: 8 / 220 },
-];
-const MINI_ENEMY_EYE_SPOTS: readonly EyeSpot[] = [
-  { x: 40 / 90 - 0.5, y: 30 / 90 - 0.5, radiusFraction: 3.5 / 90 },
-  { x: 50 / 90 - 0.5, y: 30 / 90 - 0.5, radiusFraction: 3.5 / 90 },
-];
-
-/**
  * Statuslampen des Cyborg-Spieler-Sprites (Nutzer-Feedback nach dem
  * Cyborg-Sprite-Feature): NICHT mehr Teil der SVGs selbst (beide
  * `player-cyborg(-walk)?.svg` zeigen an diesen Stellen nur noch eine
  * neutrale dunkle Fassung, siehe dortige Kommentare) – das eigentliche
  * Blinken zeichnet `render()` als eigener Überzug, analog zum
- * Augen-Glow-Überzug der Gegner (`drawEnemySprite`/`enemyEyeGlowBlur`,
- * Instruktion 17, Punkt 4). Grund für die Auslagerung: der bisherige Ansatz
+ * Augen-Glow-Überzug der Gegner (`drawEnemySprite`/`enemyEyeGlowBlur` in
+ * `src/levels/level1/render.ts`, Instruktion 17, Punkt 4). Grund für die
+ * Auslagerung: der bisherige Ansatz
  * (Lampen fix in zwei Sprite-Varianten "an"/"aus" eingebrannt) war 1:1 an
  * den Bein-Wechsel-Takt gekoppelt (`WALK_FRAME_INTERVAL_MS`, 220ms) – zu
  * schnell UND zu klein, um als eigenständiges "Blinken" wahrgenommen zu
@@ -256,7 +233,8 @@ const MINI_ENEMY_EYE_SPOTS: readonly EyeSpot[] = [
  * als Canvas-Bildquelle genutzten SVG hält deren SMIL-Animation NICHT am
  * Laufen, sondern friert sie auf einem undefinierten Frame ein (siehe
  * `player-cyborg.svg`). Koordinaten/Radien 1:1 aus den ursprünglich dort
- * eingebrannten `<circle>`-Werten übernommen (viewBox 220, wie `EyeSpot`).
+ * eingebrannten `<circle>`-Werten übernommen (viewBox 220, wie die
+ * `EyeSpot`s in `src/levels/level1/render.ts`).
  */
 interface LampSpot {
   x: number;
@@ -1034,51 +1012,6 @@ function start(
     ctx.stroke();
   }
 
-  function drawEnemySprite(
-    ctx: CanvasRenderingContext2D,
-    sprite: HTMLImageElement,
-    walkSprite: HTMLImageElement | undefined,
-    useWalkFrame: boolean,
-    e: Enemy,
-    eyeSpots: readonly EyeSpot[],
-    now: number,
-    /** Zusätzlicher Render-Skalierungsfaktor über `e.size` hinaus (Nutzer-
-     *  Feedback: Hauptgegner schrumpft, wenn ihm wenig erreichbarer Raum
-     *  bleibt, siehe `enemyEncirclement.ts`) – Default 1 für Mini-Gegner,
-     *  die davon unberührt bleiben. */
-    sizeScale: number = 1,
-  ): void {
-    // In Bewegungsrichtung ausrichten (Sprite-Kopf zeigt lokal nach oben).
-    const activeSprite = useWalkFrame && walkSprite ? walkSprite : sprite;
-    const renderSize = e.size * sizeScale;
-    ctx.save();
-    ctx.translate(e.position.x, e.position.y);
-    ctx.rotate(enemyFacingAngle(e.direction));
-    ctx.drawImage(activeSprite, -renderSize / 2, -renderSize / 2, renderSize, renderSize);
-
-    // Pulsierender Glow auf den Augen (Instruktion 17, Punkt 4). `shadowBlur`
-    // ist hier unproblematisch (siehe Performance-Hinweis der Instruktion):
-    // nur auf die zwei kleinen Augen-Kreise angewendet, nicht auf den ganzen
-    // Gegner oder eine grosse Fläche.
-    ctx.shadowColor = ENEMY_EYE_GLOW_COLOR;
-    ctx.shadowBlur = enemyEyeGlowBlur(now);
-    ctx.fillStyle = ENEMY_EYE_GLOW_COLOR;
-    for (const spot of eyeSpots) {
-      ctx.beginPath();
-      ctx.arc(
-        spot.x * renderSize,
-        spot.y * renderSize,
-        spot.radiusFraction * renderSize,
-        0,
-        Math.PI * 2,
-      );
-      ctx.fill();
-    }
-    ctx.shadowBlur = 0;
-
-    ctx.restore();
-  }
-
   /**
    * Liefert einen auf `width`×`height` (volle Viewport-Grösse) skalierten,
    * weichgezeichneten + abgedunkelten Ausschnitt des Level-Hintergrunds
@@ -1197,42 +1130,25 @@ function start(
     ctx.closePath();
     ctx.stroke();
 
-    // Gegner: Hauptgegner + Mini-Gegner, jeweils mit ihrem SVG-Sprite,
-    // skaliert auf ihre konfigurierte Grösse. Bein-Pose wechselt im
-    // gemeinsamen Takt (`WALK_FRAME_INTERVAL_MS`) für eine einfache
-    // Zwei-Bild-Lauf-Animation.
+    // Bein-Pose wechselt im gemeinsamen Takt (`WALK_FRAME_INTERVAL_MS`) für
+    // eine einfache Zwei-Bild-Lauf-Animation – hier bestimmt (statt im
+    // Level-Renderer), damit Spieler UND Gegner synchron "wackeln".
     const useWalkFrame = Math.floor(now / WALK_FRAME_INTERVAL_MS) % 2 === 1;
-    // Hauptgegner schrumpft, wenn ihm wenig ERREICHBARER Raum bleibt
-    // (Nutzer-Feedback, siehe `enemyEncirclement.ts`) – NUR der Hauptgegner,
-    // Mini-Gegner bleiben unverändert (Default `sizeScale = 1`). Wert kommt
-    // aus dem Cache (`recomputeMainEnemyEncirclementScale`), nicht pro Frame
-    // neu berechnet.
-    // Beim Levelabschluss verschwindet der Hauptgegner mit seiner Explosion
-    // (Nutzer-Feedback) – analog zu den Mini-Gegnern, die zum selben
+    // Gegner-Darstellung liegt im Level-Package (`src/levels/level1/render.ts`):
+    // Sprite-Wahl, pulsierender Augen-Glow und der beim Einkesseln schrumpfende
+    // Hauptgegner (`mainEnemyScale` aus dem Cache
+    // `recomputeMainEnemyEncirclementScale`, NUR der Hauptgegner) werden dort
+    // behandelt. Beim Levelabschluss verschwindet der Hauptgegner mit seiner
+    // Explosion (`hideMainEnemy`) – analog zu den Mini-Gegnern, die zum selben
     // Zeitpunkt aus `miniEnemies` entfernt werden (siehe `handleCompletedLine`).
-    if (!scoring.isLevelComplete) {
-      drawEnemySprite(
-        ctx,
-        assets.mainEnemy,
-        assets.mainEnemyWalk,
-        useWalkFrame,
-        mainEnemy,
-        MAIN_ENEMY_EYE_SPOTS,
-        now,
-        mainEnemyEncirclementScaleValue,
-      );
-    }
-    for (const mini of miniEnemies) {
-      drawEnemySprite(
-        ctx,
-        assets.miniEnemy,
-        assets.miniEnemyWalk,
-        useWalkFrame,
-        mini,
-        MINI_ENEMY_EYE_SPOTS,
-        now,
-      );
-    }
+    level.renderEnemies(ctx, assets, {
+      mainEnemy,
+      miniEnemies,
+      mainEnemyScale: mainEnemyEncirclementScaleValue,
+      hideMainEnemy: scoring.isLevelComplete,
+      useWalkFrame,
+      now,
+    });
 
     // Bonussteine: mit ihrem typspezifischen Sprite, in der letzten Sekunde
     // vor Ablauf sanft ausblendend (Instruktion 14, Punkt 4), zusätzlich mit

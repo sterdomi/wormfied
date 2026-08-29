@@ -1,3 +1,5 @@
+import type { Enemy } from '../game/enemy';
+
 /** Feuert ein Gegner Projektile ab? */
 export interface ShootingConfig {
   enabled: boolean;
@@ -94,6 +96,55 @@ export interface BonusStonesConfig {
 }
 
 /**
+ * Sprites, die der Level-Renderer zum Zeichnen der Gegner braucht – ein
+ * struktureller Ausschnitt aus `LevelImages` (`engine/assetLoader.ts`), damit
+ * `src/levels/` nicht an der Engine hängt. `main.ts` reicht sein `assets`-
+ * Objekt unverändert durch.
+ */
+export interface LevelEnemyAssets {
+  mainEnemy: HTMLImageElement;
+  mainEnemyWalk?: HTMLImageElement;
+  miniEnemy: HTMLImageElement;
+  miniEnemyWalk?: HTMLImageElement;
+}
+
+/** Momentaner Gegner-Zustand + Frame-Timing für einen `renderEnemies`-Aufruf. */
+export interface LevelEnemyRenderState {
+  mainEnemy: Enemy;
+  miniEnemies: Enemy[];
+  /**
+   * Zusätzlicher Render-Skalierungsfaktor NUR des Hauptgegners (Einkesselung,
+   * siehe `game/enemyEncirclement.ts`); Mini-Gegner rendern immer bei 1.
+   */
+  mainEnemyScale: number;
+  /**
+   * Beim Levelabschluss verschwindet der Hauptgegner mit seiner Explosion
+   * (Nutzer-Feedback) – dann `true`, der Renderer lässt ihn weg.
+   */
+  hideMainEnemy: boolean;
+  /**
+   * Gemeinsamer Bein-Wechsel-Takt für Spieler UND Gegner – in `main.ts`
+   * bestimmt (`WALK_FRAME_INTERVAL_MS`), damit alle synchron "wackeln".
+   */
+  useWalkFrame: boolean;
+  /** Gemeinsame Frame-Wanduhrzeit (`performance.now()`). */
+  now: number;
+}
+
+/**
+ * Zeichnet die Gegner-Ebene eines Levels. Der Game-Loop (`render()` in
+ * `main.ts`) ruft pro Frame den Renderer des aktiven Levels auf – so lebt die
+ * levelspezifische Gegner-Darstellung (Sprite-Wahl, Augen-Glow, Eigenheiten
+ * einzelner Level) im jeweiligen `src/levels/<level>/`-Package statt zentral
+ * in `main.ts`.
+ */
+export type LevelEnemyRenderer = (
+  ctx: CanvasRenderingContext2D,
+  assets: LevelEnemyAssets,
+  state: LevelEnemyRenderState,
+) => void;
+
+/**
  * Vollständige Konfiguration eines Levels. Jedes Level ist ein eigenes
  * Unterpackage unter `src/levels/` und exportiert genau ein solches Objekt.
  */
@@ -107,6 +158,13 @@ export interface LevelConfig {
     count: number;
     config: EnemyConfig;
   };
+  /**
+   * Levelspezifische Gegner-Darstellung, pro Frame vom Game-Loop aufgerufen
+   * (siehe `LevelEnemyRenderer`). Liegt im Level-Package (`render.ts`), nicht
+   * in `main.ts` – so bleibt die zentrale `render()` frei von den optischen
+   * Eigenheiten einzelner Level.
+   */
+  renderEnemies: LevelEnemyRenderer;
   scoring?: DefeatScoring;
   bonusStones: BonusStonesConfig;
   /** Hintergrundmusik-Loop für dieses Level. Optional – fehlt sie, bleibt es still. */

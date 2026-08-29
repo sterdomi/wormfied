@@ -7,4 +7,11 @@ import type { LevelConfig } from './types';
  */
 export const levels: LevelConfig[] = [level1];
 
-export type { EnemyConfig, LevelConfig, ShootingConfig } from './types';
+export type {
+  EnemyConfig,
+  LevelConfig,
+  LevelEnemyAssets,
+  LevelEnemyRenderer,
+  LevelEnemyRenderState,
+  ShootingConfig,
+} from './types';

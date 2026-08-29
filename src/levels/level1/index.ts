@@ -1,6 +1,7 @@
 import { defaultMainEnemyDefeatedPoints, defaultMiniEnemyDefeatedPoints } from '../../game/scoring';
 import { SHIELD_DECAY_PER_SECOND } from '../../game/playerState';
 import type { LevelConfig } from '../types';
+import { renderLevel1Enemies } from './render';
 
 /**
  * Level 1.
@@ -48,6 +49,10 @@ export const level1: LevelConfig = {
       // Mini-Gegner schiessen in Level 1 bewusst nicht.
     },
   },
+  // Gegner-Darstellung (Sprite-Wahl, Augen-Glow, schrumpfender Hauptgegner)
+  // liegt im Level-Package, siehe `render.ts` – der Game-Loop ruft sie pro
+  // Frame über `level.renderEnemies(...)` auf.
+  renderEnemies: renderLevel1Enemies,
   // Entspricht den Default-Werten aus scoring.ts – Level 1 braucht (noch)
   // keine eigene Abstufung, macht die Konfiguration aber explizit.
   scoring: {
