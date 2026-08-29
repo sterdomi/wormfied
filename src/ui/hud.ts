@@ -86,8 +86,14 @@ export function createHud(onMuteChange: (muted: boolean) => void): Hud {
   for (const el of [scoreEl, claimedEl, livesEl, shieldEl]) el.className = 'hud__item';
   // Nutzer-Feedback (Vergleich mit dem Volfied-Original): die Prozentanzeige
   // ist dort mittig und deutlich grösser als die übrigen Werte – eigene
-  // Klasse zusätzlich zu `hud__item`, positioniert sie absolut zentriert
-  // (siehe main.css), unabhängig von der Breite der Nachbar-Elemente.
+  // Klasse zusätzlich zu `hud__item` (siehe main.css). War zunächst
+  // `position: absolute` + `left: 50%` (bildschirmmittig, unabhängig von der
+  // Breite der Nachbar-Elemente) – auf schmalen Geräten (iPhone) konnte der
+  // lange Schild-Text dadurch aber genau dort liegen und sich mit der
+  // Prozentanzeige überlappen. Jetzt eine echte mittlere Grid-Spalte
+  // (`#hud` ist `display: grid`, siehe main.css) – Score/Leben/Schild in
+  // `hud__left`, Mute/Fullscreen in `hud__right`, dazwischen garantiert kein
+  // Overlap mehr möglich, unabhängig von der Textlänge.
   claimedEl.classList.add('hud__percentage');
 
   let muted = false;
@@ -142,18 +148,18 @@ export function createHud(onMuteChange: (muted: boolean) => void): Hud {
     document.addEventListener('fullscreenchange', onFullscreenChange);
   }
 
-  // `muteButton` trägt `margin-left: auto` (CSS) und schiebt sich damit samt
-  // allem, was danach folgt, an den rechten Rand der HUD-Leiste – der
-  // Fullscreen-Button (falls vorhanden) reiht sich deshalb NACH ihm ein,
-  // nicht davor, sonst würde er bei den linksbündigen Anzeigen hängen bleiben.
-  bar.append(
-    scoreEl,
-    claimedEl,
-    livesEl,
-    shieldEl,
-    muteButton,
-    ...(fullscreenButton ? [fullscreenButton] : []),
-  );
+  // Drei Grid-Spalten (siehe main.css `#hud`): links Score/Leben/Schild,
+  // Mitte die (grosse, garantiert nicht überlappende) Prozentanzeige,
+  // rechts Mute/Fullscreen.
+  const leftGroup = document.createElement('div');
+  leftGroup.className = 'hud__left';
+  leftGroup.append(scoreEl, livesEl, shieldEl);
+
+  const rightGroup = document.createElement('div');
+  rightGroup.className = 'hud__right';
+  rightGroup.append(muteButton, ...(fullscreenButton ? [fullscreenButton] : []));
+
+  bar.append(leftGroup, claimedEl, rightGroup);
 
   // Game Over führt (per Enter oder automatisch nach GAME_OVER_DISPLAY_MS,
   // main.ts) zurück zum Startbildschirm statt direkt zu einer neuen Partie
@@ -211,14 +217,11 @@ export function createHud(onMuteChange: (muted: boolean) => void): Hud {
     },
     dispose: (): void => {
       clearTimeout(flashTimer);
-      scoreEl.remove();
+      leftGroup.remove();
       claimedEl.remove();
-      livesEl.remove();
-      shieldEl.remove();
-      muteButton.remove();
+      rightGroup.remove();
       if (fullscreenButton && onFullscreenChange) {
         document.removeEventListener('fullscreenchange', onFullscreenChange);
-        fullscreenButton.remove();
       }
       gameOverEl.hidden = true;
       levelCompleteEl.hidden = true;

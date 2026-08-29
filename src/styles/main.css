@@ -34,15 +34,20 @@ body {
 }
 
 /* HUD-Leiste unter dem Canvas: Score, Erobert-Prozent, Leben, Schild.
- * `position: relative` ist der Anker für die absolut zentrierte
- * `.hud__percentage` (Nutzer-Feedback, siehe dort); Höhe von 40 auf 52px
- * erhöht, damit deren grösserer Font bequem Platz hat. */
+ * Drei ECHTE Grid-Spalten (Nutzer-Feedback: die frühere `position: absolute`
+ * + `left: 50%`-Zentrierung der Prozentanzeige lag auf schmalen Geräten
+ * wie dem iPhone genau über dem langen Schild-Text, da sie unabhängig von
+ * dessen tatsächlicher Breite exakt bildschirmmittig sass) – `hud__left`
+ * und `hud__right` je `1fr` (schrumpfen bei Bedarf, siehe dort), die
+ * mittlere Spalte `auto` (genau die Breite der Prozentanzeige). Grid-Spalten
+ * können sich NIE überlappen, im schlimmsten Fall wird links/rechts
+ * abgeschnitten statt über die Mitte zu laufen. Höhe von 40 auf 52px erhöht,
+ * damit der grössere Font der Prozentanzeige bequem Platz hat. */
 #hud {
-  position: relative;
-  flex: 0 0 auto;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: 28px;
+  flex: 0 0 auto;
   height: 52px;
   padding: 0 16px;
   background: #000;
@@ -58,26 +63,41 @@ body {
   user-select: none;
 }
 
+/* Linke/rechte Gruppe (siehe hud.ts) – `min-width: 0` + `overflow: hidden`
+ * lässt sie bei Bedarf UNTER ihre Inhaltsbreite schrumpfen (Grid-Items sind
+ * das per Default NICHT), damit sie im Zweifel abschneiden statt die
+ * `auto`-Mittelspalte zu verdrängen. */
+.hud__left,
+.hud__right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.hud__right {
+  justify-content: flex-end;
+}
+
 /* Erobert-Prozent (Nutzer-Feedback, Vergleich mit dem Volfied-Original: dort
- * mittig und deutlich grösser als die übrigen Werte) – `position: absolute`
- * nimmt sie aus dem Flex-Fluss von `#hud` heraus (kein Lücke/Gap-Effekt auf
- * die Nachbar-Elemente), zentriert unabhängig von deren Breite. */
+ * mittig und deutlich grösser als die übrigen Werte) – eigene, garantiert
+ * nicht überlappende Grid-Spalte statt absoluter Positionierung, siehe
+ * Kommentar bei `#hud`. */
 .hud__percentage {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
   font-size: 28px;
   font-weight: bold;
+  white-space: nowrap;
 }
 
 .hud__flash {
   animation: hud-flash 0.5s ease-out;
 }
 
-/* Mute-Toggle (Instruktion 18): rechtsbündig, schlichtes Icon statt Text. */
+/* Mute-Toggle (Instruktion 18): rechtsbündig, schlichtes Icon statt Text.
+ * Abstand zum Fullscreen-Button kommt jetzt vom `gap` des `.hud__right`-
+ * Wrappers (siehe hud.ts) statt von eigenem Margin. */
 .hud__mute {
-  margin-left: auto;
   padding: 4px 10px;
   border: 1px solid #333;
   border-radius: 4px;
@@ -93,10 +113,10 @@ body {
 }
 
 /* Fullscreen-Button (Instruktion 20, Punkt 4) – gleiche Optik wie der
- * Mute-Button, reiht sich direkt daneben ein (siehe hud.ts). Nur im DOM,
- * wenn die Fullscreen API tatsächlich unterstützt wird (nicht auf iOS). */
+ * Mute-Button, reiht sich direkt daneben ein (`gap` des `.hud__right`-
+ * Wrappers). Nur im DOM, wenn die Fullscreen API tatsächlich unterstützt
+ * wird (nicht auf iOS). */
 .hud__fullscreen {
-  margin-left: 8px;
   padding: 4px 10px;
   border: 1px solid #333;
   border-radius: 4px;
