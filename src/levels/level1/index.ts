@@ -4,7 +4,8 @@ import type { LevelConfig } from '../types';
 /**
  * Level 1.
  *
- * Hauptgegner: Werte aus Instruktion 7 (`speed` = altes `ENEMY_SPEED` 90),
+ * Hauptgegner: Werte aus Instruktion 7 (`speed`, seither zweimal verdoppelt,
+ * zuletzt auf Nutzer-Feedback "Gegner und Spieler doppelt so schnell"),
  * gerendert etwas grösser, da das SVG mehr Detail trägt.
  *
  * Mini-Gegner: **kleiner** (gut halb so gross) und **etwas schneller** als der
@@ -24,7 +25,7 @@ export const level1: LevelConfig = {
   mainEnemy: {
     assetSrc: '/assets/levels/level1/gegner.svg',
     walkAssetSrc: '/assets/levels/level1/gegner-walk.svg',
-    speed: 120,
+    speed: 240,
     size: 80,
     shooting: {
       enabled: true,
@@ -39,7 +40,7 @@ export const level1: LevelConfig = {
     config: {
       assetSrc: '/assets/levels/level1/gegner-mini.svg',
       walkAssetSrc: '/assets/levels/level1/gegner-mini-walk.svg',
-      speed: 120,
+      speed: 240,
       size: 22,
       // Mini-Gegner schiessen in Level 1 bewusst nicht.
     },

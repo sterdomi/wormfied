@@ -1,7 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { createEnemy, enemyFacingAngle, type EnemySpec } from './enemy';
-import { ENEMY_SPEED, moveEnemies, moveEnemy, randomDirection } from './enemyMovement';
+import {
+  createEnemy,
+  ENEMY_PAUSE_INTERVAL_SECONDS,
+  enemyFacingAngle,
+  type EnemySpec,
+} from './enemy';
+import {
+  ENEMY_PAUSE_DURATION_SECONDS,
+  ENEMY_SPEED,
+  moveEnemies,
+  moveEnemy,
+  randomDirection,
+} from './enemyMovement';
 import { createRectangularField } from './field';
+import { closestPointOnPerimeter } from './geometry';
 import { isPointInPolygon } from './polygon';
 
 const MAIN: EnemySpec = { speed: ENEMY_SPEED, size: 40 };
@@ -10,6 +22,13 @@ const MINI: EnemySpec = { speed: ENEMY_SPEED * 1.5, size: 22 };
 describe('randomDirection', () => {
   it('liefert einen Einheitsvektor', () => {
     expect(Math.hypot(randomDirection(() => 0.3).x, randomDirection(() => 0.3).y)).toBeCloseTo(1);
+  });
+
+  it('liefert NUR eine der vier Achsrichtungen, nie diagonal (Nutzer-Feedback: "schräg fahren darf nicht möglich sein")', () => {
+    expect(randomDirection(() => 0)).toEqual({ x: 1, y: 0 });
+    expect(randomDirection(() => 0.3)).toEqual({ x: -1, y: 0 });
+    expect(randomDirection(() => 0.6)).toEqual({ x: 0, y: 1 });
+    expect(randomDirection(() => 0.9)).toEqual({ x: 0, y: -1 });
   });
 });
 
@@ -72,6 +91,43 @@ describe('moveEnemy', () => {
     }
   });
 
+  it('hält über viele Ticks mindestens enemy.size/2 Abstand zum Rand (Nutzer-Feedback: "kommt durch zu kleine Lücken, da braucht es mehr marge")', () => {
+    const enemy = createEnemy({ x: 200, y: 150 }, MAIN, { x: 1, y: 0 });
+    const margin = MAIN.size / 2;
+    let seed = 1;
+    const rng = (): number => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x7fffffff;
+    };
+    for (let i = 0; i < 3000; i++) {
+      moveEnemy(enemy, field, 1 / 30, rng);
+      expect(enemy.position.x).toBeGreaterThanOrEqual(margin - 1e-6);
+      expect(enemy.position.x).toBeLessThanOrEqual(400 - margin + 1e-6);
+      expect(enemy.position.y).toBeGreaterThanOrEqual(margin - 1e-6);
+      expect(enemy.position.y).toBeLessThanOrEqual(300 - margin + 1e-6);
+    }
+  });
+
+  it('befreit sich nach einem plötzlichen Feld-Split neben ihm wieder, statt für immer stehen zu bleiben (Nutzer-Feedback: "jetzt bleibt er zu früh stehen")', () => {
+    const enemy = createEnemy({ x: 200, y: 150 }, MAIN, { x: 1, y: 0 });
+
+    // Plötzlicher "Split": das neue, aktive Feld reicht nur noch knapp über
+    // die aktuelle Gegner-Position hinaus – die Marge (MAIN.size / 2 = 20)
+    // ist an dieser Stelle klar verletzt, obwohl sich der Gegner nicht
+    // bewegt hat (genau das passiert bei einem Feld-Split direkt neben ihm).
+    const tightField = createRectangularField(enemy.position.x + 5, 300);
+    const distanceBefore = closestPointOnPerimeter(tightField, enemy.position).distance;
+    expect(distanceBefore).toBeLessThan(MAIN.size / 2);
+
+    for (let i = 0; i < 60; i++) {
+      moveEnemy(enemy, tightField, 1 / 30, () => 0.5);
+    }
+
+    const distanceAfter = closestPointOnPerimeter(tightField, enemy.position).distance;
+    expect(distanceAfter).toBeGreaterThan(distanceBefore); // hat sich befreit
+    expect(isPointInPolygon(enemy.position, tightField)).toBe(true);
+  });
+
   it('kehrt an einer Wand die Richtung um, wenn keine Zufallsrichtung passt (Fallback)', () => {
     const enemy = createEnemy({ x: 399, y: 150 }, MAIN, { x: 1, y: 0 });
     moveEnemy(enemy, field, 1, () => 0);
@@ -93,6 +149,45 @@ describe('moveEnemy', () => {
       moveEnemy(enemy, lShaped, 1 / 30, () => Math.random());
       expect(isPointInPolygon(enemy.position, lShaped)).toBe(true);
     }
+  });
+});
+
+describe('moveEnemy – Pausen (Nutzer-Feedback: "manchmal für eine Sekunde anhalten")', () => {
+  // Bewusst riesig: die Pause-Tests jagen absichtlich viele Sekunden
+  // Bewegung durch einen einzigen `moveEnemy`-Aufruf (statt vieler kleiner
+  // Ticks) – ein normal grosses Feld würde den Gegner dabei an die Wand
+  // laufen lassen und die (hier irrelevante) Rand-Ausweichlogik auslösen.
+  const field = createRectangularField(100_000, 100_000);
+  const start = { x: 50_000, y: 50_000 };
+
+  it('bewegt sich normal, solange das Pause-Intervall noch nicht erreicht ist', () => {
+    const enemy = createEnemy(start, MAIN, { x: 1, y: 0 });
+    moveEnemy(enemy, field, ENEMY_PAUSE_INTERVAL_SECONDS - 1, () => 0.5);
+    expect(enemy.position.x).toBeCloseTo(start.x + MAIN.speed * (ENEMY_PAUSE_INTERVAL_SECONDS - 1));
+    expect(enemy.pauseRemainingSeconds).toBe(0);
+  });
+
+  it('hält beim Erreichen des Intervalls an, statt sich zu bewegen', () => {
+    const enemy = createEnemy(start, MAIN, { x: 1, y: 0 });
+    moveEnemy(enemy, field, ENEMY_PAUSE_INTERVAL_SECONDS, () => 0.5);
+    expect(enemy.position).toEqual(start); // keine Bewegung diesen Frame
+    expect(enemy.pauseRemainingSeconds).toBe(ENEMY_PAUSE_DURATION_SECONDS);
+  });
+
+  it('bleibt für die gesamte Pausendauer stehen und bewegt sich danach wieder', () => {
+    const enemy = createEnemy(start, MAIN, { x: 1, y: 0 });
+    moveEnemy(enemy, field, ENEMY_PAUSE_INTERVAL_SECONDS, () => 0.5); // Pause beginnt
+
+    // Mitten in der Pause: weiterhin keine Bewegung.
+    moveEnemy(enemy, field, ENEMY_PAUSE_DURATION_SECONDS / 2, () => 0.5);
+    expect(enemy.position).toEqual(start);
+    expect(enemy.pauseRemainingSeconds).toBeCloseTo(ENEMY_PAUSE_DURATION_SECONDS / 2);
+
+    // Pause zu Ende: nächster Frame bewegt sich der Gegner wieder normal.
+    moveEnemy(enemy, field, ENEMY_PAUSE_DURATION_SECONDS / 2, () => 0.5);
+    expect(enemy.pauseRemainingSeconds).toBe(0);
+    moveEnemy(enemy, field, 1, () => 0.5);
+    expect(enemy.position.x).toBeCloseTo(start.x + MAIN.speed);
   });
 });
 

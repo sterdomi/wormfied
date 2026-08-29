@@ -91,9 +91,13 @@ describe('movePlayerAlongEdge', () => {
 
   it('skaliert EDGE_SPEED über speedMultiplier (Instruktion 14, Geschwindigkeits-Boost), Konstante bleibt unverändert', () => {
     const p = new Player(0, 0);
-    movePlayerAlongEdge(p, field, { ...NONE, right: true }, 1, 2);
-    expect(p.position.x).toBeCloseTo(EDGE_SPEED * 2);
-    expect(EDGE_SPEED).toBe(220);
+    // dt bewusst < 1: EDGE_SPEED * 2 * 1 würde bei der jetzigen Geschwindigkeit
+    // über die obere Kante (Länge 800) hinaus in die nächste Ecke wandern –
+    // hier soll nur die reine Multiplikator-Skalierung geprüft werden, nicht
+    // das (separat getestete) Ecken-Verhalten.
+    movePlayerAlongEdge(p, field, { ...NONE, right: true }, 0.5, 2);
+    expect(p.position.x).toBeCloseTo(EDGE_SPEED * 2 * 0.5);
+    expect(EDGE_SPEED).toBe(500);
   });
 
   it('an einer Ecke: quer stehende Eingabe biegt aufs Nachbarsegment ab (vorwärts)', () => {

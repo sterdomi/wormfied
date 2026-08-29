@@ -160,8 +160,8 @@ describe('headingFromInput – achsparallel, keine Diagonale', () => {
     expect(headingFromInput(DOWN, { ...NONE, up: true })).toBeNull();
   });
 
-  it('diagonale Eingabe: das 90°-Abbiegen gewinnt', () => {
-    expect(headingFromInput(DOWN, { ...NONE, down: true, right: true })).toEqual({ x: 1, y: 0 });
+  it('beide Tasten gleichzeitig (aktuelle Richtung + quer): geradeaus gewinnt, kein Abbiegen (Nutzer-Feedback: sonst effektiv Diagonalfahrt durch jeden-Frame-Wechsel)', () => {
+    expect(headingFromInput(DOWN, { ...NONE, down: true, right: true })).toEqual(DOWN);
   });
 });
 
@@ -247,7 +247,7 @@ describe('advanceDrawing – speedMultiplier (Instruktion 14, Geschwindigkeits-B
     advanceDrawing(session, p, field, { ...NONE, down: true }, 0.1, [], undefined, 2);
 
     expect(p.position.y - before).toBeCloseTo(DRAW_SPEED * 2 * 0.1);
-    expect(DRAW_SPEED).toBe(160); // unverändert
+    expect(DRAW_SPEED).toBe(360); // unverändert
   });
 });
 

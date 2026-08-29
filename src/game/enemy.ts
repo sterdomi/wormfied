@@ -25,12 +25,34 @@ export interface Enemy {
   size: number;
   /** Sekunden seit dem letzten Schuss (nur relevant für schiessende Gegner). */
   timeSinceLastShot: number;
+  /**
+   * Sekunden seit der letzten (bzw. bei frischem Gegner: seit dem Spawn)
+   * Pause – zählt hoch, bis `nextPauseIntervalSeconds` erreicht ist
+   * (Nutzer-Feedback: Gegner sollen ab und zu kurz innehalten, siehe
+   * `enemyMovement.ts`).
+   */
+  timeSinceLastPause: number;
+  /** > 0, solange der Gegner gerade pausiert (zählt pro Frame runter). */
+  pauseRemainingSeconds: number;
+  /** Zufällig neu gewürfeltes Intervall (Sekunden) bis zur nächsten Pause –
+   *  erneuert nach jeder Pause, damit Gegner nicht alle im exakt gleichen
+   *  Takt anhalten. */
+  nextPauseIntervalSeconds: number;
 }
 
 export interface EnemySpec {
   speed: number;
   size: number;
 }
+
+/**
+ * Durchschnittliches Intervall (Sekunden) zwischen zwei Pausen eines Gegners
+ * – `enemyMovement.ts` würfelt pro Zyklus per Zufall etwas darum herum
+ * (siehe dort), damit nicht alle Gegner exakt im selben Takt anhalten.
+ * Hier definiert (nicht in `enemyMovement.ts`), da `createEnemy` den Wert
+ * fürs allererste Intervall braucht.
+ */
+export const ENEMY_PAUSE_INTERVAL_SECONDS = 10;
 
 export function createEnemy(
   position: Point,
@@ -43,6 +65,12 @@ export function createEnemy(
     speed: spec.speed,
     size: spec.size,
     timeSinceLastShot: 0,
+    timeSinceLastPause: 0,
+    pauseRemainingSeconds: 0,
+    // Erstes Intervall bewusst ohne Zufalls-Jitter (kein `rng` in
+    // `createEnemy` nötig) – der Jitter kommt ab der zweiten Pause dazu,
+    // siehe `enemyMovement.ts`.
+    nextPauseIntervalSeconds: ENEMY_PAUSE_INTERVAL_SECONDS,
   };
 }
 

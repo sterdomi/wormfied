@@ -66,6 +66,7 @@ import {
   applyLevelClearBonus,
   createScoring,
   getClaimedPercentage,
+  mainEnemyEncirclementScale,
   registerClaim,
   type Scoring,
 } from '../game/scoring';
@@ -939,13 +940,19 @@ function start(
     e: Enemy,
     eyeSpots: readonly EyeSpot[],
     now: number,
+    /** Zusätzlicher Render-Skalierungsfaktor über `e.size` hinaus (Nutzer-
+     *  Feedback: Hauptgegner schrumpft mit zunehmend eroberter Fläche, siehe
+     *  `mainEnemyEncirclementScale` in `scoring.ts`) – Default 1 für
+     *  Mini-Gegner, die davon unberührt bleiben. */
+    sizeScale: number = 1,
   ): void {
     // In Bewegungsrichtung ausrichten (Sprite-Kopf zeigt lokal nach oben).
     const activeSprite = useWalkFrame && walkSprite ? walkSprite : sprite;
+    const renderSize = e.size * sizeScale;
     ctx.save();
     ctx.translate(e.position.x, e.position.y);
     ctx.rotate(enemyFacingAngle(e.direction));
-    ctx.drawImage(activeSprite, -e.size / 2, -e.size / 2, e.size, e.size);
+    ctx.drawImage(activeSprite, -renderSize / 2, -renderSize / 2, renderSize, renderSize);
 
     // Pulsierender Glow auf den Augen (Instruktion 17, Punkt 4). `shadowBlur`
     // ist hier unproblematisch (siehe Performance-Hinweis der Instruktion):
@@ -956,7 +963,13 @@ function start(
     ctx.fillStyle = ENEMY_EYE_GLOW_COLOR;
     for (const spot of eyeSpots) {
       ctx.beginPath();
-      ctx.arc(spot.x * e.size, spot.y * e.size, spot.radiusFraction * e.size, 0, Math.PI * 2);
+      ctx.arc(
+        spot.x * renderSize,
+        spot.y * renderSize,
+        spot.radiusFraction * renderSize,
+        0,
+        Math.PI * 2,
+      );
       ctx.fill();
     }
     ctx.shadowBlur = 0;
@@ -1064,8 +1077,10 @@ function start(
     ctx.drawImage(foreground.canvas, 0, 0, FIELD_WIDTH, FIELD_HEIGHT);
 
     // Spielfeld-Umriss (aktuell ein Rechteck, später ein komplexeres Polygon).
+    // Feinere Linie als zuvor (Nutzer-Feedback, Vergleich mit dem
+    // Volfied-Original: dort deutlich dünnere Umriss-/Zeichenlinien).
     ctx.strokeStyle = COLOR_FIELD_EDGE;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2;
     ctx.beginPath();
     field.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
     ctx.closePath();
@@ -1076,6 +1091,12 @@ function start(
     // gemeinsamen Takt (`WALK_FRAME_INTERVAL_MS`) für eine einfache
     // Zwei-Bild-Lauf-Animation.
     const useWalkFrame = Math.floor(now / WALK_FRAME_INTERVAL_MS) % 2 === 1;
+    // Hauptgegner schrumpft mit zunehmend eroberter Fläche (Nutzer-Feedback:
+    // "wenn der Gegner eingekesselt wird, soll er kleiner werden") – NUR der
+    // Hauptgegner, Mini-Gegner bleiben unverändert (Default `sizeScale = 1`).
+    const mainEnemyScale = mainEnemyEncirclementScale(
+      getClaimedPercentage(scoring.claimedArea, scoring.totalFieldArea),
+    );
     drawEnemySprite(
       ctx,
       assets.mainEnemy,
@@ -1084,6 +1105,7 @@ function start(
       mainEnemy,
       MAIN_ENEMY_EYE_SPOTS,
       now,
+      mainEnemyScale,
     );
     for (const mini of miniEnemies) {
       drawEnemySprite(
@@ -1184,7 +1206,7 @@ function start(
       strokePolyline(ctx, linePoints);
 
       ctx.strokeStyle = COLOR_DRAWING;
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 2;
       strokePolyline(ctx, linePoints);
     }
 

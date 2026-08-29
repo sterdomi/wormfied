@@ -2,8 +2,17 @@
  * Pinselbreite (Pixel) für das Ausschneiden des befahrenen Pfads aus dem
  * Foreground. Eine Konstante, damit sich der Effekt an einer Stelle justieren
  * lässt.
+ *
+ * Nutzer-Feedback (Vergleich mit dem Volfied-Original): das darunterliegende
+ * Bild soll nur genau bis zur gezeichneten Linie freigelegt werden, nicht
+ * darüber hinaus – bei 16px war der ausgeschnittene Streifen deutlich breiter
+ * als die (jetzt 2px starke) sichtbare Linie inkl. 6px-Glow (main.ts/
+ * visualEffectsConfig.ts), das Bild schien dadurch seitlich über die Linie
+ * hinauszuragen, während noch aktiv gezeichnet wird. Jetzt an die
+ * Glow-Breite angeglichen, damit der freigelegte Streifen optisch nicht über
+ * das sichtbare Linien-Band hinausragt.
  */
-export const CARVE_WIDTH = 16;
+export const CARVE_WIDTH = 6;
 
 /**
  * Der Foreground wird nicht direkt in den Haupt-Canvas gezeichnet, sondern auf

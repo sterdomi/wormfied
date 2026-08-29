@@ -1,8 +1,9 @@
 import { pointOnPerimeter, segmentLength, type Point } from './field';
 import type { Player } from './player';
 
-/** Bewegungsgeschwindigkeit des Spielers entlang des Feldrands (Pixel/Sekunde). */
-export const EDGE_SPEED = 220;
+/** Bewegungsgeschwindigkeit des Spielers entlang des Feldrands (Pixel/Sekunde).
+ *  Nutzer-Feedback: nochmals doppelt so schnell (250 → 500). */
+export const EDGE_SPEED = 500;
 
 /** Tastenzustand, wie ihn `setupInput()` liefert. */
 export interface KeyInput {

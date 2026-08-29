@@ -13,6 +13,8 @@ import {
   formatClaimedPercentage,
   getClaimedPercentage,
   LEVEL_COMPLETE_THRESHOLD,
+  mainEnemyEncirclementScale,
+  MAIN_ENEMY_MIN_SIZE_SCALE,
   POINTS_PER_PERCENT,
   registerClaim,
 } from './scoring';
@@ -35,6 +37,25 @@ describe('getClaimedPercentage', () => {
 
   it('deckelt bei 100', () => {
     expect(getClaimedPercentage(150, 100)).toBe(100);
+  });
+});
+
+describe('mainEnemyEncirclementScale (Nutzer-Feedback: Hauptgegner schrumpft mit zunehmend eroberter Fläche)', () => {
+  it('volle Grösse bei 0% erobert', () => {
+    expect(mainEnemyEncirclementScale(0)).toBe(1);
+  });
+
+  it('minimale Grösse (30%) bei 100% erobert', () => {
+    expect(mainEnemyEncirclementScale(100)).toBeCloseTo(MAIN_ENEMY_MIN_SIZE_SCALE);
+  });
+
+  it('linear dazwischen', () => {
+    expect(mainEnemyEncirclementScale(50)).toBeCloseTo(0.65); // Mitte zwischen 1 und 0.3
+  });
+
+  it('robust gegen Werte ausserhalb 0–100', () => {
+    expect(mainEnemyEncirclementScale(-10)).toBe(1);
+    expect(mainEnemyEncirclementScale(150)).toBeCloseTo(MAIN_ENEMY_MIN_SIZE_SCALE);
   });
 });
 

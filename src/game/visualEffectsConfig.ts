@@ -33,7 +33,13 @@ export const BONUS_PULSE_COLOR_RGB: Record<BonusStoneType, string> = {
 // 3. Glühender Zeichen-Pfad.
 /** Entspricht `COLOR_DRAWING` (`#a3be8c`) in `main.ts`. */
 export const DRAW_PATH_GLOW_COLOR_RGB = '163, 190, 140';
-export const DRAW_PATH_GLOW_WIDTH = 10;
+/**
+ * Nutzer-Feedback (Vergleich mit dem Volfied-Original-Screenshot): Linien
+ * generell feiner statt so breit – zusammen mit der auf 2 reduzierten
+ * Kernlinienbreite (siehe `main.ts`) verkleinert, im selben Verhältnis wie
+ * zuvor (Glow ≈ 3× die Kernlinie: 6 = 3× 2, wie zuvor 10 ≈ 3× 3).
+ */
+export const DRAW_PATH_GLOW_WIDTH = 6;
 export const DRAW_PATH_GLOW_ALPHA = 0.25;
 
 // 4. Dynamisch pulsierende Gegner-Augen.

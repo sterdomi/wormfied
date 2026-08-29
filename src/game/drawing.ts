@@ -6,9 +6,10 @@ import { clamp } from '../utils/math';
 
 /**
  * Geschwindigkeit beim Zeichnen im Feld (Pixel/Sekunde). Eigene Konstante,
- * unabhängig von der Rand-Geschwindigkeit (`EDGE_SPEED = 220`).
+ * unabhängig von der Rand-Geschwindigkeit (`EDGE_SPEED = 500`).
+ * Nutzer-Feedback: nochmals doppelt so schnell (180 → 360).
  */
-export const DRAW_SPEED = 160;
+export const DRAW_SPEED = 360;
 
 /**
  * Abstand zum Feld-Rand, bis zu dem der Spieler als "noch auf dem Rand" gilt.
@@ -133,9 +134,17 @@ export function tryEnterDrawing(
  *  - keine Cursor-Taste                       → `null` (stehen bleiben)
  *  - `current === null` (frisch gelöst)       → gedrückte Richtung; bei zwei
  *    Achsen gewinnt die vertikale (senkrecht zu den waagrechten Start-Kanten)
- *  - Taste quer zur aktuellen Richtung        → 90°-Abbiegen
- *  - Taste in aktueller Richtung              → geradeaus weiter
+ *  - Taste in aktueller Richtung (auch wenn ZUSÄTZLICH eine Quer-Taste
+ *    gehalten wird) → geradeaus weiter
+ *  - NUR Taste quer zur aktuellen Richtung    → 90°-Abbiegen
  *  - nur Taste GEGEN die aktuelle Richtung    → `null` (kein Zurück auf die Linie)
+ *
+ * Nutzer-Feedback: "geradeaus" hat bewusst Vorrang vor "abbiegen", nicht
+ * umgekehrt – hält man z.B. rechts UND unten gleichzeitig gedrückt, entstand
+ * bei umgekehrter Priorität sonst jeden Frame ein Wechsel zwischen den beiden
+ * Richtungen (rechts → unten → rechts → …), was sich effektiv wie
+ * Diagonalfahrt anfühlte, obwohl jeder einzelne Schritt für sich
+ * achsparallel war.
  */
 export function headingFromInput(current: Point | null, input: DrawInput): Point | null {
   const wishX = (input.right ? 1 : 0) - (input.left ? 1 : 0);
@@ -150,12 +159,13 @@ export function headingFromInput(current: Point | null, input: DrawInput): Point
     return candidates.find((c) => c.x === 0) ?? candidates[0];
   }
 
-  // Skalarprodukt 0 ⇒ senkrecht zur aktuellen Richtung ⇒ 90°-Abbiegen.
-  const turn = candidates.find((c) => c.x * current.x + c.y * current.y === 0);
-  if (turn) return turn;
-
   const straight = candidates.find((c) => c.x === current.x && c.y === current.y);
-  return straight ?? null;
+  if (straight) return straight;
+
+  // Skalarprodukt 0 ⇒ senkrecht zur aktuellen Richtung ⇒ 90°-Abbiegen –
+  // NUR geprüft, wenn die aktuelle Richtung selbst nicht (mehr) gehalten wird.
+  const turn = candidates.find((c) => c.x * current.x + c.y * current.y === 0);
+  return turn ?? null;
 }
 
 /**
