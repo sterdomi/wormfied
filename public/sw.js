@@ -7,14 +7,23 @@
  * zusätzliches Build-Plugin plus dessen generiertem Precache-Manifest mehr
  * Komplexität hinzufügen würde, als es abnimmt.
  *
- * Strategie: Cache-first mit Laufzeit-Auffüllung. `CORE_ASSETS` (feste,
- * unter `public/` unveränderte Dateinamen – NICHT die von Vite gehashten
- * JS/CSS-Bundles, deren Namen erst beim Build feststehen) werden beim
- * Install vorab gecacht; alles andere (inkl. der gehashten Bundles, HTML)
- * landet beim ersten Abruf automatisch im selben Cache. Ein neuer
+ * Strategie: Cache-first mit Laufzeit-Auffüllung – ABER Network-first für
+ * die Navigation (die HTML-Seite selbst, siehe `isNavigationRequest` im
+ * `fetch`-Handler). Grund: `CACHE_NAME` bleibt zwischen Deploys meist
+ * unverändert (kein Versions-Bump bei jedem kleinen Feature), Cache-first
+ * hätte die HTML-Seite (und damit den Verweis auf den von Vite gehashten
+ * JS-Bundle-Namen) sonst auf einem Gerät, das die Seite schon einmal
+ * geladen hat, DAUERHAFT eingefroren – neue Deploys wären dort unsichtbar
+ * geblieben, ohne dass die Cache-Storage manuell geleert wird (genau das
+ * ist einem Test auf einem echten Gerät nach dem Cyborg-Sprite-Feature so
+ * passiert). `CORE_ASSETS` (feste, unter `public/` unveränderte
+ * Dateinamen – NICHT die gehashten JS/CSS-Bundles) werden beim Install
+ * vorab gecacht (inkl. `./` als Offline-Fallback, siehe unten); alles
+ * andere landet beim ersten Abruf automatisch im selben Cache. Ein neuer
  * `CACHE_NAME` (Versionsnummer erhöhen) verwirft beim nächsten Seitenaufruf
- * automatisch den kompletten alten Cache (`activate`-Handler) – mehr
- * Invalidierung ist für diesen Schritt nicht gefordert.
+ * zusätzlich den kompletten alten Cache (`activate`-Handler) – nützlich als
+ * expliziter Cutover, aber wegen des Network-first-Verhaltens für die
+ * Navigation nicht mehr die einzige Absicherung gegen veraltetes HTML.
  *
  * Alle Pfade sind bewusst RELATIV (ohne führenden Slash): sie lösen sich
  * gegen die eigene Position dieser Datei auf, die immer im Wurzelverzeichnis
@@ -23,7 +32,16 @@
  * genau wie `resolveAssetPath` im App-Code (siehe `src/engine/assetPath.ts`).
  */
 
-const CACHE_NAME = 'wormfied-v1';
+// v1 → v2: Umstieg auf Network-first für Navigationen (siehe oben) – der
+// Versions-Bump räumt einmalig auch bei Geräten auf, die noch eine unter v1
+// dauerhaft eingefrorene HTML-Seite im Cache hatten.
+// v2 → v3: Logo/Icons/Cyborg-Sprites unter GLEICHEM Dateinamen inhaltlich
+// geändert (Marienkäfer → Cyborg) – Cache-first für Bilder (siehe unten)
+// erkennt eine reine Inhaltsänderung unter derselben URL nicht von selbst,
+// nur ein neuer Cache-Name erzwingt hier den Cutover. Faustregel für
+// künftige Änderungen: Wird eine Datei unter public/ inhaltlich ersetzt
+// (nicht nur ergänzt), CACHE_NAME mit hochzählen.
+const CACHE_NAME = 'wormfied-v3';
 
 const CORE_ASSETS = [
   './',
@@ -33,6 +51,8 @@ const CORE_ASSETS = [
   './apple-touch-icon.png',
   './assets/player.svg',
   './assets/player-walk.svg',
+  './assets/player-cyborg.svg',
+  './assets/player-walk-cyborg.svg',
   './assets/wormfied-logo.svg',
   './assets/bonuses/bonus-cannon.svg',
   './assets/bonuses/bonus-speed.svg',
@@ -83,6 +103,33 @@ self.addEventListener('fetch', (event) => {
   // durchreichen, `cache.put` würde bei anderen Methoden ohnehin fehlschlagen.
   if (event.request.method !== 'GET') return;
 
+  // Top-Level-Navigation (die HTML-Seite selbst) IMMER zuerst übers Netz
+  // versuchen, nur bei einem Fehler (offline) auf den Cache zurückfallen –
+  // siehe Begründung oben. `destination === 'document'` zusätzlich zu
+  // `mode === 'navigate'`, da nicht jeder Browser bei jeder Navigationsart
+  // zuverlässig `mode: 'navigate'` setzt.
+  const isNavigationRequest =
+    event.request.mode === 'navigate' || event.request.destination === 'document';
+
+  if (isNavigationRequest) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok && response.type === 'basic') {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request)),
+    );
+    return;
+  }
+
+  // Alles andere (Bilder, Sounds, gehashte JS/CSS-Bundles, Manifest, Icons):
+  // Cache-first mit Laufzeit-Auffüllung – diese URLs sind entweder
+  // inhaltlich stabil (`public/`-Dateien) oder tragen einen Content-Hash im
+  // Namen (Vite-Bundles), ändern sich unter derselben URL also nie.
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;

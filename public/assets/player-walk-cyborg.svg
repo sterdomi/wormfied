@@ -1,0 +1,161 @@
+<svg viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="armorGrad" cx="35%" cy="25%" r="80%">
+      <stop offset="0%" stop-color="#eceff1"/>
+      <stop offset="45%" stop-color="#90a4ae"/>
+      <stop offset="80%" stop-color="#546e7a"/>
+      <stop offset="100%" stop-color="#263238"/>
+    </radialGradient>
+    <radialGradient id="headArmorGrad" cx="35%" cy="25%" r="80%">
+      <stop offset="0%" stop-color="#4a5568"/>
+      <stop offset="55%" stop-color="#232b33"/>
+      <stop offset="100%" stop-color="#08090a"/>
+    </radialGradient>
+    <radialGradient id="eyeGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff3b0"/>
+      <stop offset="55%" stop-color="#ff5252"/>
+      <stop offset="100%" stop-color="#7f0d0d"/>
+    </radialGradient>
+    <linearGradient id="legGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#b0bec5"/>
+      <stop offset="50%" stop-color="#607d8b"/>
+      <stop offset="100%" stop-color="#263238"/>
+    </linearGradient>
+    <linearGradient id="visorGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#004d55" stop-opacity="0.9"/>
+    </linearGradient>
+    <radialGradient id="lampAmber" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fffde7"/>
+      <stop offset="45%" stop-color="#ffca28"/>
+      <stop offset="100%" stop-color="#a35a00"/>
+    </radialGradient>
+    <radialGradient id="lampCyan" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#e0f7fa"/>
+      <stop offset="45%" stop-color="#00e5ff"/>
+      <stop offset="100%" stop-color="#00596b"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Beine (8, spinnenartig, mechanisch), hinter dem Körper -->
+  <g stroke-linecap="round" fill="none">
+    <!-- Bein 1 -->
+    <g>
+      <path d="M85,90 C61.6,82.2 42.1,86.1 28.06,74.4" stroke="url(#legGrad)" stroke-width="7"/>
+      <circle cx="61.6" cy="82.2" r="4.5" fill="url(#legGrad)" stroke="#101418" stroke-width="1.5"/>
+      <circle cx="42.1" cy="86.1" r="4" fill="url(#legGrad)" stroke="#101418" stroke-width="1.5"/>
+      <circle cx="28.06" cy="74.4" r="3.5" fill="#101418"/>
+    </g>
+    <!-- Bein 2 -->
+    <g>
+      <path d="M85,90 C61.6,93.9 38.2,97.8 24.94,105.6" stroke="url(#legGrad)" stroke-width="7"/>
+      <circle cx="61.6" cy="93.9" r="4.5" fill="url(#legGrad)" stroke="#101418" stroke-width="1.5"/>
+      <circle cx="38.2" cy="97.8" r="4" fill="url(#legGrad)" stroke="#101418" stroke-width="1.5"/>
+      <circle cx="24.94" cy="105.6" r="3.5" fill="#101418"/>
+    </g>
+    <!-- Bein 3 -->
+    <g>
+      <path d="M85,100 C63.94,111.7 46,123.4 34.3,142.9" stroke="url(#legGrad)" stroke-width="7"/>
+      <circle cx="63.94" cy="111.7" r="4.5" fill="url(#legGrad)" stroke="#101418" stroke-width="1.5"/>
+      <circle cx="46" cy="123.4" r="4" fill="url(#legGrad)" stroke="#101418" stroke-width="1.5"/>
+      <circle cx="34.3" cy="142.9" r="3.5" fill="#101418"/>
+    </g>
+    <!-- Bein 4 -->
+    <g>
+      <path d="M90,112 C72.84,129.94 62.7,145.54 57.24,166.6" stroke="url(#legGrad)" stroke-width="7"/>
+      <circle cx="72.84" cy="129.94" r="4.5" fill="url(#legGrad)" stroke="#101418" stroke-width="1.5"/>
+      <circle cx="62.7" cy="145.54" r="4" fill="url(#legGrad)" stroke="#101418" stroke-width="1.5"/>
+      <circle cx="57.24" cy="166.6" r="3.5" fill="#101418"/>
+    </g>
+    <!-- Bein 5 -->
+    <g>
+      <path d="M135,90 C158.4,82.2 177.9,86.1 191.94,74.4" stroke="url(#legGrad)" stroke-width="7"/>
+      <circle cx="158.4" cy="82.2" r="4.5" fill="url(#legGrad)" stroke="#101418" stroke-width="1.5"/>
+      <circle cx="177.9" cy="86.1" r="4" fill="url(#legGrad)" stroke="#101418" stroke-width="1.5"/>
+      <circle cx="191.94" cy="74.4" r="3.5" fill="#101418"/>
+    </g>
+    <!-- Bein 6 -->
+    <g>
+      <path d="M135,90 C158.4,93.9 181.8,97.8 195.06,105.6" stroke="url(#legGrad)" stroke-width="7"/>
+      <circle cx="158.4" cy="93.9" r="4.5" fill="url(#legGrad)" stroke="#101418" stroke-width="1.5"/>
+      <circle cx="181.8" cy="97.8" r="4" fill="url(#legGrad)" stroke="#101418" stroke-width="1.5"/>
+      <circle cx="195.06" cy="105.6" r="3.5" fill="#101418"/>
+    </g>
+    <!-- Bein 7 -->
+    <g>
+      <path d="M135,100 C156.06,111.7 174,123.4 185.7,142.9" stroke="url(#legGrad)" stroke-width="7"/>
+      <circle cx="156.06" cy="111.7" r="4.5" fill="url(#legGrad)" stroke="#101418" stroke-width="1.5"/>
+      <circle cx="174" cy="123.4" r="4" fill="url(#legGrad)" stroke="#101418" stroke-width="1.5"/>
+      <circle cx="185.7" cy="142.9" r="3.5" fill="#101418"/>
+    </g>
+    <!-- Bein 8 -->
+    <g>
+      <path d="M130,112 C147.16,129.94 157.3,145.54 162.76,166.6" stroke="url(#legGrad)" stroke-width="7"/>
+      <circle cx="147.16" cy="129.94" r="4.5" fill="url(#legGrad)" stroke="#101418" stroke-width="1.5"/>
+      <circle cx="157.3" cy="145.54" r="4" fill="url(#legGrad)" stroke="#101418" stroke-width="1.5"/>
+      <circle cx="162.76" cy="166.6" r="3.5" fill="#101418"/>
+    </g>
+  </g>
+
+  <!-- Schulterpanzer -->
+  <g fill="url(#legGrad)" stroke="#101418" stroke-width="1.5">
+    <ellipse cx="85" cy="90" rx="10" ry="7"/>
+    <ellipse cx="135" cy="90" rx="10" ry="7"/>
+  </g>
+
+  <!-- Körper (Panzerrüstung) -->
+  <ellipse cx="110" cy="120" rx="68" ry="76" fill="url(#armorGrad)" stroke="#101418" stroke-width="3"/>
+
+  <!-- Plattennähte -->
+  <line x1="110" y1="52" x2="110" y2="196" stroke="#101418" stroke-width="3"/>
+  <path d="M50,95 C75,105 145,105 170,95" fill="none" stroke="#101418" stroke-width="2" opacity="0.55"/>
+  <path d="M46,155 C75,168 145,168 174,155" fill="none" stroke="#101418" stroke-width="2" opacity="0.55"/>
+
+  <!-- Nieten -->
+  <g fill="#1a1a1a" stroke="#000" stroke-width="0.5">
+    <circle cx="62" cy="108" r="2.6"/>
+    <circle cx="158" cy="108" r="2.6"/>
+    <circle cx="65" cy="165" r="2.6"/>
+    <circle cx="155" cy="165" r="2.6"/>
+    <circle cx="110" cy="58" r="2.6"/>
+    <circle cx="110" cy="192" r="2.6"/>
+  </g>
+
+  <!-- Statuslampen-Gehäuse: neutral dunkel, identisch zu player-cyborg.svg –
+       das eigentliche Blinken zeichnet main.ts als eigener Überzug, siehe
+       Kommentar dort. -->
+  <g stroke="#101418" stroke-width="1.5">
+    <circle cx="80" cy="90" r="10" fill="#101418"/>
+    <circle cx="142" cy="95" r="9.5" fill="#101418"/>
+    <circle cx="75" cy="140" r="11" fill="#101418"/>
+    <circle cx="145" cy="145" r="10.5" fill="#101418"/>
+    <circle cx="90" cy="175" r="8.5" fill="#101418"/>
+    <circle cx="132" cy="178" r="8.5" fill="#101418"/>
+  </g>
+
+  <!-- Kopf -->
+  <g>
+    <circle cx="110" cy="46" r="30" fill="url(#headArmorGrad)" stroke="#000" stroke-width="2.5"/>
+    <path d="M84,38 A30,30 0 0 1 136,38" fill="none" stroke="#5c6b78" stroke-width="2" opacity="0.6"/>
+
+    <!-- Sensor-Antennen -->
+    <path d="M96,24 C90,10 82,4 74,0" fill="none" stroke="url(#legGrad)" stroke-width="4" stroke-linecap="round"/>
+    <path d="M124,24 C130,10 138,4 146,0" fill="none" stroke="url(#legGrad)" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="74" cy="0" r="6" fill="#101418"/>
+    <circle cx="146" cy="0" r="6" fill="#101418"/>
+
+    <!-- Visier -->
+    <rect x="88" y="37" width="44" height="14" rx="7" fill="url(#visorGrad)" stroke="#0d2b2f" stroke-width="1"/>
+
+    <!-- Augen (Ziel-Optik) -->
+    <circle cx="98" cy="44" r="8" fill="url(#eyeGlow)" stroke="#000" stroke-width="1"/>
+    <circle cx="122" cy="44" r="8" fill="url(#eyeGlow)" stroke="#000" stroke-width="1"/>
+    <circle cx="98" cy="44" r="2.5" fill="#1b1b1b"/>
+    <circle cx="122" cy="44" r="2.5" fill="#1b1b1b"/>
+
+    <!-- Mechanische Mandibeln -->
+    <path d="M100,60 L94,70 M120,60 L126,70" stroke="url(#legGrad)" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="100" cy="60" r="2.5" fill="#101418"/>
+    <circle cx="120" cy="60" r="2.5" fill="#101418"/>
+  </g>
+</svg>

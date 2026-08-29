@@ -141,6 +141,14 @@ const PLAYER_ASSET_SRC = '/assets/player.svg';
  * (Instruktion 16), im gemeinsamen `WALK_FRAME_INTERVAL_MS`-Takt gewechselt.
  */
 const PLAYER_WALK_ASSET_SRC = '/assets/player-walk.svg';
+/**
+ * "Cyborg"-Variante des Spieler-Sprites (+ Lauf-Pose), solange ein
+ * Spezialstein-Effekt aktiv ist (Speed-Boost ODER Kanone, Instruktion 14) –
+ * visuelles Feedback, dass der Spieler gerade "aufgerüstet" ist. Wie
+ * `PLAYER_ASSET_SRC`/`PLAYER_WALK_ASSET_SRC` levelübergreifend gleich.
+ */
+const PLAYER_CYBORG_ASSET_SRC = '/assets/player-cyborg.svg';
+const PLAYER_WALK_CYBORG_ASSET_SRC = '/assets/player-walk-cyborg.svg';
 /** Rendergrösse (Durchmesser) des Spieler-Sprites in Pixel. */
 const playerSize = 45;
 /**
@@ -213,6 +221,47 @@ const MINI_ENEMY_EYE_SPOTS: readonly EyeSpot[] = [
   { x: 50 / 90 - 0.5, y: 30 / 90 - 0.5, radiusFraction: 3.5 / 90 },
 ];
 
+/**
+ * Statuslampen des Cyborg-Spieler-Sprites (Nutzer-Feedback nach dem
+ * Cyborg-Sprite-Feature): NICHT mehr Teil der SVGs selbst (beide
+ * `player-cyborg(-walk)?.svg` zeigen an diesen Stellen nur noch eine
+ * neutrale dunkle Fassung, siehe dortige Kommentare) – das eigentliche
+ * Blinken zeichnet `render()` als eigener Überzug, analog zum
+ * Augen-Glow-Überzug der Gegner (`drawEnemySprite`/`enemyEyeGlowBlur`,
+ * Instruktion 17, Punkt 4). Grund für die Auslagerung: der bisherige Ansatz
+ * (Lampen fix in zwei Sprite-Varianten "an"/"aus" eingebrannt) war 1:1 an
+ * den Bein-Wechsel-Takt gekoppelt (`WALK_FRAME_INTERVAL_MS`, 220ms) – zu
+ * schnell UND zu klein, um als eigenständiges "Blinken" wahrgenommen zu
+ * werden, ging im allgemeinen Sprite-Wechsel-Flackern unter. Ein
+ * SVG-`<animate>` für echtes Blinken scheidet aus: `ctx.drawImage()` einer
+ * als Canvas-Bildquelle genutzten SVG hält deren SMIL-Animation NICHT am
+ * Laufen, sondern friert sie auf einem undefinierten Frame ein (siehe
+ * `player-cyborg.svg`). Koordinaten/Radien 1:1 aus den ursprünglich dort
+ * eingebrannten `<circle>`-Werten übernommen (viewBox 220, wie `EyeSpot`).
+ */
+interface LampSpot {
+  x: number;
+  y: number;
+  radiusFraction: number;
+  color: string;
+}
+const CYBORG_LAMP_SPOTS: readonly LampSpot[] = [
+  { x: 80 / 220 - 0.5, y: 90 / 220 - 0.5, radiusFraction: 10 / 220, color: '#ffca28' },
+  { x: 142 / 220 - 0.5, y: 95 / 220 - 0.5, radiusFraction: 9.5 / 220, color: '#00e5ff' },
+  { x: 75 / 220 - 0.5, y: 140 / 220 - 0.5, radiusFraction: 11 / 220, color: '#00e5ff' },
+  { x: 145 / 220 - 0.5, y: 145 / 220 - 0.5, radiusFraction: 10.5 / 220, color: '#ffca28' },
+  { x: 90 / 220 - 0.5, y: 175 / 220 - 0.5, radiusFraction: 8.5 / 220, color: '#ffca28' },
+  { x: 132 / 220 - 0.5, y: 178 / 220 - 0.5, radiusFraction: 8.5 / 220, color: '#00e5ff' },
+  { x: 74 / 220 - 0.5, y: 0 / 220 - 0.5, radiusFraction: 3.5 / 220, color: '#00e5ff' },
+  { x: 146 / 220 - 0.5, y: 0 / 220 - 0.5, radiusFraction: 3.5 / 220, color: '#00e5ff' },
+];
+/**
+ * Deutlich langsamer als `WALK_FRAME_INTERVAL_MS` (220ms) – eigener,
+ * unabhängiger Takt, damit das Blinken als solches lesbar bleibt statt im
+ * Bein-Wechsel-Flackern unterzugehen.
+ */
+const CYBORG_LAMP_BLINK_INTERVAL_MS = 500;
+
 const foundCanvas = document.querySelector<HTMLCanvasElement>('#game');
 if (!foundCanvas) {
   throw new Error('Canvas-Element #game nicht gefunden.');
@@ -239,8 +288,14 @@ setupOrientationWarning();
  * `resolveAssetPath` löst den Pfad gegen die Vite-`base` auf (Subpath-Build,
  * siehe `assetPath.ts`) – der Scope des Workers ist dadurch automatisch
  * korrekt auf das Verzeichnis von `sw.js` beschränkt.
+ *
+ * NUR im Produktions-Build (`import.meta.env.PROD`) – der Vite-Dev-Server
+ * liefert bei `npm run dev` ohnehin jede Datei frisch von der Platte, ein
+ * dort zusätzlich registrierter Service Worker würde Bilder/Sounds aber
+ * Cache-first ausliefern und damit genau die "ich sehe meine Änderung
+ * nicht"-Falle aus der Produktion unnötig auch lokal aufmachen.
  */
-if ('serviceWorker' in navigator) {
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register(resolveAssetPath('/sw.js')).catch((err: unknown) => {
       console.error('Service-Worker-Registrierung fehlgeschlagen:', err);
@@ -358,6 +413,8 @@ function start(
   assets: LevelImages,
   playerImage: HTMLImageElement,
   playerWalkImage: HTMLImageElement,
+  playerCyborgImage: HTMLImageElement,
+  playerWalkCyborgImage: HTMLImageElement,
   logoImage: HTMLImageElement,
 ): Promise<void> {
   // Wird synchron im Promise-Executor unten zugewiesen (läuft vor jedem
@@ -1174,11 +1231,44 @@ function start(
 
     // Spieler: Marienkäfer-Sprite, in aktuelle Bewegungsrichtung gedreht,
     // Bein-Pose im selben Takt wie bei den Gegnern (Instruktion 16).
-    const activePlayerSprite = useWalkFrame ? playerWalkImage : playerImage;
+    // "Cyborg"-Variante, solange Speed-Boost oder Kanone aktiv ist
+    // (Instruktion 14) – visuelles Feedback für den Spezialstein-Effekt.
+    const cyborgActive =
+      playerState.speedBoostRemainingSeconds > 0 || playerState.cannonRemainingSeconds > 0;
+    const activePlayerSprite = cyborgActive
+      ? useWalkFrame
+        ? playerWalkCyborgImage
+        : playerCyborgImage
+      : useWalkFrame
+        ? playerWalkImage
+        : playerImage;
     ctx.save();
     ctx.translate(player.position.x, player.position.y);
     ctx.rotate(playerFacingAngle(player.facing));
     ctx.drawImage(activePlayerSprite, -playerSize / 2, -playerSize / 2, playerSize, playerSize);
+
+    // Cyborg-Statuslampen: eigener, langsamerer Blink-Takt als eigenständiger
+    // Überzug (siehe `CYBORG_LAMP_SPOTS`) statt in den Sprites eingebrannt –
+    // nur eine Hälfte des Zyklus gezeichnet ("aus" = einfach nichts zeichnen,
+    // die neutrale dunkle Fassung aus dem Sprite bleibt sichtbar).
+    if (cyborgActive && Math.floor(now / CYBORG_LAMP_BLINK_INTERVAL_MS) % 2 === 0) {
+      for (const lamp of CYBORG_LAMP_SPOTS) {
+        ctx.shadowColor = lamp.color;
+        ctx.shadowBlur = 6;
+        ctx.fillStyle = lamp.color;
+        ctx.beginPath();
+        ctx.arc(
+          lamp.x * playerSize,
+          lamp.y * playerSize,
+          lamp.radiusFraction * playerSize,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+    }
+
     ctx.restore(); // Ende Spieler-Rotate
 
     ctx.restore(); // Ende der Feld-Translate (siehe `ctx.translate(FIELD_MARGIN, FIELD_MARGIN_TOP)` oben)
@@ -1246,14 +1336,24 @@ async function boot(): Promise<void> {
   const soundSources: Record<string, string> = { ...SOUND_SOURCES };
   if (level.musicSrc) soundSources[MUSIC_SOUND_KEY] = level.musicSrc;
 
-  // Levelbilder + Spieler-Sprite (inkl. Lauf-Pose) + Logo + Sounds parallel
-  // laden – Spieler und Logo sind bewusst NICHT Teil von `LevelConfig`
-  // (levelübergreifend gleich, Instruktion 13); Sounds analog (Instruktion
-  // 18, Punkt 2) im selben Ladebildschirm-Zustand abgewartet.
-  const [assets, playerImage, playerWalkImage, logoImage] = await Promise.all([
+  // Levelbilder + Spieler-Sprites (normal + Cyborg-Variante, je inkl.
+  // Lauf-Pose) + Logo + Sounds parallel laden – Spieler und Logo sind
+  // bewusst NICHT Teil von `LevelConfig` (levelübergreifend gleich,
+  // Instruktion 13); Sounds analog (Instruktion 18, Punkt 2) im selben
+  // Ladebildschirm-Zustand abgewartet.
+  const [
+    assets,
+    playerImage,
+    playerWalkImage,
+    playerCyborgImage,
+    playerWalkCyborgImage,
+    logoImage,
+  ] = await Promise.all([
     loadLevelImages(level),
     loadImage(PLAYER_ASSET_SRC),
     loadImage(PLAYER_WALK_ASSET_SRC),
+    loadImage(PLAYER_CYBORG_ASSET_SRC),
+    loadImage(PLAYER_WALK_CYBORG_ASSET_SRC),
     loadImage(LOGO_ASSET_SRC),
     audioManager.loadAll(soundSources),
   ]);
@@ -1262,7 +1362,16 @@ async function boot(): Promise<void> {
   // automatisch nach GAME_OVER_DISPLAY_MS – wieder beim Startbildschirm.
   for (;;) {
     await showStartScreen(gameCanvas, logoImage);
-    await start(gameCanvas, level, assets, playerImage, playerWalkImage, logoImage);
+    await start(
+      gameCanvas,
+      level,
+      assets,
+      playerImage,
+      playerWalkImage,
+      playerCyborgImage,
+      playerWalkCyborgImage,
+      logoImage,
+    );
   }
 }
 
