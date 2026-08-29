@@ -1,0 +1,25 @@
+<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="crystalGradBomb" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f3c4fb"/>
+      <stop offset="45%" stop-color="#c77dff"/>
+      <stop offset="100%" stop-color="#5a189a"/>
+    </linearGradient>
+    <radialGradient id="glowBomb" cx="50%" cy="50%" r="50%">
+      <stop offset="55%" stop-color="#c77dff" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#c77dff" stop-opacity="0.4"/>
+    </radialGradient>
+  </defs>
+
+  <circle cx="30" cy="30" r="28" fill="url(#glowBomb)"/>
+
+  <!-- Kristall (Diamant-Form) -->
+  <polygon points="30,4 50,24 40,54 20,54 10,24"
+           fill="url(#crystalGradBomb)" stroke="#5a189a" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="30,4 50,24 30,30 10,24"
+           fill="#ffffff" opacity="0.25"/>
+
+  <!-- Explosions-Stern-Symbol -->
+  <path d="M30,14 L34,25 L46,25 L36,32 L40,44 L30,37 L20,44 L24,32 L14,25 L26,25 Z"
+        fill="#ffffff" stroke="#5a189a" stroke-width="1" stroke-linejoin="round"/>
+</svg>

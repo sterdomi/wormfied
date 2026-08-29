@@ -83,6 +83,7 @@ describe('loadLevelImages', () => {
           projectileAssetSrc: 'playerBullet.svg',
         },
         freeze: { assetSrc: 'freeze.svg', effectDurationSeconds: 5 },
+        bomb: { assetSrc: 'bomb.svg' },
       },
     });
     await flush();
@@ -96,6 +97,7 @@ describe('loadLevelImages', () => {
     expect((images.bonusSpeed as unknown as FakeImage).src).toBe('speed.svg');
     expect((images.bonusCannon as unknown as FakeImage).src).toBe('cannon.svg');
     expect((images.bonusFreeze as unknown as FakeImage).src).toBe('freeze.svg');
+    expect((images.bonusBomb as unknown as FakeImage).src).toBe('bomb.svg');
     expect((images.playerProjectile as unknown as FakeImage).src).toBe('playerBullet.svg');
     // Keine Lauf-Pose konfiguriert → nicht geladen, bleibt undefined.
     expect(images.mainEnemyWalk).toBeUndefined();
@@ -124,6 +126,7 @@ describe('loadLevelImages', () => {
           projectileAssetSrc: 'playerBullet.svg',
         },
         freeze: { assetSrc: 'freeze.svg', effectDurationSeconds: 5 },
+        bomb: { assetSrc: 'bomb.svg' },
       },
     });
     await flush();

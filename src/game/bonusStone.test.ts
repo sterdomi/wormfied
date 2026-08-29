@@ -33,6 +33,7 @@ const BONUS_CONFIG: BonusStonesConfig = {
     projectileAssetSrc: 'bullet.svg',
   },
   freeze: { assetSrc: 'freeze.svg', effectDurationSeconds: 5 },
+  bomb: { assetSrc: 'bomb.svg' },
 };
 
 const field = createRectangularField(800, 600);
@@ -152,6 +153,16 @@ describe('partitionCapturedBonusStones + applyBonusStoneEffect', () => {
     expect(playerState.speedBoostRemainingSeconds).toBe(0);
     expect(playerState.cannonRemainingSeconds).toBe(0);
   });
+
+  it('applyBonusStoneEffect lässt playerState bei bomb unangetastet (Nutzer-Feedback: wirkt auf Mini-Gegner, nicht PlayerState – main.ts behandelt das separat)', () => {
+    const now = performance.now();
+    const stone = createBonusStone({ x: 50, y: 50 }, 'bomb', now);
+    const playerState = createPlayerState();
+
+    applyBonusStoneEffect(stone, playerState, BONUS_CONFIG);
+
+    expect(playerState).toEqual(createPlayerState());
+  });
 });
 
 describe('isBlockedByBonusStone', () => {
@@ -176,11 +187,12 @@ describe('bonusStoneSoundKey (Instruktion 18)', () => {
     expect(bonusStoneSoundKey('speedBoost')).toBe('pickup_speed');
     expect(bonusStoneSoundKey('cannon')).toBe('pickup_cannon');
     expect(bonusStoneSoundKey('freeze')).toBe('pickup_generic');
+    expect(bonusStoneSoundKey('bomb')).toBe('pickup');
   });
 });
 
-describe('tickBonusStoneSpawning – drei gleich wahrscheinliche Typen (Nutzer-Feedback: neuer freeze-Bonus)', () => {
-  it('verteilt speedBoost/cannon/freeze zu je 1/3 über einen einzigen rng()-Aufruf', () => {
+describe('tickBonusStoneSpawning – vier gleich wahrscheinliche Typen (Nutzer-Feedback: neuer bomb-Bonus)', () => {
+  it('verteilt speedBoost/cannon/freeze/bomb zu je 1/4 über einen einzigen rng()-Aufruf', () => {
     const spawnAt = (r: number) => {
       const spawner = createBonusStoneSpawner();
       // Die ersten zwei rng()-Aufrufe gehören der Positionssuche
@@ -203,10 +215,12 @@ describe('tickBonusStoneSpawning – drei gleich wahrscheinliche Typen (Nutzer-F
       );
     };
     expect(spawnAt(0)!.type).toBe('speedBoost');
-    expect(spawnAt(0.3)!.type).toBe('speedBoost');
-    expect(spawnAt(0.34)!.type).toBe('cannon');
-    expect(spawnAt(0.6)!.type).toBe('cannon');
-    expect(spawnAt(0.67)!.type).toBe('freeze');
-    expect(spawnAt(0.99)!.type).toBe('freeze');
+    expect(spawnAt(0.2)!.type).toBe('speedBoost');
+    expect(spawnAt(0.26)!.type).toBe('cannon');
+    expect(spawnAt(0.45)!.type).toBe('cannon');
+    expect(spawnAt(0.51)!.type).toBe('freeze');
+    expect(spawnAt(0.7)!.type).toBe('freeze');
+    expect(spawnAt(0.76)!.type).toBe('bomb');
+    expect(spawnAt(0.99)!.type).toBe('bomb');
   });
 });

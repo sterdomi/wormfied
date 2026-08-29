@@ -75,6 +75,10 @@ export const level1: LevelConfig = {
    * Pause (Nutzer-Feedback): friert für 5 s alle Gegner ein (Bewegung +
    * Schiessen) – lang genug, um in Ruhe eine grössere Fläche einzuschliessen,
    * kurz genug, um kein Dauerzustand zu werden.
+   *
+   * Bombe (Nutzer-Feedback): besiegt sofort beim Einsammeln alle aktuell
+   * vorhandenen Mini-Gegner – kein Zeit-Effekt, daher keine
+   * `effectDurationSeconds` (siehe `BombBoostConfig`).
    */
   bonusStones: {
     spawning: {
@@ -98,6 +102,9 @@ export const level1: LevelConfig = {
     freeze: {
       assetSrc: '/assets/bonuses/bonus-freeze.svg',
       effectDurationSeconds: 5,
+    },
+    bomb: {
+      assetSrc: '/assets/bonuses/bonus-bomb.svg',
     },
   },
   musicSrc: '/assets/levels/level1/arcade-music-loop.wav',

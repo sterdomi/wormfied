@@ -24,6 +24,7 @@ import {
   pruneExpiredBonusStones,
   tickBonusStoneSpawning,
   type BonusStone,
+  type BonusStoneType,
 } from '../game/bonusStone';
 import {
   advanceDrawing,
@@ -309,8 +310,8 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 }
 
 /** Pfad je Sound-Key – liegt unter `public/assets/sound/` (nicht `sounds/`,
- *  siehe Abschluss-Bericht). `pickup_generic.wav` jetzt für den neuen
- *  Pause-Bonusstein reserviert (Nutzer-Feedback) – zuvor ungenutzt. */
+ *  siehe Abschluss-Bericht). `pickup_generic.wav`/`pickup.wav` jetzt für die
+ *  Pause-/Bombe-Bonussteine reserviert (Nutzer-Feedback) – zuvor ungenutzt. */
 const SOUND_SOURCES: Record<string, string> = {
   undock: '/assets/sound/undock.wav',
   dock: '/assets/sound/dock.wav',
@@ -322,6 +323,7 @@ const SOUND_SOURCES: Record<string, string> = {
   pickup_speed: '/assets/sound/pickup_speed.wav',
   pickup_cannon: '/assets/sound/pickup_cannon.wav',
   pickup_generic: '/assets/sound/pickup_generic.wav',
+  pickup: '/assets/sound/pickup.wav',
   life_loss: '/assets/sound/life_loss.wav',
   game_over: '/assets/sound/game_over.wav',
   level_complete: '/assets/sound/level_complete.wav',
@@ -574,12 +576,6 @@ function start(
       defeatMiniEnemy(enemy, scoring, explosions, level.scoring);
       audioManager.play('mini_enemy_explosion');
     }
-    // Neues Feld kann dem Hauptgegner plötzlich mehr oder weniger Raum lassen,
-    // UND das Einschliessen kann gerade den letzten Mini-Gegner gefangen haben
-    // (Nutzer-Feedback, siehe `enemyEncirclement.ts`) – deshalb NACH dem
-    // Mini-Gegner-Update, nur hier + in `rebuildField` + beim Erschiessen
-    // eines Mini-Gegners neu berechnet, nicht pro Frame.
-    recomputeMainEnemyEncirclementScale();
 
     // Bonussteine, die in der eroberten Fläche liegen, sind ebenfalls
     // "gefangen": Effekt aktivieren + Aufnahme-Explosion in typspezifischer
@@ -587,10 +583,28 @@ function start(
     const bonusCapture = partitionCapturedBonusStones(bonusStones, result.claimed);
     bonusStones = bonusCapture.survivors;
     for (const stone of bonusCapture.captured) {
-      applyBonusStoneEffect(stone, playerState, level.bonusStones);
+      if (stone.type === 'bomb') {
+        // Bombe (Nutzer-Feedback): besiegt SOFORT alle aktuell vorhandenen
+        // Mini-Gegner – wirkt auf die Gegner-Liste, nicht auf `playerState`,
+        // daher hier statt in `applyBonusStoneEffect` behandelt (siehe
+        // Kommentar dort).
+        for (const enemy of miniEnemies) {
+          defeatMiniEnemy(enemy, scoring, explosions, level.scoring);
+        }
+        if (miniEnemies.length > 0) audioManager.play('mini_enemy_explosion');
+        miniEnemies = [];
+      } else {
+        applyBonusStoneEffect(stone, playerState, level.bonusStones);
+      }
       explosions.push(createExplosion(stone.position, BONUS_STONE_EXPLOSION_COLOR[stone.type]));
       audioManager.play(bonusStoneSoundKey(stone.type));
     }
+    // Neues Feld kann dem Hauptgegner plötzlich mehr oder weniger Raum lassen,
+    // UND das Einschliessen (oder die Bombe oben) kann gerade den letzten
+    // Mini-Gegner besiegt haben (Nutzer-Feedback, siehe `enemyEncirclement.ts`)
+    // – deshalb NACH beiden Capture-Schleifen, nur hier + in `rebuildField` +
+    // beim Erschiessen eines Mini-Gegners neu berechnet, nicht pro Frame.
+    recomputeMainEnemyEncirclementScale();
 
     scoring.claimedArea += result.claimedArea;
     const percent = getClaimedPercentage(scoring.claimedArea, scoring.totalFieldArea);
@@ -1074,6 +1088,15 @@ function start(
     return canvas;
   }
 
+  // Einmal pro Partie (nicht pro Frame, siehe `render`) – `assets` ändert
+  // sich während einer laufenden Partie nicht.
+  const bonusStoneSprites: Record<BonusStoneType, HTMLImageElement> = {
+    speedBoost: assets.bonusSpeed,
+    cannon: assets.bonusCannon,
+    freeze: assets.bonusFreeze,
+    bomb: assets.bonusBomb,
+  };
+
   function render(ctx: CanvasRenderingContext2D): void {
     // Eine gemeinsame Wanduhrzeit für alle zeitbasierten Effekte dieses
     // Frames (Bein-Animation, Bonusstein-Puls, Augen-Puls, Explosionen,
@@ -1175,12 +1198,7 @@ function start(
     // kontinuierlich pulsierendem Glow dahinter (Instruktion 17, Punkt 2) –
     // Puls beschleunigt sich in den letzten Sekunden als Warnsignal.
     for (const stone of bonusStones) {
-      const sprite =
-        stone.type === 'speedBoost'
-          ? assets.bonusSpeed
-          : stone.type === 'cannon'
-            ? assets.bonusCannon
-            : assets.bonusFreeze;
+      const sprite = bonusStoneSprites[stone.type];
       const diameter = level.bonusStones.spawning.radius * 2;
       const fadeOpacity = bonusStoneOpacity(stone, level.bonusStones.spawning.lifetimeSeconds, now);
       const pulse = bonusStonePulseIntensity(

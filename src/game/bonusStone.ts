@@ -4,7 +4,7 @@ import { isPointInPolygon } from './polygon';
 import type { BonusStoneSpawning, BonusStonesConfig } from '../levels/types';
 import type { PlayerState } from './playerState';
 
-export type BonusStoneType = 'speedBoost' | 'cannon' | 'freeze';
+export type BonusStoneType = 'speedBoost' | 'cannon' | 'freeze' | 'bomb';
 
 export interface BonusStone {
   id: string;
@@ -19,17 +19,19 @@ export const BONUS_STONE_EXPLOSION_COLOR: Record<BonusStoneType, string> = {
   speedBoost: '#48cae4', // Blau, wie in bonus-speed.svg
   cannon: '#ff9e00', // Orange, wie in bonus-cannon.svg
   freeze: '#90e0ef', // Helles Eisblau, wie in bonus-freeze.svg
+  bomb: '#c77dff', // Violett, wie in bonus-bomb.svg
 };
 
-/** Pickup-Sound-Key je Bonustyp (Instruktion 18, Punkt 3). `freeze` nutzt
- *  `pickup_generic.wav` – bislang bewusst ungeladener Sound (siehe
- *  `SOUND_SOURCES` in `main.ts`), jetzt für den neuen Bonustyp reserviert. */
+/** Pickup-Sound-Key je Bonustyp (Instruktion 18, Punkt 3). `freeze`/`bomb`
+ *  nutzen bislang ungeladene Sounds (siehe `SOUND_SOURCES` in `main.ts`),
+ *  jetzt für die neuen Bonustypen reserviert. */
 export function bonusStoneSoundKey(
   type: BonusStoneType,
-): 'pickup_speed' | 'pickup_cannon' | 'pickup_generic' {
+): 'pickup_speed' | 'pickup_cannon' | 'pickup_generic' | 'pickup' {
   if (type === 'speedBoost') return 'pickup_speed';
   if (type === 'cannon') return 'pickup_cannon';
-  return 'pickup_generic';
+  if (type === 'freeze') return 'pickup_generic';
+  return 'pickup';
 }
 
 export function createBonusStone(
@@ -95,6 +97,12 @@ export function partitionCapturedBonusStones(
  * (`handleLifeLoss`, lifecycle.ts) sie unangetastet lässt; jeder bestehende
  * `> 0`-Check (Kanone-Feuern, Cyborg-Sprite) bleibt dadurch unverändert
  * gültig. Der Speed-Boost bleibt ein echter, endlicher Zeit-Bonus.
+ *
+ * `bomb` ist bewusst NICHT hier behandelt (No-op) – der Effekt ("alle
+ * Mini-Gegner sofort besiegen", Nutzer-Feedback) betrifft die Gegner-Liste
+ * + Score/Explosionen, nicht `PlayerState`, und gehört daher in `main.ts`
+ * (dort per `stone.type === 'bomb'` VOR dem Aufruf dieser Funktion
+ * abgezweigt, siehe `handleCompletedLine`).
  */
 export function applyBonusStoneEffect(
   stone: BonusStone,
@@ -105,12 +113,13 @@ export function applyBonusStoneEffect(
     playerState.speedBoostRemainingSeconds = bonusStones.speedBoost.effectDurationSeconds;
   } else if (stone.type === 'cannon') {
     playerState.cannonRemainingSeconds = Infinity;
-  } else {
+  } else if (stone.type === 'freeze') {
     // Pause (Nutzer-Feedback): friert alle Gegner für begrenzte Zeit ein –
     // main.ts liest `enemyFreezeRemainingSeconds` und lässt `moveEnemies`/
     // das Gegner-Schiessen währenddessen aus.
     playerState.enemyFreezeRemainingSeconds = bonusStones.freeze.effectDurationSeconds;
   }
+  // `bomb`: siehe Docstring – absichtlich kein PlayerState-Effekt hier.
 }
 
 /**
@@ -211,10 +220,11 @@ export function tickBonusStoneSpawning(
   if (!position) return null;
 
   spawner.timeSinceLastSpawn = 0;
-  // Drei gleich wahrscheinliche Typen (1/3 je Typ) – EIN rng()-Aufruf für
-  // alle drei, nicht verschachtelt, damit ein deterministischer `rng` (Tests)
+  // Vier gleich wahrscheinliche Typen (1/4 je Typ) – EIN rng()-Aufruf für
+  // alle vier, nicht verschachtelt, damit ein deterministischer `rng` (Tests)
   // pro Spawn genau einen Wert liefern muss.
   const r = rng();
-  const type: BonusStoneType = r < 1 / 3 ? 'speedBoost' : r < 2 / 3 ? 'cannon' : 'freeze';
+  const type: BonusStoneType =
+    r < 1 / 4 ? 'speedBoost' : r < 2 / 4 ? 'cannon' : r < 3 / 4 ? 'freeze' : 'bomb';
   return createBonusStone(position, type, now);
 }

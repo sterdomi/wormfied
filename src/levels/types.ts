@@ -74,11 +74,23 @@ export interface FreezeBoostConfig {
   effectDurationSeconds: number;
 }
 
+/**
+ * Bombe: besiegt SOFORT beim Einsammeln alle aktuell vorhandenen Mini-Gegner
+ * (Nutzer-Feedback) – im Gegensatz zu den anderen drei Bonustypen kein
+ * Zeit-Effekt, daher keine `effectDurationSeconds`. Wirkt auf Gegner/Score,
+ * nicht auf `PlayerState` – wird in `main.ts` direkt behandelt, nicht über
+ * `applyBonusStoneEffect` in `bonusStone.ts` (siehe dortiger Kommentar).
+ */
+export interface BombBoostConfig {
+  assetSrc: string;
+}
+
 export interface BonusStonesConfig {
   spawning: BonusStoneSpawning;
   speedBoost: SpeedBoostConfig;
   cannon: CannonBoostConfig;
   freeze: FreezeBoostConfig;
+  bomb: BombBoostConfig;
 }
 
 /**
