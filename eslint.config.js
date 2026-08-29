@@ -19,5 +19,13 @@ export default tseslint.config(
       globals: { ...globals.node },
     },
   },
+  {
+    // Service Worker (Instruktion 20, Punkt 2): eigener globaler Scope
+    // (`self`, `caches`, `fetch`, ...) statt Browser-`window`-Globals.
+    files: ['public/sw.js'],
+    languageOptions: {
+      globals: { ...globals.serviceworker },
+    },
+  },
   prettier,
 );

@@ -1,5 +1,7 @@
 import { t, type TranslationKey } from '../i18n';
 import { formatClaimedPercentage } from '../game/scoring';
+import { isIOS } from '../engine/platform';
+import { setupIosInstallHint } from './iosInstallHint';
 
 export interface Hud {
   /** Prozentanzeige der eroberten Fläche (Wert 0–100). */
@@ -99,13 +101,66 @@ export function createHud(onMuteChange: (muted: boolean) => void): Hud {
     onMuteChange(muted);
   });
 
-  bar.append(scoreEl, claimedEl, livesEl, shieldEl, muteButton);
+  /**
+   * Fullscreen-Button (Instruktion 20, Punkt 4) – Progressive Enhancement:
+   * nur gerendert, wenn `document.fullscreenEnabled` UND explizit NICHT iOS
+   * (dort funktioniert die Fullscreen API lautlos nicht, siehe
+   * `platform.ts`/Instruktion-Kontext; manche iOS-Versionen melden über
+   * `fullscreenEnabled` trotzdem widersprüchlich Unterstützung, daher der
+   * zusätzliche harte Ausschluss statt sich allein auf das Feature-Flag zu
+   * verlassen). Ist eine der Bedingungen nicht erfüllt, wird gar kein Button
+   * erzeugt (kein deaktivierter/nutzloser Button).
+   */
+  const fullscreenSupported = document.fullscreenEnabled && !isIOS();
+  let fullscreenButton: HTMLButtonElement | null = null;
+  let onFullscreenChange: (() => void) | null = null;
+  if (fullscreenSupported) {
+    fullscreenButton = document.createElement('button');
+    fullscreenButton.type = 'button';
+    fullscreenButton.className = 'hud__fullscreen';
+    const updateFullscreenButton = (): void => {
+      const active = document.fullscreenElement !== null;
+      fullscreenButton!.textContent = active ? '⤡' : '⛶';
+      const labelKey = active ? 'fullscreenExitLabel' : 'fullscreenEnterLabel';
+      fullscreenButton!.setAttribute('aria-label', t(labelKey));
+      fullscreenButton!.title = t(labelKey);
+    };
+    updateFullscreenButton();
+    fullscreenButton.addEventListener('click', () => {
+      if (document.fullscreenElement) {
+        void document.exitFullscreen();
+      } else {
+        void document.documentElement.requestFullscreen();
+      }
+    });
+    onFullscreenChange = updateFullscreenButton;
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+  }
+
+  // `muteButton` trägt `margin-left: auto` (CSS) und schiebt sich damit samt
+  // allem, was danach folgt, an den rechten Rand der HUD-Leiste – der
+  // Fullscreen-Button (falls vorhanden) reiht sich deshalb NACH ihm ein,
+  // nicht davor, sonst würde er bei den linksbündigen Anzeigen hängen bleiben.
+  bar.append(
+    scoreEl,
+    claimedEl,
+    livesEl,
+    shieldEl,
+    muteButton,
+    ...(fullscreenButton ? [fullscreenButton] : []),
+  );
 
   // Game Over führt (per Enter oder automatisch nach GAME_OVER_DISPLAY_MS,
   // main.ts) zurück zum Startbildschirm statt direkt zu einer neuen Partie
   // wie beim Level-Complete-Overlay.
   buildOverlay(gameOverEl, 'gameOver', 'backToStartHint');
   const levelCompleteStats = buildOverlay(levelCompleteEl, 'levelComplete', 'restartHint');
+  // iPhone-"Zum Home-Bildschirm"-Hinweis (Instruktion 20, Punkt 3) sitzt im
+  // Game-Over-Screen statt als permanentes Banner (Nutzer-Feedback: dort ist
+  // noch Platz, und die Anleitung ist ohnehin iPhone-spezifisch formuliert,
+  // siehe `iosInstallHint.ts`). NACH `buildOverlay`, da dessen
+  // `replaceChildren()` sonst den Hinweis wieder entfernen würde.
+  setupIosInstallHint(gameOverEl);
 
   const bind = (el: HTMLElement, format: (v: number) => string) => {
     let last = '';
@@ -156,6 +211,10 @@ export function createHud(onMuteChange: (muted: boolean) => void): Hud {
       livesEl.remove();
       shieldEl.remove();
       muteButton.remove();
+      if (fullscreenButton && onFullscreenChange) {
+        document.removeEventListener('fullscreenchange', onFullscreenChange);
+        fullscreenButton.remove();
+      }
       gameOverEl.hidden = true;
       levelCompleteEl.hidden = true;
     },

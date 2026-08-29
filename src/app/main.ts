@@ -1,6 +1,8 @@
 import { loadImage, loadLevelImages, type LevelImages } from '../engine/assetLoader';
+import { resolveAssetPath } from '../engine/assetPath';
 import { createAudioManager } from '../engine/audioManager';
 import { setupCanvas } from '../engine/canvas';
+import { calculateCanvasScale } from '../engine/canvasScale';
 import { createGameLoop } from '../engine/gameLoop';
 import { setupInput } from '../engine/input';
 import {
@@ -32,13 +34,22 @@ import {
 } from '../game/drawing';
 import { createEnemy, enemyFacingAngle, type Enemy } from '../game/enemy';
 import { moveEnemies, randomDirection } from '../game/enemyMovement';
-import { createExplosion, pruneExplosions, renderExplosion, type Explosion } from '../game/explosion';
+import {
+  createExplosion,
+  pruneExplosions,
+  renderExplosion,
+  type Explosion,
+} from '../game/explosion';
 import { createRectangularField, type Point } from '../game/field';
 import { createForegroundLayer, type ForegroundLayer } from '../game/foregroundLayer';
 import { closestPointOnPerimeter } from '../game/geometry';
 import { type DrawnLine } from '../game/line';
 import { handleLifeLoss } from '../game/lifecycle';
-import { defeatMiniEnemy, partitionCapturedMiniEnemies, spawnMiniEnemies } from '../game/miniEnemies';
+import {
+  defeatMiniEnemy,
+  partitionCapturedMiniEnemies,
+  spawnMiniEnemies,
+} from '../game/miniEnemies';
 import { Player, playerFacingAngle } from '../game/player';
 import { createPlayerState, decayBoostTimers, decayShield } from '../game/playerState';
 import { movePlayerAlongEdge } from '../game/playerMovement';
@@ -100,9 +111,17 @@ const FIELD_MARGIN = 40;
  * nicht mehr seine Grösse oder den Spielzustand (löst die bisherige
  * ÜBERGANGSLÖSUNG aus Instruktion 4 ab, die bei jedem Resize das Feld samt
  * eroberter Fläche zurückgesetzt hat).
+ *
+ * 16:9-Breitbildformat statt der ursprünglichen 4:3-nahen 800×600
+ * (Nutzer-Feedback nach Instruktion 20: auf breiten Phone-Querformaten war
+ * der seitliche Letterbox-Rand zu gross, die Touch-Steuerung dort gefühlt
+ * beengt) – 960×540 statt exakt proportional hochgerechneter 800×450,
+ * damit die Gesamtfläche (und damit Gegnerzahl/-abstände, Bewegungstempo)
+ * nah am bisherigen Wert bleibt (518'400 statt 480'000 Px², +8%) UND das
+ * Feld dabei spürbar BREITER wird (960 statt 800), nicht primär niedriger.
  */
-const FIELD_WIDTH = 800;
-const FIELD_HEIGHT = 600;
+const FIELD_WIDTH = 960;
+const FIELD_HEIGHT = 540;
 const COLOR_BACKDROP = '#0b0e14';
 const COLOR_FIELD_EDGE = '#3b4252';
 const COLOR_HUD = '#e5e9f0';
@@ -213,6 +232,22 @@ const audioManager = createAudioManager();
 // Querformat gedacht.
 setupOrientationWarning();
 
+/**
+ * Service Worker registrieren (Instruktion 20, Punkt 2) – cached die
+ * Kern-Assets für Offline-Fähigkeit + schnelleren Wiederaufruf, siehe
+ * `public/sw.js` für die Cache-Strategie und deren Begründung.
+ * `resolveAssetPath` löst den Pfad gegen die Vite-`base` auf (Subpath-Build,
+ * siehe `assetPath.ts`) – der Scope des Workers ist dadurch automatisch
+ * korrekt auf das Verzeichnis von `sw.js` beschränkt.
+ */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register(resolveAssetPath('/sw.js')).catch((err: unknown) => {
+      console.error('Service-Worker-Registrierung fehlgeschlagen:', err);
+    });
+  });
+}
+
 /** Pfad je Sound-Key – liegt unter `public/assets/sound/` (nicht `sounds/`,
  *  siehe Abschluss-Bericht). `pickup_generic.wav` bewusst nicht geladen, da
  *  aktuell ungenutzt (Instruktion 18, Punkt 4). */
@@ -233,8 +268,8 @@ const SOUND_SOURCES: Record<string, string> = {
 
 /** Sound-Key für die levelspezifische Hintergrundmusik (`level.musicSrc`). */
 const MUSIC_SOUND_KEY = 'music';
-/** Deutlich leiser als die SFX, damit sie im Hintergrund bleibt. */
-const MUSIC_VOLUME = 0.35;
+/** Deutlich leiser als die SFX, damit sie im Hintergrund bleibt (Nutzer-Feedback: nochmals 30% leiser als zuvor, 0.35 → 0.245). */
+const MUSIC_VOLUME = 0.245;
 
 /** Einfacher "Lädt …"-Zustand, bevor die Level-Assets da sind. */
 function showLoading(canvas: HTMLCanvasElement): void {
@@ -380,6 +415,11 @@ function start(
   // Spieler-Projektile (Kanone-Bonus, Instruktion 14) – eigene Liste, klar
   // getrennt von den Gegner-Projektilen (`projectiles`).
   let playerProjectiles: Projectile[] = [];
+  // Gecachter, unscharf gezeichneter Viewport-Hintergrund (Instruktion 20,
+  // Nutzer-Feedback nach dem ersten iPhone-Test: der fixe 4:3-nahe
+  // Feld-Block lässt auf einem breiten Phone-Querformat grosse, komplett
+  // leere schwarze Balken seitlich übrig) – siehe `getBackdrop` unten.
+  let backdropCache: { width: number; height: number; canvas: HTMLCanvasElement } | null = null;
 
   /** Level-Initialisierung (Neustart-Pfad nutzt sie ebenfalls). Feste
    *  Grösse (`FIELD_WIDTH`/`FIELD_HEIGHT`) – ein Fenster-Resize ruft das
@@ -611,9 +651,7 @@ function start(
     // Boost-Timer laufen unabhängig vom Modus herunter (Instruktion 14).
     decayBoostTimers(playerState, dt);
     const speedMultiplier =
-      playerState.speedBoostRemainingSeconds > 0
-        ? level.bonusStones.speedBoost.speedMultiplier
-        : 1;
+      playerState.speedBoostRemainingSeconds > 0 ? level.bonusStones.speedBoost.speedMultiplier : 1;
 
     const prevPos = { x: player.position.x, y: player.position.y };
     // Ob der befahrene Pfad diesen Frame ausgeschnitten werden soll: nur wenn
@@ -869,26 +907,79 @@ function start(
     ctx.restore();
   }
 
+  /**
+   * Liefert einen auf `width`×`height` (volle Viewport-Grösse) skalierten,
+   * weichgezeichneten + abgedunkelten Ausschnitt des Level-Hintergrunds
+   * ("cover"-Skalierung, wie CSS `background-size: cover`) – füllt die
+   * Letterbox-Fläche neben/über dem skalierten Feld-Block mit einer zum
+   * Level passenden Textur statt mit reinem Schwarz (Nutzer-Feedback: auf
+   * einem breiten iPhone-Querformat wirkten die bisherigen reinen
+   * schwarzen Balken wie ungenutzter/kaputter Platz).
+   *
+   * Der teure Teil (`ctx.filter = 'blur(...)'`) läuft NUR bei einer
+   * tatsächlichen Grössenänderung (gecacht nach `width`/`height`), nicht
+   * pro Frame – ein Resize ist selten, 60 Frames/Sekunde sind es nicht.
+   */
+  function getBackdrop(width: number, height: number): HTMLCanvasElement {
+    if (backdropCache && backdropCache.width === width && backdropCache.height === height) {
+      return backdropCache.canvas;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(width));
+    canvas.height = Math.max(1, Math.round(height));
+    const bctx = canvas.getContext('2d');
+    if (bctx) {
+      const img = assets.background;
+      const coverScale = Math.max(canvas.width / img.width, canvas.height / img.height);
+      const drawWidth = img.width * coverScale;
+      const drawHeight = img.height * coverScale;
+      bctx.filter = 'blur(48px)';
+      bctx.drawImage(
+        img,
+        (canvas.width - drawWidth) / 2,
+        (canvas.height - drawHeight) / 2,
+        drawWidth,
+        drawHeight,
+      );
+      bctx.filter = 'none';
+      // Abdunkeln: hält den Kontrast zum eigentlichen (scharfen) Feld-Block
+      // hoch, damit dieser klar als "das Spiel" erkennbar bleibt statt mit
+      // dem Rand zu verschwimmen.
+      bctx.fillStyle = 'rgb(11 14 20 / 70%)';
+      bctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    backdropCache = { width, height, canvas };
+    return canvas;
+  }
+
   function render(ctx: CanvasRenderingContext2D): void {
     // Eine gemeinsame Wanduhrzeit für alle zeitbasierten Effekte dieses
     // Frames (Bein-Animation, Bonusstein-Puls, Augen-Puls, Explosionen,
     // Screen-Flash) – ein `performance.now()`-Aufruf statt vieler.
     const now = performance.now();
 
-    ctx.fillStyle = COLOR_BACKDROP;
-    ctx.fillRect(0, 0, view.width, view.height);
+    if (view.width > 0 && view.height > 0) {
+      ctx.drawImage(getBackdrop(view.width, view.height), 0, 0);
+    } else {
+      ctx.fillStyle = COLOR_BACKDROP;
+      ctx.fillRect(0, 0, view.width, view.height);
+    }
 
-    // Logo + Spielfeld + Ränder zusammen so weit herunterskalieren, dass sie
-    // auf kleine Viewports (z.B. iPhone-Breite/-Höhe) passen, statt einfach
-    // rechts/unten abgeschnitten zu werden – das feste FIELD_WIDTH/HEIGHT
-    // bleibt dabei die LOGISCHE Spielfeld-Grösse (Kollisionen, Positionen
-    // usw. unverändert), nur die Darstellung schrumpft. `Math.min(1, …)`:
-    // auf grossen Bildschirmen bleibt alles wie bisher unskaliert.
+    // Logo + Spielfeld + Ränder zusammen so skalieren, dass sie den gesamten
+    // Viewport unverzerrt ausnutzen (Instruktion 20, Punkt 1) – das feste
+    // FIELD_WIDTH/HEIGHT bleibt dabei die LOGISCHE Spielfeld-Grösse
+    // (Kollisionen, Positionen usw. unverändert), nur die Darstellung
+    // skaliert. `calculateCanvasScale` deckelt `scale` bewusst NICHT bei 1
+    // mehr (siehe dort) – auf grossen Bildschirmen/Tablets wird der Inhalt
+    // jetzt ebenfalls vergrössert statt in Originalgrösse mit viel
+    // ungenutztem Rand stehen zu bleiben.
     const contentWidth = FIELD_WIDTH + FIELD_MARGIN * 2;
     const contentHeight = FIELD_MARGIN_TOP + FIELD_HEIGHT + FIELD_MARGIN;
-    const scale = Math.min(1, view.width / contentWidth, view.height / contentHeight);
-    const originX = (view.width - contentWidth * scale) / 2;
-    const originY = (view.height - contentHeight * scale) / 2;
+    const {
+      scale,
+      offsetX: originX,
+      offsetY: originY,
+    } = calculateCanvasScale(view.width, view.height, contentWidth, contentHeight);
 
     ctx.save();
     ctx.translate(originX, originY);

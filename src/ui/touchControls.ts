@@ -69,7 +69,11 @@ export function isTouchCapable(): boolean {
   return window.matchMedia('(pointer: coarse)').matches && 'ontouchstart' in window;
 }
 
-const JOYSTICK_MAX_RADIUS = 40;
+// Nutzer-Feedback: die Touch-Steuerung nahm zu viel Bildschirmfläche ein –
+// zusammen mit den kleineren CSS-Massen von `.touch-joystick` (Basis jetzt
+// 90px statt 120px) verkleinert, im selben Verhältnis wie zuvor (Radius =
+// 2/3 des Basis-Radius: 30 = 2/3 von 45, wie zuvor 40 = 2/3 von 60).
+const JOYSTICK_MAX_RADIUS = 30;
 const JOYSTICK_DEAD_ZONE_RADIUS = JOYSTICK_MAX_RADIUS * 0.15;
 
 function findTouch(list: TouchList, id: number | null): Touch | null {

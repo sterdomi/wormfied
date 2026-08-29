@@ -10,8 +10,12 @@
 
 html,
 body {
-  width: 100%;
-  height: 100%;
+  /* `dvw`/`dvh` statt `vw`/`vh` (Instruktion 20, Punkt 1): mobile Browser
+   * blenden ihre Adressleiste beim Scrollen ein/aus, `vh`/`vw` bleiben dabei
+   * auf der GRÖSSTEN je gesehenen Grösse stehen und springen unschön beim
+   * ersten Wechsel; `dvw`/`dvh` folgen der tatsächlich sichtbaren Fläche. */
+  width: 100dvw;
+  height: 100dvh;
   overflow: hidden;
   background: #0b0e14;
 }
@@ -68,6 +72,25 @@ body {
 }
 
 .hud__mute:hover {
+  border-color: #555;
+}
+
+/* Fullscreen-Button (Instruktion 20, Punkt 4) – gleiche Optik wie der
+ * Mute-Button, reiht sich direkt daneben ein (siehe hud.ts). Nur im DOM,
+ * wenn die Fullscreen API tatsächlich unterstützt wird (nicht auf iOS). */
+.hud__fullscreen {
+  margin-left: 8px;
+  padding: 4px 10px;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background: #14171f;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.hud__fullscreen:hover {
   border-color: #555;
 }
 
@@ -142,11 +165,15 @@ body {
   -webkit-user-select: none;
 }
 
+/* Nutzer-Feedback: die Touch-Steuerung nahm zu viel Bildschirmfläche ein –
+ * Basis/Knopf/Button verkleinert (120→90px, 56→42px, 76→56px) und die
+ * Eckabstände etwas reduziert; `JOYSTICK_MAX_RADIUS` in touchControls.ts
+ * im selben Verhältnis mitverkleinert. */
 .touch-joystick {
-  left: calc(24px + env(safe-area-inset-left, 0px));
-  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
-  width: 120px;
-  height: 120px;
+  left: calc(18px + env(safe-area-inset-left, 0px));
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  width: 90px;
+  height: 90px;
   border-radius: 50%;
   background: rgb(229 233 240 / 12%);
   border: 2px solid rgb(229 233 240 / 25%);
@@ -156,9 +183,9 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 56px;
-  height: 56px;
-  margin: -28px 0 0 -28px;
+  width: 42px;
+  height: 42px;
+  margin: -21px 0 0 -21px;
   border-radius: 50%;
   background: rgb(229 233 240 / 35%);
   border: 2px solid rgb(229 233 240 / 55%);
@@ -167,15 +194,15 @@ body {
 }
 
 .touch-action-button {
-  right: calc(28px + env(safe-area-inset-right, 0px));
-  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
-  width: 76px;
-  height: 76px;
+  right: calc(20px + env(safe-area-inset-right, 0px));
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   background: rgb(191 97 106 / 30%);
   border: 2px solid rgb(191 97 106 / 55%);
   color: #e5e9f0;
-  font-size: 22px;
+  font-size: 17px;
   line-height: 1;
 }
 
@@ -198,9 +225,38 @@ body {
   text-align: center;
   background: #0b0e14;
   color: #e5e9f0;
-  font: 20px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font:
+    20px/1.5 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
 }
 
 .orientation-warning[hidden] {
   display: none;
+}
+
+/* iPhone-"Zum Home-Bildschirm hinzufügen"-Hinweis (Instruktion 20, Punkt 3):
+ * kein eigenes Banner mehr, sondern eine dezente, schliessbare Zeile
+ * innerhalb des Game-Over-Screens (Nutzer-Feedback – dort ist noch Platz,
+ * siehe `iosInstallHint.ts`). Dezentere Farbe als `.overlay__hint` darüber,
+ * damit der Haupt-Hinweis ("Enter drücken …") führend bleibt. */
+.overlay__ios-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 14px;
+  color: #8a93a6;
+}
+
+.overlay__ios-hint-close {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }

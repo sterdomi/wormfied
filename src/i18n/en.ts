@@ -14,4 +14,8 @@ export const en: Record<TranslationKey, string> = {
   rotateDeviceHint: '📱 Please rotate your device – landscape only',
   controlsHintDesktop: 'Arrow keys/WASD to move · Space to dock/undock/fire',
   controlsHintTouch: 'Joystick to move · Button to dock/undock/fire',
+  iosInstallHint: 'For the best experience: Share icon ⬆️ → "Add to Home Screen"',
+  iosInstallDismiss: 'Dismiss hint',
+  fullscreenEnterLabel: 'Fullscreen',
+  fullscreenExitLabel: 'Exit fullscreen',
 };

@@ -36,7 +36,10 @@ export function setupCanvas(
     ctx,
     width: 0,
     height: 0,
-    dispose: () => window.removeEventListener('resize', resize),
+    dispose: () => {
+      window.removeEventListener('resize', resize);
+      window.removeEventListener('orientationchange', resize);
+    },
   };
 
   function resize(): void {
@@ -57,6 +60,11 @@ export function setupCanvas(
 
   resize();
   window.addEventListener('resize', resize);
+  // Zusätzlich zu 'resize' (Instruktion 20, Punkt 1): manche mobilen Browser
+  // feuern bei einer Drehung ein 'orientationchange' ohne (bzw. mit
+  // verzögertem) 'resize', v.a. bevor sich `clientWidth`/`clientHeight` auf
+  // die neue Ausrichtung eingestellt haben.
+  window.addEventListener('orientationchange', resize);
 
   return view;
 }
