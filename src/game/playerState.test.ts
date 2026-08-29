@@ -18,6 +18,7 @@ describe('createPlayerState', () => {
       speedBoostRemainingSeconds: 0,
       cannonRemainingSeconds: 0,
       timeSinceLastPlayerShot: 0,
+      enemyFreezeRemainingSeconds: 0,
     });
   });
 });
@@ -50,6 +51,7 @@ describe('resetPlayerState', () => {
     state.speedBoostRemainingSeconds = 3;
     state.cannonRemainingSeconds = 4;
     state.timeSinceLastPlayerShot = 0.2;
+    state.enemyFreezeRemainingSeconds = 2;
 
     resetPlayerState(state);
 
@@ -60,23 +62,27 @@ describe('resetPlayerState', () => {
       speedBoostRemainingSeconds: 0,
       cannonRemainingSeconds: 0,
       timeSinceLastPlayerShot: 0,
+      enemyFreezeRemainingSeconds: 0,
     });
   });
 });
 
 describe('decayBoostTimers', () => {
-  it('zählt beide Boost-Timer Delta-Time-basiert herunter, minimal 0', () => {
+  it('zählt alle drei Boost-Timer Delta-Time-basiert herunter, minimal 0', () => {
     const state = createPlayerState();
     state.speedBoostRemainingSeconds = 5;
     state.cannonRemainingSeconds = 1;
+    state.enemyFreezeRemainingSeconds = 2;
 
     decayBoostTimers(state, 0.5);
     expect(state.speedBoostRemainingSeconds).toBeCloseTo(4.5);
     expect(state.cannonRemainingSeconds).toBeCloseTo(0.5);
+    expect(state.enemyFreezeRemainingSeconds).toBeCloseTo(1.5);
 
     decayBoostTimers(state, 10); // würde weit ins Negative gehen
     expect(state.speedBoostRemainingSeconds).toBe(0);
     expect(state.cannonRemainingSeconds).toBe(0);
+    expect(state.enemyFreezeRemainingSeconds).toBe(0);
   });
 
   it('zählt eine permanente Kanone (Infinity) nie herunter (Nutzer-Feedback: einmal erhalten, geht sie im Level nicht wieder verloren)', () => {

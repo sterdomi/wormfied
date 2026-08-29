@@ -28,6 +28,7 @@ export const BONUS_PULSE_GLOW_MAX_ALPHA = 0.55;
 export const BONUS_PULSE_COLOR_RGB: Record<BonusStoneType, string> = {
   speedBoost: '72, 202, 228',
   cannon: '255, 158, 0',
+  freeze: '144, 224, 239', // Helles Eisblau, wie in bonus-freeze.svg
 };
 
 // 3. Glühender Zeichen-Pfad.

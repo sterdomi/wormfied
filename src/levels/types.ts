@@ -68,10 +68,17 @@ export interface CannonBoostConfig {
   projectileAssetSrc: string;
 }
 
+/** Pause: friert für begrenzte Zeit ALLE Gegner ein (Bewegung + Schiessen). */
+export interface FreezeBoostConfig {
+  assetSrc: string;
+  effectDurationSeconds: number;
+}
+
 export interface BonusStonesConfig {
   spawning: BonusStoneSpawning;
   speedBoost: SpeedBoostConfig;
   cannon: CannonBoostConfig;
+  freeze: FreezeBoostConfig;
 }
 
 /**

@@ -4,7 +4,7 @@ import { isPointInPolygon } from './polygon';
 import type { BonusStoneSpawning, BonusStonesConfig } from '../levels/types';
 import type { PlayerState } from './playerState';
 
-export type BonusStoneType = 'speedBoost' | 'cannon';
+export type BonusStoneType = 'speedBoost' | 'cannon' | 'freeze';
 
 export interface BonusStone {
   id: string;
@@ -18,11 +18,18 @@ export interface BonusStone {
 export const BONUS_STONE_EXPLOSION_COLOR: Record<BonusStoneType, string> = {
   speedBoost: '#48cae4', // Blau, wie in bonus-speed.svg
   cannon: '#ff9e00', // Orange, wie in bonus-cannon.svg
+  freeze: '#90e0ef', // Helles Eisblau, wie in bonus-freeze.svg
 };
 
-/** Pickup-Sound-Key je Bonustyp (Instruktion 18, Punkt 3). */
-export function bonusStoneSoundKey(type: BonusStoneType): 'pickup_speed' | 'pickup_cannon' {
-  return type === 'speedBoost' ? 'pickup_speed' : 'pickup_cannon';
+/** Pickup-Sound-Key je Bonustyp (Instruktion 18, Punkt 3). `freeze` nutzt
+ *  `pickup_generic.wav` – bislang bewusst ungeladener Sound (siehe
+ *  `SOUND_SOURCES` in `main.ts`), jetzt für den neuen Bonustyp reserviert. */
+export function bonusStoneSoundKey(
+  type: BonusStoneType,
+): 'pickup_speed' | 'pickup_cannon' | 'pickup_generic' {
+  if (type === 'speedBoost') return 'pickup_speed';
+  if (type === 'cannon') return 'pickup_cannon';
+  return 'pickup_generic';
 }
 
 export function createBonusStone(
@@ -96,8 +103,13 @@ export function applyBonusStoneEffect(
 ): void {
   if (stone.type === 'speedBoost') {
     playerState.speedBoostRemainingSeconds = bonusStones.speedBoost.effectDurationSeconds;
-  } else {
+  } else if (stone.type === 'cannon') {
     playerState.cannonRemainingSeconds = Infinity;
+  } else {
+    // Pause (Nutzer-Feedback): friert alle Gegner für begrenzte Zeit ein –
+    // main.ts liest `enemyFreezeRemainingSeconds` und lässt `moveEnemies`/
+    // das Gegner-Schiessen währenddessen aus.
+    playerState.enemyFreezeRemainingSeconds = bonusStones.freeze.effectDurationSeconds;
   }
 }
 
@@ -199,6 +211,10 @@ export function tickBonusStoneSpawning(
   if (!position) return null;
 
   spawner.timeSinceLastSpawn = 0;
-  const type: BonusStoneType = rng() < 0.5 ? 'speedBoost' : 'cannon';
+  // Drei gleich wahrscheinliche Typen (1/3 je Typ) – EIN rng()-Aufruf für
+  // alle drei, nicht verschachtelt, damit ein deterministischer `rng` (Tests)
+  // pro Spawn genau einen Wert liefern muss.
+  const r = rng();
+  const type: BonusStoneType = r < 1 / 3 ? 'speedBoost' : r < 2 / 3 ? 'cannon' : 'freeze';
   return createBonusStone(position, type, now);
 }

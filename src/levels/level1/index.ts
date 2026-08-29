@@ -71,6 +71,10 @@ export const level1: LevelConfig = {
    * (600 px/s, 18 px), damit sich der Spieler-Schuss "flinker" anfühlt –
    * beide klar über der Spieler-Höchstgeschwindigkeit (Nutzer-Feedback, siehe
    * oben); wiederverwendet `kugel.svg`.
+   *
+   * Pause (Nutzer-Feedback): friert für 5 s alle Gegner ein (Bewegung +
+   * Schiessen) – lang genug, um in Ruhe eine grössere Fläche einzuschliessen,
+   * kurz genug, um kein Dauerzustand zu werden.
    */
   bonusStones: {
     spawning: {
@@ -90,6 +94,10 @@ export const level1: LevelConfig = {
       projectileSpeed: 650,
       projectileSize: 14,
       projectileAssetSrc: '/assets/projectiles/kugel.svg',
+    },
+    freeze: {
+      assetSrc: '/assets/bonuses/bonus-freeze.svg',
+      effectDurationSeconds: 5,
     },
   },
   musicSrc: '/assets/levels/level1/arcade-music-loop.wav',

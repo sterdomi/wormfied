@@ -309,8 +309,8 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 }
 
 /** Pfad je Sound-Key – liegt unter `public/assets/sound/` (nicht `sounds/`,
- *  siehe Abschluss-Bericht). `pickup_generic.wav` bewusst nicht geladen, da
- *  aktuell ungenutzt (Instruktion 18, Punkt 4). */
+ *  siehe Abschluss-Bericht). `pickup_generic.wav` jetzt für den neuen
+ *  Pause-Bonusstein reserviert (Nutzer-Feedback) – zuvor ungenutzt. */
 const SOUND_SOURCES: Record<string, string> = {
   undock: '/assets/sound/undock.wav',
   dock: '/assets/sound/dock.wav',
@@ -321,6 +321,7 @@ const SOUND_SOURCES: Record<string, string> = {
   main_enemy_explosion: '/assets/sound/main_enemy_explosion.wav',
   pickup_speed: '/assets/sound/pickup_speed.wav',
   pickup_cannon: '/assets/sound/pickup_cannon.wav',
+  pickup_generic: '/assets/sound/pickup_generic.wav',
   life_loss: '/assets/sound/life_loss.wav',
   game_over: '/assets/sound/game_over.wav',
   level_complete: '/assets/sound/level_complete.wav',
@@ -829,24 +830,30 @@ function start(
     // Alle Gegner (Hauptgegner + Mini-Gegner) bewegen und für Kollisionen als
     // eine Liste behandeln – Mini-Gegner sind gleichwertig gefährlich.
     let allEnemies = [mainEnemy, ...miniEnemies];
-    moveEnemies(allEnemies, field, dt);
+    // Pause-Bonusstein (Nutzer-Feedback): solange aktiv, bewegen sich Gegner
+    // nicht und schiessen nicht – bleiben aber als Hindernis an ihrer
+    // Position bestehen (Kollisionen unten laufen unverändert weiter).
+    const enemiesFrozen = playerState.enemyFreezeRemainingSeconds > 0;
+    if (!enemiesFrozen) {
+      moveEnemies(allEnemies, field, dt);
 
-    // Gegner schiessen (auf die aktuelle Spielerposition gezielt).
-    const shot = tickEnemyShooting(mainEnemy, level.mainEnemy.shooting, player.position, dt);
-    if (shot) {
-      projectiles.push(shot);
-      audioManager.play('enemy_shot');
-    }
-    for (const mini of miniEnemies) {
-      const miniShot = tickEnemyShooting(
-        mini,
-        level.miniEnemies.config.shooting,
-        player.position,
-        dt,
-      );
-      if (miniShot) {
-        projectiles.push(miniShot);
+      // Gegner schiessen (auf die aktuelle Spielerposition gezielt).
+      const shot = tickEnemyShooting(mainEnemy, level.mainEnemy.shooting, player.position, dt);
+      if (shot) {
+        projectiles.push(shot);
         audioManager.play('enemy_shot');
+      }
+      for (const mini of miniEnemies) {
+        const miniShot = tickEnemyShooting(
+          mini,
+          level.miniEnemies.config.shooting,
+          player.position,
+          dt,
+        );
+        if (miniShot) {
+          projectiles.push(miniShot);
+          audioManager.play('enemy_shot');
+        }
       }
     }
 
@@ -1168,7 +1175,12 @@ function start(
     // kontinuierlich pulsierendem Glow dahinter (Instruktion 17, Punkt 2) –
     // Puls beschleunigt sich in den letzten Sekunden als Warnsignal.
     for (const stone of bonusStones) {
-      const sprite = stone.type === 'speedBoost' ? assets.bonusSpeed : assets.bonusCannon;
+      const sprite =
+        stone.type === 'speedBoost'
+          ? assets.bonusSpeed
+          : stone.type === 'cannon'
+            ? assets.bonusCannon
+            : assets.bonusFreeze;
       const diameter = level.bonusStones.spawning.radius * 2;
       const fadeOpacity = bonusStoneOpacity(stone, level.bonusStones.spawning.lifetimeSeconds, now);
       const pulse = bonusStonePulseIntensity(

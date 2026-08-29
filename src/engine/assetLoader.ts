@@ -40,6 +40,7 @@ export interface LevelImages {
   /** Bonusstein-Sprites (Instruktion 14). */
   bonusSpeed: HTMLImageElement;
   bonusCannon: HTMLImageElement;
+  bonusFreeze: HTMLImageElement;
   /** Sprite für Spieler-Projektile (Kanone-Bonus, Instruktion 14). */
   playerProjectile: HTMLImageElement;
 }
@@ -70,6 +71,7 @@ export async function loadLevelImages(level: LevelConfig): Promise<LevelImages> 
     miniEnemyWalk,
     bonusSpeed,
     bonusCannon,
+    bonusFreeze,
     playerProjectile,
     projectile,
   ] = await Promise.all([
@@ -81,6 +83,7 @@ export async function loadLevelImages(level: LevelConfig): Promise<LevelImages> 
     loadOptionalImage(level.miniEnemies.config.walkAssetSrc),
     loadImage(level.bonusStones.speedBoost.assetSrc),
     loadImage(level.bonusStones.cannon.assetSrc),
+    loadImage(level.bonusStones.freeze.assetSrc),
     loadImage(level.bonusStones.cannon.projectileAssetSrc),
     loadOptionalImage(projectileSrc),
   ]);
@@ -94,6 +97,7 @@ export async function loadLevelImages(level: LevelConfig): Promise<LevelImages> 
     miniEnemyWalk,
     bonusSpeed,
     bonusCannon,
+    bonusFreeze,
     playerProjectile,
     projectile,
   };

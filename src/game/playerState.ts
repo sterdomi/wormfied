@@ -22,6 +22,12 @@ export interface PlayerState {
   /** Cooldown-Timer für automatische Spieler-Schüsse, solange die Kanone aktiv
    *  ist – analog zu `Enemy.timeSinceLastShot`. */
   timeSinceLastPlayerShot: number;
+  /** Sekunden verbleibend, in denen ALLE Gegner eingefroren sind (Pause-
+   *  Bonusstein, Nutzer-Feedback). 0 = inaktiv, Gegner bewegen/schiessen
+   *  normal. Wirkt auf die Gegner, nicht den Spieler – liegt trotzdem hier,
+   *  da es (wie Speed-Boost/Kanone) ein per Bonusstein ausgelöster,
+   *  zeitgesteuerter Effekt der aktuellen Partie ist. */
+  enemyFreezeRemainingSeconds: number;
 }
 
 export function createPlayerState(): PlayerState {
@@ -32,6 +38,7 @@ export function createPlayerState(): PlayerState {
     speedBoostRemainingSeconds: 0,
     cannonRemainingSeconds: 0,
     timeSinceLastPlayerShot: 0,
+    enemyFreezeRemainingSeconds: 0,
   };
 }
 
@@ -43,6 +50,7 @@ export function resetPlayerState(state: PlayerState): void {
   state.speedBoostRemainingSeconds = 0;
   state.cannonRemainingSeconds = 0;
   state.timeSinceLastPlayerShot = 0;
+  state.enemyFreezeRemainingSeconds = 0;
 }
 
 /**
@@ -52,6 +60,7 @@ export function resetPlayerState(state: PlayerState): void {
 export function decayBoostTimers(state: PlayerState, dt: number): void {
   state.speedBoostRemainingSeconds = Math.max(0, state.speedBoostRemainingSeconds - dt);
   state.cannonRemainingSeconds = Math.max(0, state.cannonRemainingSeconds - dt);
+  state.enemyFreezeRemainingSeconds = Math.max(0, state.enemyFreezeRemainingSeconds - dt);
 }
 
 /**

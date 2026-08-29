@@ -32,6 +32,7 @@ const BONUS_CONFIG: BonusStonesConfig = {
     projectileSize: 14,
     projectileAssetSrc: 'bullet.svg',
   },
+  freeze: { assetSrc: 'freeze.svg', effectDurationSeconds: 5 },
 };
 
 const field = createRectangularField(800, 600);
@@ -137,6 +138,20 @@ describe('partitionCapturedBonusStones + applyBonusStoneEffect', () => {
     expect(playerState.cannonRemainingSeconds).toBe(Infinity);
     expect(playerState.speedBoostRemainingSeconds).toBe(0);
   });
+
+  it('ein Stein im eroberten Teilpolygon löst den freeze-Bonus aus (Nutzer-Feedback: neuer Bonusstein für 5s Pause)', () => {
+    const now = performance.now();
+    const inside = createBonusStone({ x: 50, y: 50 }, 'freeze', now);
+
+    const { captured } = partitionCapturedBonusStones([inside], claimed);
+    expect(captured).toEqual([inside]);
+
+    const playerState = createPlayerState();
+    applyBonusStoneEffect(inside, playerState, BONUS_CONFIG);
+    expect(playerState.enemyFreezeRemainingSeconds).toBe(BONUS_CONFIG.freeze.effectDurationSeconds);
+    expect(playerState.speedBoostRemainingSeconds).toBe(0);
+    expect(playerState.cannonRemainingSeconds).toBe(0);
+  });
 });
 
 describe('isBlockedByBonusStone', () => {
@@ -160,5 +175,38 @@ describe('bonusStoneSoundKey (Instruktion 18)', () => {
   it('liefert den passenden Pickup-Sound je Bonustyp', () => {
     expect(bonusStoneSoundKey('speedBoost')).toBe('pickup_speed');
     expect(bonusStoneSoundKey('cannon')).toBe('pickup_cannon');
+    expect(bonusStoneSoundKey('freeze')).toBe('pickup_generic');
+  });
+});
+
+describe('tickBonusStoneSpawning – drei gleich wahrscheinliche Typen (Nutzer-Feedback: neuer freeze-Bonus)', () => {
+  it('verteilt speedBoost/cannon/freeze zu je 1/3 über einen einzigen rng()-Aufruf', () => {
+    const spawnAt = (r: number) => {
+      const spawner = createBonusStoneSpawner();
+      // Die ersten zwei rng()-Aufrufe gehören der Positionssuche
+      // (`findBonusStoneSpawnPosition`, x/y) – 0.5 trifft die Feldmitte,
+      // garantiert gültig beim ersten Versuch. Erst der DRITTE Aufruf ist
+      // der eigentliche Typ-Wurf, den dieser Test prüft.
+      let calls = 0;
+      const rng = (): number => {
+        calls++;
+        return calls <= 2 ? 0.5 : r;
+      };
+      return tickBonusStoneSpawning(
+        spawner,
+        [],
+        field,
+        SPAWNING,
+        SPAWNING.spawnIntervalSeconds,
+        performance.now(),
+        rng,
+      );
+    };
+    expect(spawnAt(0)!.type).toBe('speedBoost');
+    expect(spawnAt(0.3)!.type).toBe('speedBoost');
+    expect(spawnAt(0.34)!.type).toBe('cannon');
+    expect(spawnAt(0.6)!.type).toBe('cannon');
+    expect(spawnAt(0.67)!.type).toBe('freeze');
+    expect(spawnAt(0.99)!.type).toBe('freeze');
   });
 });

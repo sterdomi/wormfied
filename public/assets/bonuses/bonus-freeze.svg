@@ -1,0 +1,27 @@
+<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="crystalGradFreeze" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="45%" stop-color="#90e0ef"/>
+      <stop offset="100%" stop-color="#0077b6"/>
+    </linearGradient>
+    <radialGradient id="glowFreeze" cx="50%" cy="50%" r="50%">
+      <stop offset="55%" stop-color="#90e0ef" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#90e0ef" stop-opacity="0.4"/>
+    </radialGradient>
+  </defs>
+
+  <circle cx="30" cy="30" r="28" fill="url(#glowFreeze)"/>
+
+  <!-- Kristall (Diamant-Form) -->
+  <polygon points="30,4 50,24 40,54 20,54 10,24"
+           fill="url(#crystalGradFreeze)" stroke="#0077b6" stroke-width="2" stroke-linejoin="round"/>
+  <polygon points="30,4 50,24 30,30 10,24"
+           fill="#ffffff" opacity="0.25"/>
+
+  <!-- Pause-Symbol (zwei Balken) -->
+  <g fill="#ffffff" stroke="#0077b6" stroke-width="1">
+    <rect x="21" y="18" width="7" height="26" rx="2"/>
+    <rect x="32" y="18" width="7" height="26" rx="2"/>
+  </g>
+</svg>
