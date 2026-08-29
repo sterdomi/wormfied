@@ -78,4 +78,13 @@ describe('decayBoostTimers', () => {
     expect(state.speedBoostRemainingSeconds).toBe(0);
     expect(state.cannonRemainingSeconds).toBe(0);
   });
+
+  it('zählt eine permanente Kanone (Infinity) nie herunter (Nutzer-Feedback: einmal erhalten, geht sie im Level nicht wieder verloren)', () => {
+    const state = createPlayerState();
+    state.cannonRemainingSeconds = Infinity;
+
+    decayBoostTimers(state, 1_000_000);
+
+    expect(state.cannonRemainingSeconds).toBe(Infinity);
+  });
 });

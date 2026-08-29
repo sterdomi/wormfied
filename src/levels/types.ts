@@ -52,10 +52,14 @@ export interface SpeedBoostConfig {
   effectDurationSeconds: number;
 }
 
-/** Kanone: Spieler kann für begrenzte Zeit Mini-Gegner aus der Distanz treffen. */
+/**
+ * Kanone: Spieler kann Mini-Gegner aus der Distanz treffen. Kein Zeit-Bonus
+ * (mehr) – einmal eingesammelt bleibt sie für den Rest des Levels aktiv
+ * (Nutzer-Feedback), daher KEINE `effectDurationSeconds` (anders als
+ * `SpeedBoostConfig`), siehe `applyBonusStoneEffect` in `bonusStone.ts`.
+ */
 export interface CannonBoostConfig {
   assetSrc: string;
-  effectDurationSeconds: number;
   /** Zeit zwischen zwei automatischen Schüssen, solange die Kanone aktiv ist. */
   fireIntervalSeconds: number;
   projectileSpeed: number;

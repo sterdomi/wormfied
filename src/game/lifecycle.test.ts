@@ -33,4 +33,13 @@ describe('handleLifeLoss', () => {
     expect(state.lives).toBe(0);
     expect(state.isGameOver).toBe(true);
   });
+
+  it('lässt eine aktive Kanone unangetastet (Nutzer-Feedback: einmal erhalten, geht sie im Level nicht wieder verloren)', () => {
+    const state = createPlayerState();
+    state.cannonRemainingSeconds = Infinity;
+
+    handleLifeLoss(state);
+
+    expect(state.cannonRemainingSeconds).toBe(Infinity);
+  });
 });

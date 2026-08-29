@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { levels } from './index';
+import { DRAW_SPEED } from '../game/drawing';
+import { EDGE_SPEED } from '../game/playerMovement';
 
 describe('Level-Registry', () => {
   it('enthält mindestens level1', () => {
@@ -36,5 +38,13 @@ describe('Level-Registry', () => {
 
     // Mini-Gegner schiessen in Level 1 nicht.
     expect(level1.miniEnemies.config.shooting?.enabled ?? false).toBe(false);
+  });
+
+  it('level1: Schüsse (Gegner- UND Kanone-Kugel) sind schneller als die Spieler-Höchstgeschwindigkeit (Nutzer-Feedback: "Die Schüsse müssen schneller sein, als man fährt")', () => {
+    const level1 = levels.find((l) => l.id === 'level1')!;
+    const playerMaxSpeed = Math.max(EDGE_SPEED, DRAW_SPEED);
+
+    expect(level1.mainEnemy.shooting!.projectileSpeed).toBeGreaterThan(playerMaxSpeed);
+    expect(level1.bonusStones.cannon.projectileSpeed).toBeGreaterThan(playerMaxSpeed);
   });
 });

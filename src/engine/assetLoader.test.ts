@@ -77,7 +77,6 @@ describe('loadLevelImages', () => {
         speedBoost: { assetSrc: 'speed.svg', speedMultiplier: 2, effectDurationSeconds: 5 },
         cannon: {
           assetSrc: 'cannon.svg',
-          effectDurationSeconds: 6,
           fireIntervalSeconds: 0.35,
           projectileSpeed: 260,
           projectileSize: 14,
@@ -117,7 +116,6 @@ describe('loadLevelImages', () => {
         speedBoost: { assetSrc: 'speed.svg', speedMultiplier: 2, effectDurationSeconds: 5 },
         cannon: {
           assetSrc: 'cannon.svg',
-          effectDurationSeconds: 6,
           fireIntervalSeconds: 0.35,
           projectileSpeed: 260,
           projectileSize: 14,

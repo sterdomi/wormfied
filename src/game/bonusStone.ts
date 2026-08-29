@@ -54,11 +54,7 @@ export function pruneExpiredBonusStones(
 
 /** Deckkraft für sanftes Ausblenden in der letzten Sekunde vor Ablauf (1 → 0). */
 const FADE_OUT_MS = 1000;
-export function bonusStoneOpacity(
-  stone: BonusStone,
-  lifetimeSeconds: number,
-  now: number,
-): number {
+export function bonusStoneOpacity(stone: BonusStone, lifetimeSeconds: number, now: number): number {
   const remainingMs = stone.spawnedAt + lifetimeSeconds * 1000 - now;
   if (remainingMs >= FADE_OUT_MS) return 1;
   return Math.max(0, remainingMs / FADE_OUT_MS);
@@ -83,6 +79,15 @@ export function partitionCapturedBonusStones(
 /**
  * Wendet den Bonus-Effekt eines gefangenen Steins auf den Spielerzustand an
  * (Instruktion 14, Punkt 7/8). Mutiert `playerState`.
+ *
+ * Die Kanone ist bewusst KEIN Zeit-Bonus (mehr): einmal eingesammelt bleibt
+ * sie für den Rest des Levels aktiv (Nutzer-Feedback: "Wenn man einmal die
+ * Kanone erhalten hat, verliert man sie nicht wieder im Level") – `Infinity`
+ * statt einer endlichen Dauer, damit `decayBoostTimers` (playerState.ts,
+ * `Math.max(0, x - dt)`) sie nie herunterzählt und ein Treffer
+ * (`handleLifeLoss`, lifecycle.ts) sie unangetastet lässt; jeder bestehende
+ * `> 0`-Check (Kanone-Feuern, Cyborg-Sprite) bleibt dadurch unverändert
+ * gültig. Der Speed-Boost bleibt ein echter, endlicher Zeit-Bonus.
  */
 export function applyBonusStoneEffect(
   stone: BonusStone,
@@ -92,7 +97,7 @@ export function applyBonusStoneEffect(
   if (stone.type === 'speedBoost') {
     playerState.speedBoostRemainingSeconds = bonusStones.speedBoost.effectDurationSeconds;
   } else {
-    playerState.cannonRemainingSeconds = bonusStones.cannon.effectDurationSeconds;
+    playerState.cannonRemainingSeconds = Infinity;
   }
 }
 

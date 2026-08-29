@@ -27,7 +27,6 @@ const BONUS_CONFIG: BonusStonesConfig = {
   speedBoost: { assetSrc: 'speed.svg', speedMultiplier: 2, effectDurationSeconds: 5 },
   cannon: {
     assetSrc: 'cannon.svg',
-    effectDurationSeconds: 6,
     fireIntervalSeconds: 0.35,
     projectileSpeed: 260,
     projectileSize: 14,
@@ -132,9 +131,10 @@ describe('partitionCapturedBonusStones + applyBonusStoneEffect', () => {
 
     const playerState = createPlayerState();
     applyBonusStoneEffect(inside, playerState, BONUS_CONFIG);
-    expect(playerState.cannonRemainingSeconds).toBe(
-      BONUS_CONFIG.cannon.effectDurationSeconds,
-    );
+    // Kein Zeit-Bonus (mehr): Infinity statt einer endlichen Dauer, siehe
+    // Kommentar bei `applyBonusStoneEffect` (Nutzer-Feedback: einmal
+    // erhalten, geht sie im Level nicht wieder verloren).
+    expect(playerState.cannonRemainingSeconds).toBe(Infinity);
     expect(playerState.speedBoostRemainingSeconds).toBe(0);
   });
 });

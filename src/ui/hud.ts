@@ -84,6 +84,11 @@ export function createHud(onMuteChange: (muted: boolean) => void): Hud {
   const livesEl = document.createElement('span');
   const shieldEl = document.createElement('span');
   for (const el of [scoreEl, claimedEl, livesEl, shieldEl]) el.className = 'hud__item';
+  // Nutzer-Feedback (Vergleich mit dem Volfied-Original): die Prozentanzeige
+  // ist dort mittig und deutlich grösser als die übrigen Werte – eigene
+  // Klasse zusätzlich zu `hud__item`, positioniert sie absolut zentriert
+  // (siehe main.css), unabhängig von der Breite der Nachbar-Elemente.
+  claimedEl.classList.add('hud__percentage');
 
   let muted = false;
   const muteButton = document.createElement('button');

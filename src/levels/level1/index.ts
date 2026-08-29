@@ -14,8 +14,10 @@ import type { LevelConfig } from '../types';
  * Testen als spürbare, aber nicht überfordernde Zusatzgefahr an.
  *
  * Schiessen: nur der Hauptgegner (Level 1 bewusst überschaubar). Alle ~2,6 s
- * eine mässig schnelle Kugel (200 px/s) auf die Spielerposition – gut sichtbar
- * und dodgebar, kein Dauerbeschuss.
+ * eine Kugel (600 px/s) auf die Spielerposition – gut sichtbar und dodgebar,
+ * kein Dauerbeschuss. Nutzer-Feedback: Schüsse müssen schneller sein als der
+ * Spieler selbst (max. `EDGE_SPEED` 500 px/s aus `playerMovement.ts`), sonst
+ * könnte man ihnen einfach davonfahren statt ausweichen zu müssen.
  */
 export const level1: LevelConfig = {
   id: 'level1',
@@ -30,7 +32,7 @@ export const level1: LevelConfig = {
     shooting: {
       enabled: true,
       cooldownSeconds: 2.6,
-      projectileSpeed: 200,
+      projectileSpeed: 600,
       projectileSize: 18,
       projectileAssetSrc: '/assets/projectiles/kugel.svg',
     },
@@ -61,11 +63,14 @@ export const level1: LevelConfig = {
    * Speed-Boost: 2× für 5 s – spürbar, aber kurz genug, um kein Dauerzustand
    * zu werden.
    *
-   * Kanone: 6 s aktiv, alle 0.35 s ein Schuss (~3/s) – reicht, um während des
-   * Zeichnens gezielt ein, zwei nahe Mini-Gegner auszuschalten, ohne den
-   * Bildschirm mit Projektilen zu fluten. Etwas schneller (260 px/s) und
-   * kleiner (14 px) als die Gegner-Kugel (200 px/s, 18 px), damit sich der
-   * Spieler-Schuss "flinker" anfühlt; wiederverwendet `kugel.svg`.
+   * Kanone: bleibt für den Rest des Levels aktiv, sobald einmal eingesammelt
+   * (Nutzer-Feedback, siehe `CannonBoostConfig`), alle 0.35 s ein Schuss
+   * (~3/s) – reicht, um während des Zeichnens gezielt ein, zwei nahe
+   * Mini-Gegner auszuschalten, ohne den Bildschirm mit Projektilen zu fluten.
+   * Etwas schneller (650 px/s) und kleiner (14 px) als die Gegner-Kugel
+   * (600 px/s, 18 px), damit sich der Spieler-Schuss "flinker" anfühlt –
+   * beide klar über der Spieler-Höchstgeschwindigkeit (Nutzer-Feedback, siehe
+   * oben); wiederverwendet `kugel.svg`.
    */
   bonusStones: {
     spawning: {
@@ -81,9 +86,8 @@ export const level1: LevelConfig = {
     },
     cannon: {
       assetSrc: '/assets/bonuses/bonus-cannon.svg',
-      effectDurationSeconds: 6,
       fireIntervalSeconds: 0.35,
-      projectileSpeed: 260,
+      projectileSpeed: 650,
       projectileSize: 14,
       projectileAssetSrc: '/assets/projectiles/kugel.svg',
     },

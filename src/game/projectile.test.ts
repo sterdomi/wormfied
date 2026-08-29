@@ -21,7 +21,6 @@ const SHOOTING: ShootingSpec = {
 
 const CANNON: CannonBoostConfig = {
   assetSrc: 'cannon.svg',
-  effectDurationSeconds: 6,
   fireIntervalSeconds: 0.35,
   projectileSpeed: 260,
   projectileSize: 14,
@@ -125,7 +124,7 @@ describe('tickPlayerShooting – Tap-to-Fire (Instruktion 15, löst das Dauerfeu
   // ("Abklingzeit schon abgelaufen") – isoliert die Tap-vs-Halten-Semantik in
   // den Tests unten von der (separat unten getesteten) Cooldown-Mechanik.
   const freshState = (): PlayerShootingState => ({
-    cannonRemainingSeconds: CANNON.effectDurationSeconds,
+    cannonRemainingSeconds: Infinity,
     timeSinceLastPlayerShot: CANNON.fireIntervalSeconds,
   });
 
@@ -151,7 +150,9 @@ describe('tickPlayerShooting – Tap-to-Fire (Instruktion 15, löst das Dauerfeu
 
   it('kein Dauerfeuer: ohne erneuten Tap bleibt es über mehrere Frames hinweg beim einen Schuss', () => {
     const state = freshState();
-    expect(tickPlayerShooting(state, true, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 0)).not.toBeNull();
+    expect(
+      tickPlayerShooting(state, true, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 0),
+    ).not.toBeNull();
 
     // Taste losgelassen: kein Schuss mehr, auch wenn die Kanone weiter aktiv bleibt.
     expect(tickPlayerShooting(state, false, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 1)).toBeNull();
@@ -160,7 +161,9 @@ describe('tickPlayerShooting – Tap-to-Fire (Instruktion 15, löst das Dauerfeu
 
   it('fireIntervalSeconds wirkt als minimale Abklingzeit zwischen zwei Tap-Schüssen (Spam-Schutz)', () => {
     const state = freshState();
-    expect(tickPlayerShooting(state, true, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 0)).not.toBeNull();
+    expect(
+      tickPlayerShooting(state, true, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 0),
+    ).not.toBeNull();
 
     // Sofortiger zweiter Tap, bevor die Abklingzeit erreicht ist: kein Schuss.
     expect(
@@ -175,6 +178,8 @@ describe('tickPlayerShooting – Tap-to-Fire (Instruktion 15, löst das Dauerfeu
     ).toBeNull();
 
     // Nach Ablauf der Abklingzeit löst ein erneuter Tap wieder aus.
-    expect(tickPlayerShooting(state, true, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 0.02)).not.toBeNull();
+    expect(
+      tickPlayerShooting(state, true, { x: 1, y: 0 }, { x: 0, y: 0 }, CANNON, 0.02),
+    ).not.toBeNull();
   });
 });
