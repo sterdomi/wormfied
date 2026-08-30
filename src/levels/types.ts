@@ -225,6 +225,14 @@ export interface LevelConfig {
    * `playerState.ts`. Kleinerer Wert = Schild hält länger.
    */
   shieldDecayPerSecond?: number;
+  /**
+   * Startet der Spieler in diesem Level bereits mit aktiver Kanone (Nutzer-
+   * Feedback), statt sie erst als Bonusstein einsammeln zu müssen? Wirkt wie
+   * ein eingesammelter Kanone-Bonus: für das ganze Level aktiv – und dadurch
+   * auch der Cyborg-Look, da `cyborgActive` in `main.ts` an einen laufenden
+   * Bonus gekoppelt ist. Fehlt das Feld → wie bisher (Kanone nur per Bonus).
+   */
+  startsWithCannon?: boolean;
   // TODO(später): hier kommen weitere level-spezifische Eigenheiten rein
   // (Bewegungsmuster-Varianten, Spezialverhalten einzelner Level, Power-ups …).
 }

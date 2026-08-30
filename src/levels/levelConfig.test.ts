@@ -47,4 +47,39 @@ describe('Level-Registry', () => {
     expect(level1.mainEnemy.shooting!.projectileSpeed).toBeGreaterThan(playerMaxSpeed);
     expect(level1.bonusStones.cannon.projectileSpeed).toBeGreaterThan(playerMaxSpeed);
   });
+
+  it('enthält level2 an zweiter Stelle', () => {
+    expect(levels.some((l) => l.id === 'level2')).toBe(true);
+    expect(levels[1]?.id).toBe('level2');
+  });
+
+  it('level2 hat eine plausible Schlangen-Konfiguration', () => {
+    const level2 = levels.find((l) => l.id === 'level2')!;
+
+    expect(level2.name).toBeTruthy();
+    // Eigenes Background-/Foreground-Artwork (nicht die Level-1-Bilder).
+    expect(level2.backgroundSrc).toMatch(/level2\/background\.png$/);
+    expect(level2.foregroundSrc).toMatch(/level2\/foreground\.png$/);
+    // Kopf = Level-2-Drache, mit zweiter Pose für die Lauf-Animation.
+    expect(level2.mainEnemy.assetSrc).toMatch(/level2\/gegner\.svg$/);
+    expect(level2.mainEnemy.walkAssetSrc).toMatch(/level2\/gegner-walk\.svg$/);
+    expect(level2.mainEnemy.speed).toBeGreaterThan(0);
+    expect(level2.mainEnemy.size).toBeGreaterThan(0);
+
+    // Kopf + 3 Mini-Körperglieder = Schlange; Glieder tragen dieselbe Grafik.
+    expect(level2.miniEnemies.count).toBe(3);
+    expect(level2.miniEnemies.config.assetSrc).toMatch(/level2\/gegner\.svg$/);
+
+    // Level 2 startet ohne Gegner-Beschuss.
+    expect(level2.mainEnemy.shooting?.enabled ?? false).toBe(false);
+    expect(level2.miniEnemies.config.shooting?.enabled ?? false).toBe(false);
+
+    // Spieler startet Level 2 mit Kanone (→ Cyborg-Look) ausgerüstet.
+    expect(level2.startsWithCannon).toBe(true);
+  });
+
+  it('level1: Spieler startet OHNE Kanone (nur per Bonusstein)', () => {
+    const level1 = levels.find((l) => l.id === 'level1')!;
+    expect(level1.startsWithCannon ?? false).toBe(false);
+  });
 });

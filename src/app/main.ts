@@ -318,8 +318,16 @@ const SOUND_SOURCES: Record<string, string> = {
   level_complete: '/assets/sound/level_complete.wav',
 };
 
-/** Sound-Key für die levelspezifische Hintergrundmusik (`level.musicSrc`). */
+/** Basis-Sound-Key für die levelspezifische Hintergrundmusik (`level.musicSrc`). */
 const MUSIC_SOUND_KEY = 'music';
+/**
+ * Konkreter Musik-Key je Level – eigener Key pro Level-`id`, damit ein
+ * Levelwechsel die Musik des vorigen Levels nicht überschreibt (die Buffer
+ * bleiben unter ihrem Key geladen, ein wiederholtes Level spielt sofort weiter).
+ */
+function levelMusicKey(level: LevelConfig): string {
+  return `${MUSIC_SOUND_KEY}:${level.id}`;
+}
 /** Deutlich leiser als die SFX, damit sie im Hintergrund bleibt (Nutzer-Feedback: nochmals 30% leiser als zuvor, 0.35 → 0.245). */
 const MUSIC_VOLUME = 0.245;
 
@@ -728,6 +736,13 @@ function start(
     // bewusst frisch (`STARTING_SHIELD`).
     scoring.score = carryOver.score;
     playerState.lives = carryOver.lives;
+  }
+  if (level.startsWithCannon) {
+    // Level-Startausrüstung (Nutzer-Feedback): Kanone von Anfang an aktiv –
+    // `Infinity` fürs ganze Level, genau wie ein eingesammelter Kanone-Bonus
+    // (`applyBonusStoneEffect`). Der Cyborg-Look kommt automatisch mit, da
+    // `cyborgActive` unten an `cannonRemainingSeconds > 0` hängt.
+    playerState.cannonRemainingSeconds = Infinity;
   }
   hud.setScore(scoring.score);
   hud.setLives(playerState.lives);
@@ -1368,10 +1383,18 @@ function start(
     }
   }
 
+  // Debug-Taste „N": aktuelles Level sofort überspringen – wie ein bestätigter
+  // Levelabschluss (direkt ins nächste Level, ohne Startbildschirm, Score +
+  // Leben laufen über `carryOver` mit). Wird von `teardown()` wieder abgehängt.
+  // TODO(vor Release): hinter `import.meta.env.DEV` legen oder entfernen –
+  // aktuell bewusst immer aktiv, um Level 2 ohne Level-1-Abschluss zu testen.
+  let disposeDebugKeys: () => void = () => {};
+
   /** Räumt Loop, Input-Listener, Resize-Listener, HUD-DOM und Musik auf. */
   function teardown(): void {
     loop.stop();
     input.dispose();
+    disposeDebugKeys();
     view.dispose();
     hud.dispose();
     audioManager.stop(musicNode);
@@ -1380,9 +1403,28 @@ function start(
 
   const loop = createGameLoop(view.ctx, { update, render });
   loop.start();
-  // Hintergrundmusik dieser Partie starten (kein Effekt, falls das Level
-  // keine `musicSrc` konfiguriert hat – `play()` liefert dann `null`).
-  musicNode = audioManager.play(MUSIC_SOUND_KEY, { loop: true, volume: MUSIC_VOLUME });
+
+  {
+    let levelSkipped = false;
+    const onDebugKey = (e: KeyboardEvent): void => {
+      if (e.code !== 'KeyN' || levelSkipped) return;
+      levelSkipped = true;
+      teardown();
+      resolveStart({
+        kind: 'nextLevel',
+        carryOver: { score: scoring.score, lives: playerState.lives },
+      });
+    };
+    window.addEventListener('keydown', onDebugKey);
+    disposeDebugKeys = (): void => window.removeEventListener('keydown', onDebugKey);
+  }
+
+  // Hintergrundmusik dieser Partie starten – nur, wenn das Level eine
+  // `musicSrc` konfiguriert hat (sonst bliebe der Musik-Key ungeladen bzw.
+  // trüge die Musik eines anderen Levels).
+  if (level.musicSrc) {
+    musicNode = audioManager.play(levelMusicKey(level), { loop: true, volume: MUSIC_VOLUME });
+  }
 
   // Vite HMR: laufende Ressourcen beim Hot-Reload sauber abbauen (löst NICHT
   // `donePromise` auf – das würde die alte `boot()`-Instanz nach dem Modul-
@@ -1397,37 +1439,37 @@ function start(
 async function boot(): Promise<void> {
   showLoading(gameCanvas);
 
-  // TODO(Level 2): Levelbilder + Musik pro Level laden statt hier einmal fest
-  // für Level 1. Solange es nur ein Level gibt, ist `levels[0]` unten überall
-  // die richtige Wahl.
-  const level = levels[0];
-  // Levelspezifische Hintergrundmusik (falls konfiguriert) zu den globalen
-  // SFX dazumischen – bewusst nicht Teil von `SOUND_SOURCES`, da sie über
-  // `level.musicSrc` kommt, nicht fest wie die übrigen Sound-Keys.
-  const soundSources: Record<string, string> = { ...SOUND_SOURCES };
-  if (level.musicSrc) soundSources[MUSIC_SOUND_KEY] = level.musicSrc;
+  // Levelübergreifende Assets einmal laden: Spieler-Sprites (normal + Cyborg-
+  // Variante, je inkl. Lauf-Pose) + Logo (bewusst NICHT Teil von `LevelConfig`,
+  // Instruktion 13) und die globalen SFX (Instruktion 18, Punkt 2).
+  const [playerImage, playerWalkImage, playerCyborgImage, playerWalkCyborgImage, logoImage] =
+    await Promise.all([
+      loadImage(PLAYER_ASSET_SRC),
+      loadImage(PLAYER_WALK_ASSET_SRC),
+      loadImage(PLAYER_CYBORG_ASSET_SRC),
+      loadImage(PLAYER_WALK_CYBORG_ASSET_SRC),
+      loadImage(LOGO_ASSET_SRC),
+      audioManager.loadAll(SOUND_SOURCES),
+    ]);
 
-  // Levelbilder + Spieler-Sprites (normal + Cyborg-Variante, je inkl.
-  // Lauf-Pose) + Logo + Sounds parallel laden – Spieler und Logo sind
-  // bewusst NICHT Teil von `LevelConfig` (levelübergreifend gleich,
-  // Instruktion 13); Sounds analog (Instruktion 18, Punkt 2) im selben
-  // Ladebildschirm-Zustand abgewartet.
-  const [
-    assets,
-    playerImage,
-    playerWalkImage,
-    playerCyborgImage,
-    playerWalkCyborgImage,
-    logoImage,
-  ] = await Promise.all([
-    loadLevelImages(level),
-    loadImage(PLAYER_ASSET_SRC),
-    loadImage(PLAYER_WALK_ASSET_SRC),
-    loadImage(PLAYER_CYBORG_ASSET_SRC),
-    loadImage(PLAYER_WALK_CYBORG_ASSET_SRC),
-    loadImage(LOGO_ASSET_SRC),
-    audioManager.loadAll(soundSources),
-  ]);
+  // Levelbilder pro Level nur einmal laden (Wiederholung eines Levels lädt
+  // nicht neu). Die levelspezifische Hintergrundmusik (`level.musicSrc`) kommt
+  // im selben Schritt dazu – unter einem eigenen Key pro Level (`levelMusicKey`),
+  // damit sie ein Levelwechsel nicht überschreibt.
+  const levelImagesCache = new Map<string, LevelImages>();
+  async function loadLevel(level: LevelConfig): Promise<LevelImages> {
+    const cached = levelImagesCache.get(level.id);
+    if (cached) return cached;
+    showLoading(gameCanvas);
+    const [images] = await Promise.all([
+      loadLevelImages(level),
+      level.musicSrc
+        ? audioManager.loadSound(levelMusicKey(level), level.musicSrc)
+        : Promise.resolve(),
+    ]);
+    levelImagesCache.set(level.id, images);
+    return images;
+  }
 
   // Startbildschirm ↔ Partie im Wechsel. `start()` meldet über seinen
   // `StartOutcome` zurück, wie es weitergeht:
@@ -1436,16 +1478,17 @@ async function boot(): Promise<void> {
   //  - `nextLevel` (Levelabschluss + Enter): ohne Startbildschirm direkt ins
   //    nächste Level, Score + Leben laufen über `carryOver` weiter.
   //    `% levels.length` lässt hinter dem letzten Level wieder das erste
-  //    folgen (bei nur einem Level: Wiederholung von Level 1 – ersetzt den
-  //    früheren In-Place-Neustart `restartGame`).
+  //    folgen (ersetzt den früheren In-Place-Neustart `restartGame`).
   let levelIndex = 0;
   let showStart = true;
   let carryOver: LevelCarryOver | null = null;
   for (;;) {
+    const level = levels[levelIndex];
+    const assets = await loadLevel(level);
     if (showStart) await showStartScreen(gameCanvas, logoImage);
     const outcome = await start(
       gameCanvas,
-      levels[levelIndex],
+      level,
       assets,
       playerImage,
       playerWalkImage,

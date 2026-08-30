@@ -9,7 +9,7 @@ export const STARTING_SHIELD = 100;
  * 12.5s bis das Schild komplett aufgebraucht ist), damit es spürbar länger
  * hält.
  */
-export const SHIELD_DECAY_PER_SECOND = 5;
+export const SHIELD_DECAY_PER_SECOND = 2;
 
 /**
  * Leben-/Schild-/Game-Over-Zustand des Spielers. Getrennt von der Spielfigur

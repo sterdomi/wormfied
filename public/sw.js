@@ -44,7 +44,18 @@
 // v3 → v4: Level-1-Foreground (`foreground.png`) inhaltlich ersetzt
 // (Schachbrett → Spinnennetz), gleicher Dateiname – siehe Faustregel oben.
 // v4 → v5: Spinnennetz-Foreground auf hellblauen Grund umgestellt.
-const CACHE_NAME = 'wormfied-v5';
+// v5 → v6: Level 2 dazugekommen (Schlangen-Gegner) – neue Sprites unter
+// `assets/levels/level2/` in CORE_ASSETS aufgenommen (rein additiv, aber ein
+// neuer Cache-Name ist nötig, damit der Install-Handler sie vorab cacht).
+// …→ v9: Schlangenkopf-SVGs (`snake_head_*.svg`) inhaltlich angepasst
+// (Spiegelung raus, viewBox gepolstert → Kopf kleiner) – gleicher Dateiname,
+// daher Cache-Bump nach der Faustregel oben.
+// v9 → v10: Level-2-Schlange auf den Drachen umgestellt – `snake_*.svg` raus,
+// `gegner.svg` / `gegner-walk.svg` unter `level2/` rein. `cache.addAll` würde
+// mit den nicht mehr existierenden `snake_*`-Einträgen komplett fehlschlagen.
+// …→ v12: Level 2 hat eigenes `background.png` / `foreground.png` unter
+// `level2/` – in CORE_ASSETS aufgenommen (Bump für den Install-Precache).
+const CACHE_NAME = 'wormfied-v12';
 
 const CORE_ASSETS = [
   './',
@@ -67,6 +78,10 @@ const CORE_ASSETS = [
   './assets/levels/level1/gegner-mini.svg',
   './assets/levels/level1/gegner-mini-walk.svg',
   './assets/levels/level1/arcade-music-loop.wav',
+  './assets/levels/level2/background.png',
+  './assets/levels/level2/foreground.png',
+  './assets/levels/level2/gegner.svg',
+  './assets/levels/level2/gegner-walk.svg',
   './assets/sound/undock.wav',
   './assets/sound/dock.wav',
   './assets/sound/draw_loop.wav',
