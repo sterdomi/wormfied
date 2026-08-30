@@ -41,7 +41,9 @@
 // nur ein neuer Cache-Name erzwingt hier den Cutover. Faustregel für
 // künftige Änderungen: Wird eine Datei unter public/ inhaltlich ersetzt
 // (nicht nur ergänzt), CACHE_NAME mit hochzählen.
-const CACHE_NAME = 'wormfied-v3';
+// v3 → v4: Level-1-Foreground (`foreground.png`) inhaltlich ersetzt
+// (Schachbrett → Spinnennetz), gleicher Dateiname – siehe Faustregel oben.
+const CACHE_NAME = 'wormfied-v4';
 
 const CORE_ASSETS = [
   './',
