@@ -13,5 +13,7 @@ export type {
   LevelEnemyAssets,
   LevelEnemyRenderer,
   LevelEnemyRenderState,
+  LevelEnemyUpdateContext,
+  LevelEnemyUpdater,
   ShootingConfig,
 } from './types';

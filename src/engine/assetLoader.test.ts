@@ -72,9 +72,10 @@ describe('loadLevelImages', () => {
       backgroundSrc: 'bg.png',
       mainEnemy: { assetSrc: 'main.svg', speed: 90, size: 40 },
       miniEnemies: { count: 3, config: { assetSrc: 'mini.svg', speed: 120, size: 22 } },
-      // `loadLevelImages` liest nur die Asset-Pfade – der Renderer ist hier
-      // irrelevant, aber `LevelConfig` verlangt ihn.
+      // `loadLevelImages` liest nur die Asset-Pfade – Renderer und Gegner-
+      // Logik sind hier irrelevant, aber `LevelConfig` verlangt sie.
       renderEnemies: () => {},
+      updateEnemies: () => [],
       bonusStones: {
         spawning: { spawnIntervalSeconds: 10, maxSimultaneous: 2, lifetimeSeconds: 10, radius: 16 },
         speedBoost: { assetSrc: 'speed.svg', speedMultiplier: 2, effectDurationSeconds: 5 },
@@ -119,6 +120,7 @@ describe('loadLevelImages', () => {
         config: { assetSrc: 'mini.svg', walkAssetSrc: 'mini-walk.svg', speed: 120, size: 22 },
       },
       renderEnemies: () => {},
+      updateEnemies: () => [],
       bonusStones: {
         spawning: { spawnIntervalSeconds: 10, maxSimultaneous: 2, lifetimeSeconds: 10, radius: 16 },
         speedBoost: { assetSrc: 'speed.svg', speedMultiplier: 2, effectDurationSeconds: 5 },

@@ -1,4 +1,6 @@
 import type { Enemy } from '../game/enemy';
+import type { Point } from '../game/field';
+import type { Projectile } from '../game/projectile';
 
 /** Feuert ein Gegner Projektile ab? */
 export interface ShootingConfig {
@@ -145,6 +147,47 @@ export type LevelEnemyRenderer = (
 ) => void;
 
 /**
+ * Per-Frame-Spielzustand für einen `updateEnemies`-Aufruf – alles, was die
+ * levelspezifische Gegner-Logik vom Game-Loop braucht und nicht selbst kennt.
+ */
+export interface LevelEnemyUpdateContext {
+  mainEnemy: Enemy;
+  miniEnemies: Enemy[];
+  /** Aktives (ggf. schon verkleinertes) Feld-Polygon – Bewegungsgrenze. */
+  field: Point[];
+  /** Aktuelle Spielerposition – Zielpunkt für schiessende Gegner. */
+  playerPosition: Point;
+  /** Delta-Time dieses Frames (Sekunden). */
+  dt: number;
+  /**
+   * Feuer-Konfiguration von Haupt- bzw. Mini-Gegner aus der Level-Config
+   * (`EnemyConfig.shooting`) – `undefined`, wenn der jeweilige Typ nicht
+   * schiesst. Durchgereicht statt vom Level selbst gelesen, damit der Updater
+   * eine reine Funktion seines Kontexts bleibt (leicht testbar).
+   */
+  mainEnemyShooting?: ShootingConfig;
+  miniEnemyShooting?: ShootingConfig;
+}
+
+/**
+ * Aktualisiert die Gegner-Ebene eines Levels für einen Frame: Bewegung +
+ * Schiessen. Mutiert die Gegner aus dem Kontext in place und liefert die in
+ * diesem Frame neu abgefeuerten Projektile zurück – der Game-Loop hängt sie an
+ * seine Projektil-Liste und spielt pro Projektil den Schuss-Sound.
+ *
+ * Wird pro Frame aus `update()` in `main.ts` aufgerufen
+ * (`level.updateEnemies(...)`), aber NUR wenn die Gegner nicht gerade
+ * eingefroren sind (Pause-Bonusstein) – das entscheidet der Game-Loop, nicht
+ * das Level.
+ *
+ * Gegenstück zu `LevelEnemyRenderer`: die levelspezifische Gegner-LOGIK
+ * (Bewegungsmuster, Feuerverhalten) lebt im jeweiligen `src/levels/<level>/`-
+ * Package (`behavior.ts`) statt zentral in `main.ts` – so kann ein Level auch
+ * eine ganz andere (z.B. Snake-artige) Bewegung mitbringen.
+ */
+export type LevelEnemyUpdater = (context: LevelEnemyUpdateContext) => Projectile[];
+
+/**
  * Vollständige Konfiguration eines Levels. Jedes Level ist ein eigenes
  * Unterpackage unter `src/levels/` und exportiert genau ein solches Objekt.
  */
@@ -165,6 +208,13 @@ export interface LevelConfig {
    * Eigenheiten einzelner Level.
    */
   renderEnemies: LevelEnemyRenderer;
+  /**
+   * Levelspezifische Gegner-Logik (Bewegung + Schiessen), pro Frame vom
+   * Game-Loop aufgerufen (siehe `LevelEnemyUpdater`). Liegt im Level-Package
+   * (`behavior.ts`) – Gegenstück zu `renderEnemies`, hält `update()` in
+   * `main.ts` frei vom Bewegungsmuster einzelner Level.
+   */
+  updateEnemies: LevelEnemyUpdater;
   scoring?: DefeatScoring;
   bonusStones: BonusStonesConfig;
   /** Hintergrundmusik-Loop für dieses Level. Optional – fehlt sie, bleibt es still. */

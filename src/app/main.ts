@@ -34,7 +34,7 @@ import {
   type DrawSession,
 } from '../game/drawing';
 import { createEnemy, type Enemy } from '../game/enemy';
-import { enemyMovementMargin, moveEnemies, randomDirection } from '../game/enemyMovement';
+import { enemyMovementMargin, randomDirection } from '../game/enemyMovement';
 import {
   createExplosion,
   pruneExplosions,
@@ -63,7 +63,6 @@ import { applyCompletedLine, polygonArea } from '../game/polygon';
 import {
   advanceProjectile,
   isProjectileOutOfBounds,
-  tickEnemyShooting,
   tickPlayerShooting,
   type Projectile,
 } from '../game/projectile';
@@ -862,33 +861,31 @@ function start(
       foreground.carvePath(prevPos.x, prevPos.y, player.position.x, player.position.y);
     }
 
-    // Alle Gegner (Hauptgegner + Mini-Gegner) bewegen und für Kollisionen als
-    // eine Liste behandeln – Mini-Gegner sind gleichwertig gefährlich.
+    // Alle Gegner (Hauptgegner + Mini-Gegner) für Kollisionen als eine Liste
+    // behandeln – Mini-Gegner sind gleichwertig gefährlich.
     let allEnemies = [mainEnemy, ...miniEnemies];
     // Pause-Bonusstein (Nutzer-Feedback): solange aktiv, bewegen sich Gegner
     // nicht und schiessen nicht – bleiben aber als Hindernis an ihrer
     // Position bestehen (Kollisionen unten laufen unverändert weiter).
     const enemiesFrozen = playerState.enemyFreezeRemainingSeconds > 0;
     if (!enemiesFrozen) {
-      moveEnemies(allEnemies, field, dt);
-
-      // Gegner schiessen (auf die aktuelle Spielerposition gezielt).
-      const shot = tickEnemyShooting(mainEnemy, level.mainEnemy.shooting, player.position, dt);
-      if (shot) {
+      // Bewegung + Schiessen sind levelspezifisch und liegen im Level-Package
+      // (`updateEnemies`, Gegenstück zu `renderEnemies`) – mutiert `mainEnemy`
+      // /`miniEnemies` in place (dieselben Objekte wie in `allEnemies`) und
+      // liefert die neu abgefeuerten Projektile; der Game-Loop hängt sie an
+      // und spielt pro Schuss den Sound.
+      const shots = level.updateEnemies({
+        mainEnemy,
+        miniEnemies,
+        field,
+        playerPosition: player.position,
+        dt,
+        mainEnemyShooting: level.mainEnemy.shooting,
+        miniEnemyShooting: level.miniEnemies.config.shooting,
+      });
+      for (const shot of shots) {
         projectiles.push(shot);
         audioManager.play('enemy_shot');
-      }
-      for (const mini of miniEnemies) {
-        const miniShot = tickEnemyShooting(
-          mini,
-          level.miniEnemies.config.shooting,
-          player.position,
-          dt,
-        );
-        if (miniShot) {
-          projectiles.push(miniShot);
-          audioManager.play('enemy_shot');
-        }
       }
     }
 
