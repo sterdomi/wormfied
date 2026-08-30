@@ -12,7 +12,10 @@ import {
   extraLivesFromScore,
   formatClaimedPercentage,
   getClaimedPercentage,
+  LEVEL_CLEAR_EXTRA_LIFE_PERCENT,
+  LEVEL_CLEAR_PERCENT_BONUS_TIERS,
   LEVEL_COMPLETE_THRESHOLD,
+  levelClearPercentBonus,
   POINTS_PER_PERCENT,
   registerClaim,
 } from './scoring';
@@ -199,18 +202,20 @@ describe('applyLevelClearBonus', () => {
     const scoring = createScoring(1000);
     const defeatScoring: DefeatScoring = { miniEnemyPoints: 500, mainEnemyPoints: 2000 };
 
-    const bonus = applyLevelClearBonus(scoring, true, 2, defeatScoring);
+    // 82 % → Prozent-Bonus 0, damit die Aufräum-Bonus-Werte unverändert prüfbar bleiben.
+    const bonus = applyLevelClearBonus(scoring, true, 2, 82, defeatScoring);
 
     expect(bonus).not.toBeNull();
     expect(bonus!.mainEnemyPoints).toBe(2000);
     expect(bonus!.miniEnemyPoints).toBe(1000); // 2 × 500
+    expect(bonus!.percentBonus).toBe(0);
     expect(bonus!.totalPointsAwarded).toBe(3000);
     expect(scoring.score).toBe(3000);
   });
 
   it('fällt ohne Level-Konfiguration auf die Default-Werte zurück', () => {
     const scoring = createScoring(1000);
-    const bonus = applyLevelClearBonus(scoring, true, 0, undefined);
+    const bonus = applyLevelClearBonus(scoring, true, 0, 82, undefined);
 
     expect(bonus!.mainEnemyPoints).toBe(defaultMainEnemyDefeatedPoints);
     expect(bonus!.miniEnemyPoints).toBe(0);
@@ -219,7 +224,7 @@ describe('applyLevelClearBonus', () => {
 
   it('feuert nicht, wenn levelJustCompleted false ist', () => {
     const scoring = createScoring(1000);
-    const bonus = applyLevelClearBonus(scoring, false, 3, undefined);
+    const bonus = applyLevelClearBonus(scoring, false, 3, 82, undefined);
 
     expect(bonus).toBeNull();
     expect(scoring.score).toBe(0);
@@ -230,14 +235,59 @@ describe('applyLevelClearBonus', () => {
     scoring.isLevelComplete = true; // Level bereits seit einem früheren Frame abgeschlossen
 
     // Frame 1: levelJustCompleted wahr (frisch erreicht) → Bonus feuert.
-    const firstFrame = applyLevelClearBonus(scoring, true, 1, undefined);
+    const firstFrame = applyLevelClearBonus(scoring, true, 1, 82, undefined);
     expect(firstFrame).not.toBeNull();
     const scoreAfterFirstFrame = scoring.score;
 
     // Frame 2 und 3: isLevelComplete bleibt true, aber levelJustCompleted ist
     // (wie von registerClaim geliefert) ab jetzt false → kein erneuter Bonus.
-    expect(applyLevelClearBonus(scoring, false, 1, undefined)).toBeNull();
-    expect(applyLevelClearBonus(scoring, false, 1, undefined)).toBeNull();
+    expect(applyLevelClearBonus(scoring, false, 1, 82, undefined)).toBeNull();
+    expect(applyLevelClearBonus(scoring, false, 1, 82, undefined)).toBeNull();
     expect(scoring.score).toBe(scoreAfterFirstFrame);
+  });
+
+  it('addiert den Prozent-Bonus zur erreichten Stufe (je höher der Prozentwert, desto mehr)', () => {
+    const defeat: DefeatScoring = { miniEnemyPoints: 500, mainEnemyPoints: 2000 };
+
+    const low = createScoring(1000);
+    const lowBonus = applyLevelClearBonus(low, true, 0, 90, defeat);
+    expect(lowBonus!.percentBonus).toBe(3000); // 90 %-Stufe
+    expect(lowBonus!.totalPointsAwarded).toBe(2000 + 3000);
+    expect(low.score).toBe(5000);
+
+    const high = createScoring(1000);
+    const highBonus = applyLevelClearBonus(high, true, 0, 99.4, defeat);
+    expect(highBonus!.percentBonus).toBe(35000); // 99 %-Stufe
+    expect(high.score).toBe(2000 + 35000);
+  });
+
+  it('extraLife nur ab LEVEL_CLEAR_EXTRA_LIFE_PERCENT (99 %)', () => {
+    const below = applyLevelClearBonus(createScoring(1000), true, 0, 98.9, undefined);
+    expect(below!.extraLife).toBe(false);
+
+    const exact = applyLevelClearBonus(createScoring(1000), true, 0, 99, undefined);
+    expect(exact!.extraLife).toBe(true);
+
+    const above = applyLevelClearBonus(createScoring(1000), true, 0, 100, undefined);
+    expect(above!.extraLife).toBe(true);
+  });
+});
+
+describe('levelClearPercentBonus', () => {
+  it('nimmt die höchste erreichte Stufe', () => {
+    expect(levelClearPercentBonus(79.9)).toBe(0); // unter der untersten Stufe
+    expect(levelClearPercentBonus(80)).toBe(0);
+    expect(levelClearPercentBonus(84.9)).toBe(0);
+    expect(levelClearPercentBonus(85)).toBe(1000);
+    expect(levelClearPercentBonus(94.9)).toBe(6000); // 93 %-Stufe
+    expect(levelClearPercentBonus(99)).toBe(35000);
+    expect(levelClearPercentBonus(100)).toBe(60000);
+  });
+
+  it('Tabelle ist absteigend sortiert und beginnt bei der Abschlussschwelle', () => {
+    const mins = LEVEL_CLEAR_PERCENT_BONUS_TIERS.map((t) => t.minPercent);
+    expect(mins).toEqual([...mins].sort((a, b) => b - a));
+    expect(mins[mins.length - 1]).toBe(LEVEL_COMPLETE_THRESHOLD);
+    expect(LEVEL_CLEAR_EXTRA_LIFE_PERCENT).toBe(99);
   });
 });

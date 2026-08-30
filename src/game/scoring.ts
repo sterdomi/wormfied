@@ -25,6 +25,49 @@ export const defaultMiniEnemyDefeatedPoints = 500;
 export const defaultMainEnemyDefeatedPoints = 2000;
 
 /**
+ * Prozent-Bonus beim Levelabschluss (Nutzer-Feedback, angelehnt ans
+ * Volfied-Original): Stufen-Tabelle nach dem tatsächlich erreichten
+ * Erobert-Prozentwert. Vergeben wird der Bonus der HÖCHSTEN Stufe, deren
+ * `minPercent` erreicht ist – wer über die 80 %-Abschlussschwelle hinaus
+ * weiter erobert, wird mit spürbar mehr Punkten belohnt, steiler werdend
+ * gegen 100 %.
+ *
+ * Absteigend sortiert (`levelClearPercentBonus` nimmt die erste passende
+ * Stufe). `80` ist bewusst mit Bonus 0 gelistet, damit die Tabelle im
+ * Level-Complete-Overlay genau bei der Abschlussschwelle beginnt.
+ */
+export const LEVEL_CLEAR_PERCENT_BONUS_TIERS: readonly {
+  minPercent: number;
+  bonus: number;
+}[] = [
+  { minPercent: 100, bonus: 60_000 },
+  { minPercent: 99, bonus: 35_000 },
+  { minPercent: 97, bonus: 18_000 },
+  { minPercent: 95, bonus: 10_000 },
+  { minPercent: 93, bonus: 6_000 },
+  { minPercent: 90, bonus: 3_000 },
+  { minPercent: 85, bonus: 1_000 },
+  { minPercent: 80, bonus: 0 },
+];
+
+/**
+ * Ab diesem Erobert-Prozentwert beim Levelabschluss gibt es 1 Extra-Leben
+ * (Nutzer-Feedback: nur bei einem Beinahe-Perfekt-Abschluss). Das gilt
+ * ZUSÄTZLICH zur `EXTRA_LIFE_SCORE_THRESHOLD`-Regel, die davon unberührt
+ * weiter greift.
+ */
+export const LEVEL_CLEAR_EXTRA_LIFE_PERCENT = 99;
+
+/**
+ * Punkte-Bonus für einen Erobert-Prozentwert (0–100) laut
+ * `LEVEL_CLEAR_PERCENT_BONUS_TIERS`. Unter der untersten Stufe (80 %) 0.
+ */
+export function levelClearPercentBonus(percent: number): number {
+  const tier = LEVEL_CLEAR_PERCENT_BONUS_TIERS.find((t) => percent >= t.minPercent);
+  return tier ? tier.bonus : 0;
+}
+
+/**
  * Punkte für einen gefangenen (besiegten) Mini-Gegner (Instruktion 12).
  * Mutiert `scoring.score` und liefert die vergebenen Punkte zurück – fällt
  * auf `defaultMiniEnemyDefeatedPoints` zurück, falls `defeatScoring` fehlt.
@@ -38,24 +81,37 @@ export function awardMiniEnemyDefeated(scoring: Scoring, defeatScoring?: DefeatS
 export interface LevelClearBonusOutcome {
   mainEnemyPoints: number;
   miniEnemyPoints: number;
+  /** Prozent-Bonus laut `levelClearPercentBonus(percent)`. */
+  percentBonus: number;
   totalPointsAwarded: number;
+  /**
+   * `true`, wenn `percent >= LEVEL_CLEAR_EXTRA_LIFE_PERCENT` – der Aufrufer
+   * vergibt dann 1 Extra-Leben (zusätzlich zur Score-Schwellen-Regel, die
+   * über `registerClaim`/`extraLivesFromScore` unabhängig weiterläuft).
+   */
+  extraLife: boolean;
 }
 
 /**
- * Levelabschluss-"Aufräum-Bonus": Hauptgegner + alle noch verbliebenen
- * Mini-Gegner geben Punkte. Feuert NUR, wenn `levelJustCompleted` (das
- * Ergebnisfeld von `registerClaim`) gesetzt ist – das ist per Konstruktion
- * bereits nur beim false→true-Übergang von `scoring.isLevelComplete` der
- * Fall, weshalb hier kein zusätzlicher Guard nötig ist: ruft der Aufrufer
- * diese Funktion über mehrere Frames hinweg auf, während `isLevelComplete`
- * weiterhin `true` bleibt, ist `levelJustCompleted` ab dem zweiten Aufruf
- * bereits `false` und die Funktion liefert `null`, ohne den Score erneut zu
- * erhöhen.
+ * Levelabschluss-Bonus: (1) "Aufräum-Bonus" – Hauptgegner + alle noch
+ * verbliebenen Mini-Gegner geben Punkte; (2) Prozent-Bonus nach tatsächlich
+ * erreichtem Erobert-Prozentwert (`levelClearPercentBonus`, Nutzer-Feedback:
+ * "je höher der Prozentwert, desto höher der Score"); (3) ab
+ * `LEVEL_CLEAR_EXTRA_LIFE_PERCENT` zusätzlich 1 Extra-Leben (`extraLife`).
+ *
+ * Feuert NUR, wenn `levelJustCompleted` (das Ergebnisfeld von `registerClaim`)
+ * gesetzt ist – das ist per Konstruktion bereits nur beim false→true-Übergang
+ * von `scoring.isLevelComplete` der Fall, weshalb hier kein zusätzlicher Guard
+ * nötig ist: ruft der Aufrufer diese Funktion über mehrere Frames hinweg auf,
+ * während `isLevelComplete` weiterhin `true` bleibt, ist `levelJustCompleted`
+ * ab dem zweiten Aufruf bereits `false` und die Funktion liefert `null`, ohne
+ * Score oder Leben erneut zu verändern.
  */
 export function applyLevelClearBonus(
   scoring: Scoring,
   levelJustCompleted: boolean,
   remainingMiniEnemyCount: number,
+  percent: number,
   defeatScoring?: DefeatScoring,
 ): LevelClearBonusOutcome | null {
   if (!levelJustCompleted) return null;
@@ -63,10 +119,17 @@ export function applyLevelClearBonus(
   const mainEnemyPoints = defeatScoring?.mainEnemyPoints ?? defaultMainEnemyDefeatedPoints;
   const miniEnemyPoints =
     (defeatScoring?.miniEnemyPoints ?? defaultMiniEnemyDefeatedPoints) * remainingMiniEnemyCount;
-  const totalPointsAwarded = mainEnemyPoints + miniEnemyPoints;
+  const percentBonus = levelClearPercentBonus(percent);
+  const totalPointsAwarded = mainEnemyPoints + miniEnemyPoints + percentBonus;
   scoring.score += totalPointsAwarded;
 
-  return { mainEnemyPoints, miniEnemyPoints, totalPointsAwarded };
+  return {
+    mainEnemyPoints,
+    miniEnemyPoints,
+    percentBonus,
+    totalPointsAwarded,
+    extraLife: percent >= LEVEL_CLEAR_EXTRA_LIFE_PERCENT,
+  };
 }
 
 /**

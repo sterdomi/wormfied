@@ -641,13 +641,15 @@ function start(
       hud.flashLives();
     }
 
-    // Levelabschluss-Bonus ("Aufräum-Bonus"): `applyLevelClearBonus` feuert
-    // nur beim false→true-Übergang (siehe dortiger Kommentar), also genau
-    // einmal, auch falls dieser Frame-Handler danach nochmal liefe.
+    // Levelabschluss-Bonus (Aufräum-Bonus + Prozent-Bonus + Extra-Leben ab
+    // 99 %): `applyLevelClearBonus` feuert nur beim false→true-Übergang (siehe
+    // dortiger Kommentar), also genau einmal, auch falls dieser Frame-Handler
+    // danach nochmal liefe.
     const bonus = applyLevelClearBonus(
       scoring,
       outcome.levelJustCompleted,
       miniEnemies.length,
+      percent,
       level.scoring,
     );
     if (bonus) {
@@ -655,6 +657,14 @@ function start(
       for (const enemy of miniEnemies) explosions.push(createExplosion(enemy.position));
       miniEnemies = [];
       audioManager.play('main_enemy_explosion');
+      // Extra-Leben für einen Beinahe-Perfekt-Abschluss (Nutzer-Feedback: erst
+      // ab 99 %) – zusätzlich zu den score-schwellenbasierten Extra-Leben aus
+      // `registerClaim` oben.
+      if (bonus.extraLife) {
+        playerState.lives += 1; // kein Cap – bewusst (Arcade-Mechanik)
+        hud.setLives(playerState.lives);
+        hud.flashLives();
+      }
       // Overlay + Sieges-Sound erst nach der Explosions-Animation (siehe
       // `LEVEL_COMPLETE_REVEAL_DELAY_MS`), nicht sofort – `update()` löst das
       // aus, sobald die Wartezeit um ist.
