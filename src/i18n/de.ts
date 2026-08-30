@@ -5,6 +5,8 @@ export const de = {
   pressEnterToPlay: 'Enter drücken zum Spielen',
   gameOver: 'Game Over',
   levelComplete: 'Level geschafft!',
+  bonusHeading: 'Prozent-Bonus',
+  extraLifeAward: '★ Extra-Leben ★',
   restartHint: 'Enter drücken für Neustart',
   backToStartHint: 'Enter drücken oder warten – zurück zum Start',
   muteLabel: 'Ton stummschalten',

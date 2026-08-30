@@ -1,5 +1,9 @@
 import { t, type TranslationKey } from '../i18n';
-import { formatClaimedPercentage } from '../game/scoring';
+import {
+  formatClaimedPercentage,
+  LEVEL_CLEAR_EXTRA_LIFE_PERCENT,
+  LEVEL_CLEAR_PERCENT_BONUS_TIERS,
+} from '../game/scoring';
 import { isIOS } from '../engine/platform';
 import { setupIosInstallHint } from './iosInstallHint';
 
@@ -36,6 +40,50 @@ function formatShield(shield: number): string {
   return `SCHILD ${'▓'.repeat(filled)}${'░'.repeat(10 - filled)} ${Math.round(value)
     .toString()
     .padStart(3, ' ')}`;
+}
+
+function formatBonusPoints(points: number): string {
+  return `${points.toLocaleString('de-CH')} PTS`;
+}
+
+/**
+ * Füllt den Prozent-Bonus-Block des Level-Complete-Overlays: die volle
+ * Stufen-Tabelle (`LEVEL_CLEAR_PERCENT_BONUS_TIERS`, "% → PTS", wie im
+ * Volfied-Original „zeige auch die anderen möglichen Scores"), die vom Spieler
+ * tatsächlich erreichte Stufe hervorgehoben, plus eine Extra-Leben-Zeile ab
+ * `LEVEL_CLEAR_EXTRA_LIFE_PERCENT`.
+ */
+function renderLevelCompleteBonus(container: HTMLElement, percent: number): void {
+  container.replaceChildren();
+
+  const heading = document.createElement('p');
+  heading.className = 'overlay__bonus-heading';
+  heading.textContent = t('bonusHeading');
+  container.append(heading);
+
+  // Erreichte Stufe = die erste (Tabelle ist absteigend), deren Schwelle
+  // `percent` erreicht – dieselbe Wahl wie `levelClearPercentBonus`.
+  const hitTier = LEVEL_CLEAR_PERCENT_BONUS_TIERS.find((tier) => percent >= tier.minPercent);
+
+  for (const tier of LEVEL_CLEAR_PERCENT_BONUS_TIERS) {
+    const row = document.createElement('div');
+    row.className = 'overlay__bonus-row';
+    if (tier === hitTier) row.classList.add('overlay__bonus-row--hit');
+
+    const pct = document.createElement('span');
+    pct.textContent = formatClaimedPercentage(tier.minPercent);
+    const pts = document.createElement('span');
+    pts.textContent = formatBonusPoints(tier.bonus);
+    row.append(pct, pts);
+    container.append(row);
+  }
+
+  if (percent >= LEVEL_CLEAR_EXTRA_LIFE_PERCENT) {
+    const extra = document.createElement('p');
+    extra.className = 'overlay__bonus-extra';
+    extra.textContent = t('extraLifeAward');
+    container.append(extra);
+  }
 }
 
 /** Befüllt ein Overlay-Element (`#gameover` / `#levelcomplete`) mit Titel,
@@ -166,6 +214,11 @@ export function createHud(onMuteChange: (muted: boolean) => void): Hud {
   // wie beim Level-Complete-Overlay.
   buildOverlay(gameOverEl, 'gameOver', 'backToStartHint');
   const levelCompleteStats = buildOverlay(levelCompleteEl, 'levelComplete', 'restartHint');
+  // Prozent-Bonus-Tabelle zwischen Statuszeile und Hinweis – nur im
+  // Level-Complete-Overlay, befüllt von `setLevelComplete` (braucht `percent`).
+  const levelCompleteBonus = document.createElement('div');
+  levelCompleteBonus.className = 'overlay__bonus';
+  levelCompleteStats.after(levelCompleteBonus);
   // iPhone-"Zum Home-Bildschirm"-Hinweis (Instruktion 20, Punkt 3) sitzt im
   // Game-Over-Screen statt als permanentes Banner (Nutzer-Feedback: dort ist
   // noch Platz, und die Anleitung ist ohnehin iPhone-spezifisch formuliert,
@@ -212,6 +265,7 @@ export function createHud(onMuteChange: (muted: boolean) => void): Hud {
     setLevelComplete: (visible: boolean, percent?: number, score?: number): void => {
       if (visible && percent !== undefined && score !== undefined) {
         levelCompleteStats.textContent = `${formatClaimedPercentage(percent)}  ·  SCORE ${Math.round(score)}`;
+        renderLevelCompleteBonus(levelCompleteBonus, percent);
       }
       levelCompleteEl.hidden = !visible;
     },

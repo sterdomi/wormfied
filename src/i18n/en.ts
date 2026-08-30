@@ -7,6 +7,8 @@ export const en: Record<TranslationKey, string> = {
   pressEnterToPlay: 'Press Enter to play',
   gameOver: 'Game Over',
   levelComplete: 'Level complete!',
+  bonusHeading: 'Percentage bonus',
+  extraLifeAward: '★ Extra life ★',
   restartHint: 'Press Enter to restart',
   backToStartHint: 'Press Enter or wait – back to start',
   muteLabel: 'Mute sound',
