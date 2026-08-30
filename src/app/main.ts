@@ -72,7 +72,6 @@ import {
   estimateReachableArea,
   mainEnemyEncirclementScale,
 } from '../game/enemyEncirclement';
-import { resetGame } from '../game/resetGame';
 import {
   applyLevelClearBonus,
   createScoring,
@@ -400,11 +399,20 @@ function showStartScreen(canvas: HTMLCanvasElement, logoImage: HTMLImageElement)
 }
 
 /**
- * Startet eine Partie. Löst auf, sobald nach einem Game Over entweder
- * `GAME_OVER_DISPLAY_MS` verstrichen sind ODER Enter gedrückt wird – der
- * Aufrufer (`boot`) zeigt dann wieder den Startbildschirm (Level-Complete
- * bleibt davon unberührt: dort wartet die Partie weiter auf Enter für einen
- * direkten Neustart, siehe `restartGame`).
+ * Ergebnis eines `start()`-Laufs – sagt `boot()`, wie es weitergeht:
+ * `toStartScreen` nach Game Over (zurück zum Startbildschirm, wieder ab
+ * Level 1), `nextLevel` nach Levelabschluss + Enter (ohne Startbildschirm
+ * direkt ins nächste Level – bei nur einem Level eine Wiederholung).
+ */
+type StartOutcome = 'toStartScreen' | 'nextLevel';
+
+/**
+ * Startet eine Partie mit `level`. Löst mit `toStartScreen` auf, sobald nach
+ * einem Game Over entweder `GAME_OVER_DISPLAY_MS` verstrichen sind ODER Enter
+ * gedrückt wird; mit `nextLevel`, sobald nach dem Levelabschluss-Overlay Enter
+ * gedrückt wird. In beiden Fällen ist die Partie vorher sauber abgebaut
+ * (`teardown`), den weiteren Ablauf (nächstes Level / Startbildschirm)
+ * steuert `boot()`.
  */
 function start(
   canvas: HTMLCanvasElement,
@@ -415,13 +423,13 @@ function start(
   playerCyborgImage: HTMLImageElement,
   playerWalkCyborgImage: HTMLImageElement,
   logoImage: HTMLImageElement,
-): Promise<void> {
+): Promise<StartOutcome> {
   // Wird synchron im Promise-Executor unten zugewiesen (läuft vor jedem
   // anderen Code in dieser Funktion) – die Definite-Assignment-Assertion ist
   // hier sicher, TypeScript kennt das Ausführungsverhalten des
   // Promise-Konstruktors selbst aber nicht.
-  let resolveStart!: () => void;
-  const donePromise = new Promise<void>((resolve) => {
+  let resolveStart!: (outcome: StartOutcome) => void;
+  const donePromise = new Promise<StartOutcome>((resolve) => {
     resolveStart = resolve;
   });
 
@@ -437,9 +445,8 @@ function start(
   // doppeltes Starten).
   let drawLoopNode: AudioBufferSourceNode | null = null;
   // Hintergrundmusik-Loop dieser Partie (levelspezifisch, `level.musicSrc`) –
-  // einmal gestartet, läuft über einen kompletten `start()`-Aufruf durch,
-  // auch über einen Level-Complete-Neustart (`restartGame`) hinweg, statt
-  // bei jedem Neustart neu anzusetzen.
+  // einmal gestartet, läuft über einen kompletten `start()`-Aufruf durch.
+  // `teardown()` stoppt sie; der nächste Level-/Partie-Start setzt sie neu an.
   let musicNode: AudioBufferSourceNode | null = null;
   // Stromball, der bei Gegner-Linien-Kontakt Richtung Spieler fährt (nur einer
   // gleichzeitig, lebt so lange wie die aktuelle Zeichen-Session).
@@ -682,41 +689,6 @@ function start(
     }
   }
 
-  /**
-   * Kompletter Neustart per Enter nach Level-Complete. Game Over geht per
-   * Enter (oder automatisch nach `GAME_OVER_DISPLAY_MS`) stattdessen über
-   * `teardown()` + `resolveStart()` zurück zum Startbildschirm, siehe
-   * `update`.
-   */
-  function restartGame(): void {
-    resetGame(
-      player,
-      playerState,
-      () => rebuildField(),
-      () => {
-        session = null;
-        audioManager.stop(drawLoopNode); // defensiv – sollte hier schon null sein
-        drawLoopNode = null;
-        spark = null;
-        projectiles = [];
-        explosions = [];
-        bonusStones = [];
-        bonusSpawner.timeSinceLastSpawn = 0;
-        playerProjectiles = [];
-        foregroundSnapshot = null;
-        screenFlash = null;
-        gameOverAt = null;
-        levelCompleteRevealAt = null;
-        hud.setGameOver(false);
-        hud.setLevelComplete(false);
-        hud.setClaimedPercentage(0);
-        hud.setScore(scoring.score);
-        hud.setLives(playerState.lives);
-        hud.setShield(playerState.shield);
-      },
-    );
-  }
-
   // Kein `onResize`-Handler mehr: die Feldgrösse ist fix, ein Resize
   // ändert nur `view.width`/`view.height` (für Hintergrund-Füllung und
   // Zentrierung in `render`), nicht mehr den Spielzustand.
@@ -753,7 +725,7 @@ function start(
         gameOverAt !== null && performance.now() - gameOverAt >= GAME_OVER_DISPLAY_MS;
       if (displayTimeElapsed || restartPressed) {
         teardown();
-        resolveStart();
+        resolveStart('toStartScreen');
       }
       return;
     }
@@ -772,7 +744,12 @@ function start(
         }
         return;
       }
-      if (restartPressed) restartGame();
+      // Levelabschluss bestätigt: Partie abbauen, den weiteren Ablauf
+      // (nächstes Level, ohne Startbildschirm) übernimmt `boot()`.
+      if (restartPressed) {
+        teardown();
+        resolveStart('nextLevel');
+      }
       return;
     }
 
@@ -1382,6 +1359,11 @@ function start(
 
 async function boot(): Promise<void> {
   showLoading(gameCanvas);
+
+  // TODO(Level 2): Levelbilder + Musik pro Level laden (statt hier einmal
+  // fest für Level 1) und Score/Leben über den Levelwechsel hinweg mitnehmen –
+  // aktuell startet jedes Level bei 0 Punkten / 3 Leben. Solange es nur ein
+  // Level gibt, ist `levels[0]` unten überall die richtige Wahl.
   const level = levels[0];
   // Levelspezifische Hintergrundmusik (falls konfiguriert) zu den globalen
   // SFX dazumischen – bewusst nicht Teil von `SOUND_SOURCES`, da sie über
@@ -1410,14 +1392,22 @@ async function boot(): Promise<void> {
     loadImage(LOGO_ASSET_SRC),
     audioManager.loadAll(soundSources),
   ]);
-  // Startbildschirm ↔ Partie im Wechsel: eine Partie endet entweder gar
-  // nicht (Fenster bleibt offen) oder – nach einem Game Over, per Enter oder
-  // automatisch nach GAME_OVER_DISPLAY_MS – wieder beim Startbildschirm.
+
+  // Startbildschirm ↔ Partie im Wechsel. `start()` meldet über seinen
+  // `StartOutcome` zurück, wie es weitergeht:
+  //  - `toStartScreen` (Game Over): zurück zum Startbildschirm, wieder ab
+  //    Level 1.
+  //  - `nextLevel` (Levelabschluss + Enter): ohne Startbildschirm direkt ins
+  //    nächste Level. `% levels.length` lässt hinter dem letzten Level wieder
+  //    das erste folgen (bei nur einem Level: Wiederholung von Level 1 –
+  //    ersetzt den früheren In-Place-Neustart `restartGame`).
+  let levelIndex = 0;
+  let showStart = true;
   for (;;) {
-    await showStartScreen(gameCanvas, logoImage);
-    await start(
+    if (showStart) await showStartScreen(gameCanvas, logoImage);
+    const outcome = await start(
       gameCanvas,
-      level,
+      levels[levelIndex],
       assets,
       playerImage,
       playerWalkImage,
@@ -1425,6 +1415,13 @@ async function boot(): Promise<void> {
       playerWalkCyborgImage,
       logoImage,
     );
+    if (outcome === 'nextLevel') {
+      levelIndex = (levelIndex + 1) % levels.length;
+      showStart = false;
+    } else {
+      levelIndex = 0;
+      showStart = true;
+    }
   }
 }
 
