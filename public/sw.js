@@ -43,7 +43,8 @@
 // (nicht nur ergänzt), CACHE_NAME mit hochzählen.
 // v3 → v4: Level-1-Foreground (`foreground.png`) inhaltlich ersetzt
 // (Schachbrett → Spinnennetz), gleicher Dateiname – siehe Faustregel oben.
-const CACHE_NAME = 'wormfied-v4';
+// v4 → v5: Spinnennetz-Foreground auf hellblauen Grund umgestellt.
+const CACHE_NAME = 'wormfied-v5';
 
 const CORE_ASSETS = [
   './',

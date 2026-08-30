@@ -46,10 +46,10 @@ function blend(x, y, r, g, b, a) {
   px[i + 3] = oa;
 }
 
-// ── dunkler, deckender Grund ──────────────────────────────────────────────
+// ── hellblauer, deckender Grund ───────────────────────────────────────────
 // Flach (keine Vignette): hält die PNG klein und den Kontrast zum
-// durchscheinenden Background beim Erobern gleichmässig.
-const BG = [22 / 255, 25 / 255, 35 / 255]; // ~#161923
+// durchscheinenden (warmen) Background beim Erobern gleichmässig.
+const BG = [170 / 255, 202 / 255, 232 / 255]; // ~#aacae8
 const cx = w / 2;
 const cy = h / 2;
 const maxR = Math.hypot(cx, cy);
@@ -169,9 +169,10 @@ for (let t = 0; t < Math.PI * 8; t += 0.12) {
   stamp(cx + Math.cos(t) * rr, cy + Math.sin(t) * rr, 1.2 * SS, 0.6);
 }
 
-// Seidenfarbe über den Grund komponieren
-const SILK = [206 / 255, 214 / 255, 228 / 255];
-const SILK_ALPHA = 0.5;
+// Fäden über den Grund komponieren – dunkles Schieferblau, damit sie auf dem
+// hellblauen Grund lesbar bleiben.
+const SILK = [42 / 255, 60 / 255, 92 / 255]; // ~#2a3c5c
+const SILK_ALPHA = 0.55;
 for (let y = 0; y < h; y++) {
   for (let x = 0; x < w; x++) {
     const a = cov[y * w + x] * SILK_ALPHA;
