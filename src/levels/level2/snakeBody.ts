@@ -113,9 +113,20 @@ export function advanceSnakeBody(
   polygon: Point[],
   dt: number,
   rng: () => number = Math.random,
+  /** Aktive Zeichenlinie – der Kopf darf sie nicht überqueren. */
+  activeLine: readonly Point[] = [],
 ): void {
   const margin = enemyMovementMargin(head);
-  const newPos = advanceSnakeHead(head.position, body.head, polygon, margin, head.speed, dt, rng);
+  const newPos = advanceSnakeHead(
+    head.position,
+    body.head,
+    polygon,
+    margin,
+    head.speed,
+    dt,
+    rng,
+    activeLine,
+  );
   head.position = newPos;
   head.direction = { ...body.head.heading };
 

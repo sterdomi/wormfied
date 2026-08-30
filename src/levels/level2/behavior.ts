@@ -1,4 +1,4 @@
-import type { Projectile } from '../../game/projectile';
+import { tickEnemyShooting, type Projectile } from '../../game/projectile';
 import type { LevelEnemyUpdateContext } from '../types';
 import { advanceSnakeBody, snakeBodyFor } from './snakeBody';
 
@@ -10,13 +10,20 @@ import { advanceSnakeBody, snakeBodyFor } from './snakeBody';
  * Mini eingekesselt oder abgeschossen (entfällt aus `miniEnemies`), wird die
  * Kette einfach kürzer.
  *
- * Schiessen: in Level 2 niemand. Erfüllt `LevelEnemyUpdater`; Aufruf pro Frame
- * aus `update()` in `main.ts`, solange die Gegner nicht eingefroren sind.
+ * Schiessen: NUR der Kopf (`mainEnemy.shooting` aus der Level-Config, im
+ * konfigurierten Takt ein gezielter Schuss auf die Spielerposition) – die
+ * Körperglieder nicht. Reihenfolge wie in Level 1: erst bewegen, dann schiessen,
+ * damit der Schuss von der neuen Kopf-Position ausgeht.
+ *
+ * Erfüllt `LevelEnemyUpdater`; Aufruf pro Frame aus `update()` in `main.ts`,
+ * solange die Gegner nicht eingefroren sind.
  */
 export function updateLevel2Enemies(context: LevelEnemyUpdateContext): Projectile[] {
-  const { mainEnemy, miniEnemies, field, dt } = context;
+  const { mainEnemy, miniEnemies, field, playerPosition, dt, mainEnemyShooting, activeLine } =
+    context;
 
-  advanceSnakeBody(mainEnemy, snakeBodyFor(mainEnemy), miniEnemies, field, dt);
+  advanceSnakeBody(mainEnemy, snakeBodyFor(mainEnemy), miniEnemies, field, dt, undefined, activeLine);
 
-  return [];
+  const shot = tickEnemyShooting(mainEnemy, mainEnemyShooting, playerPosition, dt);
+  return shot ? [shot] : [];
 }

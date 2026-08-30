@@ -213,3 +213,27 @@ describe('moveEnemies', () => {
     expect(list[1].position.x).toBeCloseTo(100 + MINI.speed);
   });
 });
+
+describe('moveEnemy: aktive Zeichenlinie ist eine Wand', () => {
+  const field = createRectangularField(400, 300);
+  // Senkrechte Linie bei x = 150, quer zum nach rechts laufenden Gegner.
+  const line: Point[] = [
+    { x: 150, y: 0 },
+    { x: 150, y: 300 },
+  ];
+
+  it('der Gegner überquert die Linie nicht (sie wirkt wie eine Wand)', () => {
+    const enemy = createEnemy({ x: 140, y: 150 }, MAIN, { x: 1, y: 0 });
+    for (let i = 0; i < 400; i++) {
+      moveEnemy(enemy, walkOf(enemy), field, 1 / 60, () => 0.5, line);
+      expect(enemy.position.x).toBeLessThanOrEqual(150);
+      expect(isPointInPolygon(enemy.position, field)).toBe(true);
+    }
+  });
+
+  it('ohne Linie läuft er ungehindert nach rechts', () => {
+    const enemy = createEnemy({ x: 140, y: 150 }, MAIN, { x: 1, y: 0 });
+    for (let i = 0; i < 30; i++) moveEnemy(enemy, walkOf(enemy), field, 1 / 60, () => 0.5);
+    expect(enemy.position.x).toBeGreaterThan(150);
+  });
+});

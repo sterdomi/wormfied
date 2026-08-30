@@ -74,3 +74,41 @@ export function closestPointOnPerimeter(polygon: Point[], p: Point): PerimeterPr
   if (!best) throw new Error('closestPointOnPerimeter: leeres Polygon');
   return best;
 }
+
+/**
+ * Wie `closestPointOnPerimeter`, aber für eine OFFENE Punktkette (Polyline) –
+ * kein Segment vom letzten zurück zum ersten Punkt. `distance` ist `Infinity`
+ * bei weniger als zwei Punkten.
+ */
+export function closestPointOnPolyline(polyline: readonly Point[], p: Point): PerimeterProjection {
+  let best: PerimeterProjection | null = null;
+  for (let i = 0; i + 1 < polyline.length; i++) {
+    const a = polyline[i];
+    const b = polyline[i + 1];
+    const abx = b.x - a.x;
+    const aby = b.y - a.y;
+    const lenSq = abx * abx + aby * aby;
+    const raw = lenSq === 0 ? 0 : ((p.x - a.x) * abx + (p.y - a.y) * aby) / lenSq;
+    const t = raw < 0 ? 0 : raw > 1 ? 1 : raw;
+    const point = { x: a.x + abx * t, y: a.y + aby * t };
+    const distance = Math.hypot(p.x - point.x, p.y - point.y);
+    if (!best || distance < best.distance) best = { point, segmentIndex: i, progress: t, distance };
+  }
+  return best ?? { point: { ...p }, segmentIndex: -1, progress: 0, distance: Infinity };
+}
+
+/**
+ * Kreuzt die Strecke `from → to` eine der Kanten der offenen Punktkette
+ * `polyline`? Für „die aktive Zeichenlinie ist eine Wand für Gegner"
+ * (Nutzer-Feedback): ein Gegner-Schritt, der die Linie schneidet, ist verboten.
+ */
+export function segmentCrossesPolyline(
+  from: Point,
+  to: Point,
+  polyline: readonly Point[],
+): boolean {
+  for (let i = 0; i + 1 < polyline.length; i++) {
+    if (segmentIntersection(from, to, polyline[i], polyline[i + 1])) return true;
+  }
+  return false;
+}

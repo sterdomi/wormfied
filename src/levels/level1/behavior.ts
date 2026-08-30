@@ -38,10 +38,20 @@ function walkStateFor(enemy: Enemy): RandomWalkState {
  * (`level.updateEnemies(...)`), solange die Gegner nicht eingefroren sind.
  */
 export function updateLevel1Enemies(context: LevelEnemyUpdateContext): Projectile[] {
-  const { mainEnemy, miniEnemies, field, playerPosition, dt, mainEnemyShooting, miniEnemyShooting } =
-    context;
+  const {
+    mainEnemy,
+    miniEnemies,
+    field,
+    playerPosition,
+    dt,
+    mainEnemyShooting,
+    miniEnemyShooting,
+    activeLine,
+  } = context;
 
-  moveEnemies([mainEnemy, ...miniEnemies], walkStateFor, field, dt);
+  // `activeLine` (Nutzer-Feedback): die Gegner dürfen die gerade gezeichnete
+  // Linie nicht überqueren – sie wirkt für die Bewegung wie eine Wand.
+  moveEnemies([mainEnemy, ...miniEnemies], walkStateFor, field, dt, undefined, activeLine);
 
   const shots: Projectile[] = [];
   const mainShot = tickEnemyShooting(mainEnemy, mainEnemyShooting, playerPosition, dt);

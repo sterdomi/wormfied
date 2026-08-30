@@ -17,8 +17,8 @@ import { renderLevel2Enemies } from './render';
  * entfernt ein Glied wie gewohnt, die Kette wird dann kürzer. Level-Abschluss
  * läuft wie in Level 1 über die eroberte Fläche, nicht über besiegte Minis.
  *
- * Schiessen: niemand. Eigenes Background-/Foreground-Artwork; noch keine Musik,
- * Bonusstein-Werte von Level 1.
+ * Schiessen: nur der Kopf (`mainEnemy.shooting`, siehe `behavior.ts`). Eigenes
+ * Background-/Foreground-Artwork + Musik; Bonusstein-Werte von Level 1.
  */
 export const level2: LevelConfig = {
   id: 'level2',
@@ -32,7 +32,13 @@ export const level2: LevelConfig = {
     // hält die Schlange trotzdem gut lesbar.
     speed: 250,
     size: 130,
-    // Kein `shooting` – Level 2 startet ohne Gegner-Beschuss.
+    shooting: {
+      enabled: true,
+      cooldownSeconds: 2.6,
+      projectileSpeed: 600,
+      projectileSize: 18,
+      projectileAssetSrc: '/assets/projectiles/kugel.svg',
+    },
   },
   miniEnemies: {
     count: 3,
@@ -86,5 +92,5 @@ export const level2: LevelConfig = {
       assetSrc: '/assets/bonuses/bonus-bomb.svg',
     },
   },
-  // Kein `musicSrc` – Level 2 bleibt vorerst still.
+  musicSrc: '/assets/levels/level2/level2.mp3',
 };

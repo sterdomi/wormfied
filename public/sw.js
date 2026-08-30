@@ -31,31 +31,7 @@
  * Subpath-Build) – funktioniert dadurch ohne Anpassung in beiden Fällen,
  * genau wie `resolveAssetPath` im App-Code (siehe `src/engine/assetPath.ts`).
  */
-
-// v1 → v2: Umstieg auf Network-first für Navigationen (siehe oben) – der
-// Versions-Bump räumt einmalig auch bei Geräten auf, die noch eine unter v1
-// dauerhaft eingefrorene HTML-Seite im Cache hatten.
-// v2 → v3: Logo/Icons/Cyborg-Sprites unter GLEICHEM Dateinamen inhaltlich
-// geändert (Marienkäfer → Cyborg) – Cache-first für Bilder (siehe unten)
-// erkennt eine reine Inhaltsänderung unter derselben URL nicht von selbst,
-// nur ein neuer Cache-Name erzwingt hier den Cutover. Faustregel für
-// künftige Änderungen: Wird eine Datei unter public/ inhaltlich ersetzt
-// (nicht nur ergänzt), CACHE_NAME mit hochzählen.
-// v3 → v4: Level-1-Foreground (`foreground.png`) inhaltlich ersetzt
-// (Schachbrett → Spinnennetz), gleicher Dateiname – siehe Faustregel oben.
-// v4 → v5: Spinnennetz-Foreground auf hellblauen Grund umgestellt.
-// v5 → v6: Level 2 dazugekommen (Schlangen-Gegner) – neue Sprites unter
-// `assets/levels/level2/` in CORE_ASSETS aufgenommen (rein additiv, aber ein
-// neuer Cache-Name ist nötig, damit der Install-Handler sie vorab cacht).
-// …→ v9: Schlangenkopf-SVGs (`snake_head_*.svg`) inhaltlich angepasst
-// (Spiegelung raus, viewBox gepolstert → Kopf kleiner) – gleicher Dateiname,
-// daher Cache-Bump nach der Faustregel oben.
-// v9 → v10: Level-2-Schlange auf den Drachen umgestellt – `snake_*.svg` raus,
-// `gegner.svg` / `gegner-walk.svg` unter `level2/` rein. `cache.addAll` würde
-// mit den nicht mehr existierenden `snake_*`-Einträgen komplett fehlschlagen.
-// …→ v12: Level 2 hat eigenes `background.png` / `foreground.png` unter
-// `level2/` – in CORE_ASSETS aufgenommen (Bump für den Install-Precache).
-const CACHE_NAME = 'wormfied-v12';
+const CACHE_NAME = 'wormfied-v15';
 
 const CORE_ASSETS = [
   './',

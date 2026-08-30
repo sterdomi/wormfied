@@ -1,7 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { createEnemy } from '../../game/enemy';
 import { createRectangularField } from '../../game/field';
+import type { ShootingConfig } from '../types';
 import { updateLevel2Enemies } from './behavior';
+
+const SHOOTING: ShootingConfig = {
+  enabled: true,
+  cooldownSeconds: 2.6,
+  projectileSpeed: 600,
+  projectileSize: 18,
+  projectileAssetSrc: '/x.svg',
+};
 
 function context(overrides: Partial<Parameters<typeof updateLevel2Enemies>[0]> = {}) {
   const head = createEnemy({ x: 400, y: 200 }, { speed: 250, size: 130 });
@@ -37,8 +46,23 @@ describe('updateLevel2Enemies', () => {
     expect(d[1]).toBeLessThan(d[2]);
   });
 
-  it('niemand schiesst in Level 2', () => {
+  it('ohne Schuss-Konfiguration feuert niemand', () => {
     expect(updateLevel2Enemies(context({ dt: 10 }))).toEqual([]);
+  });
+
+  it('der Kopf feuert, sobald sein Cooldown erreicht ist', () => {
+    const shots = updateLevel2Enemies(
+      context({ mainEnemyShooting: SHOOTING, dt: SHOOTING.cooldownSeconds }),
+    );
+    expect(shots).toHaveLength(1);
+  });
+
+  it('die Körperglieder feuern nicht (nur der Kopf)', () => {
+    // miniEnemyShooting wird von updateLevel2Enemies bewusst ignoriert.
+    const shots = updateLevel2Enemies(
+      context({ miniEnemyShooting: SHOOTING, dt: SHOOTING.cooldownSeconds }),
+    );
+    expect(shots).toEqual([]);
   });
 
   it('kommt mit weniger Minis klar (Glied besiegt)', () => {

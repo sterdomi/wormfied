@@ -157,6 +157,13 @@ export interface LevelEnemyUpdateContext {
   field: Point[];
   /** Aktuelle Spielerposition – Zielpunkt für schiessende Gegner. */
   playerPosition: Point;
+  /**
+   * Die aktuell gezeichnete Linie (Punktkette inkl. Spielerposition als Kopf),
+   * solange der Spieler im `drawing`-Modus ist – sonst `undefined`. Gegner
+   * dürfen sie NICHT überqueren (Nutzer-Feedback): sie wirkt für die
+   * Gegner-Bewegung wie eine Wand.
+   */
+  activeLine?: readonly Point[];
   /** Delta-Time dieses Frames (Sekunden). */
   dt: number;
   /**

@@ -41,6 +41,21 @@ describe('advanceSnakeHead', () => {
     expect(maxX).toBeLessThanOrEqual(600 - MARGIN + 1);
   });
 
+  it('überquert die aktive Zeichenlinie nicht (sie wirkt wie eine Wand)', () => {
+    const state = createSnakeHeadState({ x: 1, y: 0 });
+    // Senkrechte Linie bei x = 400, quer zum nach rechts laufenden Kopf.
+    const line = [
+      { x: 400, y: 0 },
+      { x: 400, y: 400 },
+    ];
+    let pos = { x: 360, y: 200 };
+    for (let i = 0; i < 600; i++) {
+      pos = advanceSnakeHead(pos, state, FIELD, MARGIN, SPEED, DT, () => 0.5, line);
+      expect(isPointInPolygon(pos, FIELD)).toBe(true);
+      expect(pos.x).toBeLessThanOrEqual(400);
+    }
+  });
+
   it('begrenzt die Drehrate pro Frame', () => {
     const state = createSnakeHeadState({ x: 1, y: 0 });
     // Abbiege-Impuls sofort erzwingen, mit maximalem Ziel-Winkel (rng ~ 1).

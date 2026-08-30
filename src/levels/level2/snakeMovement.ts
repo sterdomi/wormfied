@@ -1,7 +1,11 @@
 import type { Vec } from '../../game/enemy';
 import type { Point } from '../../game/field';
 import { fitsInPolygon } from '../../game/enemyMovement';
-import { closestPointOnPerimeter } from '../../game/geometry';
+import {
+  closestPointOnPerimeter,
+  closestPointOnPolyline,
+  segmentCrossesPolyline,
+} from '../../game/geometry';
 import { isPointInPolygon } from '../../game/polygon';
 
 /**
@@ -98,33 +102,38 @@ function nextTurnInterval(rng: () => number): number {
 }
 
 /**
- * Ein Ziel-Heading, das am Rand ENTLANG führt (nicht frontal hinein): die ins
- * Feld zeigende Normale, gemischt mit der Rand-Tangente, die der aktuellen
- * Laufrichtung am ähnlichsten ist.
+ * Ein Ziel-Heading, das an einem Hindernis (Feld-Rand ODER aktive Zeichenlinie)
+ * ENTLANG führt statt frontal hinein: die vom Hindernis weg zeigende Richtung,
+ * gemischt mit der Tangente, die der aktuellen Laufrichtung am ähnlichsten ist.
  */
-function alongWallTarget(position: Point, polygon: Point[], heading: Vec): Vec {
-  const near = closestPointOnPerimeter(polygon, position).point;
-  const inward = normalizeOr({ x: position.x - near.x, y: position.y - near.y }, heading);
-  const tangentA = { x: -inward.y, y: inward.x };
-  const tangentB = { x: inward.y, y: -inward.x };
+function alongObstacleTarget(position: Point, near: Point, heading: Vec): Vec {
+  const away = normalizeOr({ x: position.x - near.x, y: position.y - near.y }, heading);
+  const tangentA = { x: -away.y, y: away.x };
+  const tangentB = { x: away.y, y: -away.x };
   const along = dot(tangentA, heading) >= dot(tangentB, heading) ? tangentA : tangentB;
   return normalizeOr(
-    { x: along.x * 0.8 + inward.x * 0.55, y: along.y * 0.8 + inward.y * 0.55 },
-    inward,
+    { x: along.x * 0.8 + away.x * 0.55, y: along.y * 0.8 + away.y * 0.55 },
+    away,
   );
 }
 
 /**
  * Die Richtung (aus `INWARD_SAMPLES` rundum), deren Ein-Schritt-Probe im Feld
- * liegt und den grössten Abstand zum Rand hat – also „am weitesten weg von der
- * Wand". `null`, wenn KEINE Probe im Feld liegt (entarteter Fall).
+ * liegt, die aktive Linie nicht kreuzt und den grössten Abstand zum Rand hat –
+ * also „am weitesten weg von der Wand". `null`, wenn KEINE Probe passt.
  */
-function mostInwardDirection(position: Point, polygon: Point[], step: number): Vec | null {
+function mostInwardDirection(
+  position: Point,
+  polygon: Point[],
+  step: number,
+  activeLine: readonly Point[],
+): Vec | null {
   let best: { dir: Vec; distance: number } | null = null;
   for (let i = 0; i < INWARD_SAMPLES; i++) {
     const dir = vecFromAngle((i / INWARD_SAMPLES) * Math.PI * 2);
     const probe = { x: position.x + dir.x * step, y: position.y + dir.y * step };
     if (!isPointInPolygon(probe, polygon)) continue;
+    if (segmentCrossesPolyline(position, probe, activeLine)) continue;
     const distance = closestPointOnPerimeter(polygon, probe).distance;
     if (!best || distance > best.distance) best = { dir, distance };
   }
@@ -145,8 +154,14 @@ export function advanceSnakeHead(
   speed: number,
   dt: number,
   rng: () => number = Math.random,
+  /** Aktive Zeichenlinie – der Kopf darf sie nicht überqueren (Wand). */
+  activeLine: readonly Point[] = [],
 ): Point {
   const step = speed * dt;
+
+  /** Ziel gültig: im Feld (mit Marge) UND der Schritt kreuzt die aktive Linie nicht. */
+  const canReach = (to: Point): boolean =>
+    fitsInPolygon(to, polygon, margin) && !segmentCrossesPolyline(position, to, activeLine);
 
   // 1. Abbiegetakt: ab und zu ein neues Ziel-Heading würfeln.
   state.timeUntilTurn -= dt;
@@ -156,16 +171,28 @@ export function advanceSnakeHead(
     state.timeUntilTurn = nextTurnInterval(rng);
   }
 
-  // 2. Vorausschau: droht ein paar Schritte weiter der Rand, das Ziel-Heading
-  //    schon jetzt am Rand entlang umlenken – die Drehung selbst bleibt
-  //    ratenbegrenzt (Schritt 3), also weich.
+  // 2. Vorausschau: droht ein paar Schritte weiter der Rand ODER die aktive
+  //    Zeichenlinie, das Ziel-Heading schon jetzt am Hindernis entlang
+  //    umlenken – die Drehung selbst bleibt ratenbegrenzt (Schritt 3), weich.
   const lookAhead = {
     x: position.x + state.heading.x * step * LOOKAHEAD_STEPS,
     y: position.y + state.heading.y * step * LOOKAHEAD_STEPS,
   };
-  const evading = !fitsInPolygon(lookAhead, polygon, margin);
-  if (evading) {
-    state.targetHeading = alongWallTarget(position, polygon, state.heading);
+  let evading = false;
+  if (!fitsInPolygon(lookAhead, polygon, margin)) {
+    evading = true;
+    state.targetHeading = alongObstacleTarget(
+      position,
+      closestPointOnPerimeter(polygon, position).point,
+      state.heading,
+    );
+  } else if (segmentCrossesPolyline(position, lookAhead, activeLine)) {
+    evading = true;
+    state.targetHeading = alongObstacleTarget(
+      position,
+      closestPointOnPolyline(activeLine, position).point,
+      state.heading,
+    );
   }
 
   // 3. Heading Richtung Ziel-Heading drehen – beim Ausweichen schneller, aber
@@ -179,7 +206,7 @@ export function advanceSnakeHead(
     y: position.y + dir.y * step,
   });
   const next = advance(state.heading);
-  if (fitsInPolygon(next, polygon, margin)) return next;
+  if (canReach(next)) return next;
 
   // 5. Der reguläre Schritt passt nicht (Kopf sitzt im `margin`-Puffer vor der
   //    Wand): Heading ratenbegrenzt Richtung „am weitesten von der Wand weg"
@@ -187,12 +214,12 @@ export function advanceSnakeHead(
   //    passt. Reicht die Drehung diesen Frame noch nicht, bleibt der Kopf kurz
   //    stehen (1–3 Frames) und dreht weiter – kein Sprung, damit Kopf-Sprite
   //    und nachgezogener Körper zusammen bleiben.
-  const inward = mostInwardDirection(position, polygon, step);
+  const inward = mostInwardDirection(position, polygon, step, activeLine);
   if (inward) {
     state.targetHeading = { ...inward };
     state.heading = steerToward(state.heading, inward, SNAKE_EVADE_TURN_RATE_RAD_PER_SEC * dt);
     const moved = advance(state.heading);
-    if (fitsInPolygon(moved, polygon, margin)) return moved;
+    if (canReach(moved)) return moved;
   }
 
   // 6. Nichts geht – diesen Frame stehen bleiben (Heading ist oben bereits

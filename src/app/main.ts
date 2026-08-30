@@ -904,6 +904,12 @@ function start(
         miniEnemies,
         field,
         playerPosition: player.position,
+        // Aktive Zeichenlinie (Punktkette + Spielerposition als Kopf), solange
+        // der Spieler zeichnet – Gegner dürfen sie nicht überqueren.
+        activeLine:
+          player.mode === 'drawing' && session
+            ? [...session.line.points, { x: player.position.x, y: player.position.y }]
+            : undefined,
         dt,
         mainEnemyShooting: level.mainEnemy.shooting,
         miniEnemyShooting: level.miniEnemies.config.shooting,

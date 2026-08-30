@@ -1,6 +1,6 @@
 import type { Point } from './field';
 import { type Enemy, type Vec } from './enemy';
-import { closestPointOnPerimeter } from './geometry';
+import { closestPointOnPerimeter, segmentCrossesPolyline } from './geometry';
 import { isPointInPolygon } from './polygon';
 
 /** Standard-Geschwindigkeit des Hauptgegners (Pixel/Sekunde), = Wert aus
@@ -158,6 +158,9 @@ export function moveEnemy(
   polygon: Point[],
   dt: number,
   rng: () => number = Math.random,
+  /** Aktive Zeichenlinie (Nutzer-Feedback): der Gegner darf sie nicht
+   *  überqueren. Leer/`undefined` = kein Zeichnen gerade. */
+  activeLine: readonly Point[] = [],
 ): void {
   if (walk.pauseRemainingSeconds > 0) {
     walk.pauseRemainingSeconds = Math.max(0, walk.pauseRemainingSeconds - dt);
@@ -179,8 +182,13 @@ export function moveEnemy(
     y: enemy.position.y + dir.y * step,
   });
 
+  /** Ziel gültig: im Feld (mit Marge) UND der Schritt kreuzt die aktive Linie nicht. */
+  const canGo = (dest: Point): boolean =>
+    fitsInPolygon(dest, polygon, margin) &&
+    !segmentCrossesPolyline(enemy.position, dest, activeLine);
+
   const straightAhead = advanced(enemy.direction);
-  if (fitsInPolygon(straightAhead, polygon, margin)) {
+  if (canGo(straightAhead)) {
     enemy.position = straightAhead;
     return;
   }
@@ -191,7 +199,7 @@ export function moveEnemy(
   // finden), die die volle Marge einhalten; `rng` wählt nur noch AUS den
   // gültigen Kandidaten aus (Abwechslung), nicht mehr FÜR die Suche selbst.
   const safeCandidates = CARDINAL_DIRECTIONS.map((dir) => ({ dir, point: advanced(dir) })).filter(
-    ({ point }) => fitsInPolygon(point, polygon, margin),
+    ({ point }) => canGo(point),
   );
   if (safeCandidates.length > 0) {
     const index = Math.min(safeCandidates.length - 1, Math.floor(rng() * safeCandidates.length));
@@ -208,6 +216,7 @@ export function moveEnemy(
   for (const dir of CARDINAL_DIRECTIONS) {
     const point = advanced(dir);
     if (!isPointInPolygon(point, polygon)) continue;
+    if (segmentCrossesPolyline(enemy.position, point, activeLine)) continue;
     const distance = closestPointOnPerimeter(polygon, point).distance;
     if (distance > currentDistance && (!best || distance > best.distance)) {
       best = { dir, point, distance };
@@ -233,6 +242,7 @@ export function moveEnemies(
   polygon: Point[],
   dt: number,
   rng: () => number = Math.random,
+  activeLine: readonly Point[] = [],
 ): void {
-  for (const enemy of enemies) moveEnemy(enemy, walkFor(enemy), polygon, dt, rng);
+  for (const enemy of enemies) moveEnemy(enemy, walkFor(enemy), polygon, dt, rng, activeLine);
 }
