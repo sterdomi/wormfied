@@ -1,23 +1,33 @@
 import { describe, it, expect } from 'vitest';
+import { createEnemy, enemyFacingAngle, type Enemy, type EnemySpec } from './enemy';
 import {
-  createEnemy,
-  ENEMY_PAUSE_INTERVAL_SECONDS,
-  enemyFacingAngle,
-  type EnemySpec,
-} from './enemy';
-import {
+  createRandomWalkState,
   ENEMY_PAUSE_DURATION_SECONDS,
+  ENEMY_PAUSE_INTERVAL_SECONDS,
   ENEMY_SPEED,
   moveEnemies,
   moveEnemy,
   randomDirection,
+  type RandomWalkState,
 } from './enemyMovement';
-import { createRectangularField } from './field';
+import { createRectangularField, type Point } from './field';
 import { closestPointOnPerimeter } from './geometry';
 import { isPointInPolygon } from './polygon';
 
 const MAIN: EnemySpec = { speed: ENEMY_SPEED, size: 40 };
 const MINI: EnemySpec = { speed: ENEMY_SPEED * 1.5, size: 22 };
+
+// Der Pausen-Zustand der Lauf-Bewegung liegt seit dem Behavior-Refactor NICHT
+// mehr auf `Enemy`, sondern separat (`RandomWalkState`). Diese Test-Hülle hält
+// ihn je Gegner in einer WeakMap – genau wie das Level-1-Behavior real.
+const walks = new WeakMap<Enemy, RandomWalkState>();
+const walkOf = (enemy: Enemy): RandomWalkState => {
+  let state = walks.get(enemy);
+  if (!state) walks.set(enemy, (state = createRandomWalkState()));
+  return state;
+};
+const move = (enemy: Enemy, polygon: Point[], dt: number, rng?: () => number): void =>
+  moveEnemy(enemy, walkOf(enemy), polygon, dt, rng ?? Math.random);
 
 describe('randomDirection', () => {
   it('liefert einen Einheitsvektor', () => {
@@ -60,7 +70,7 @@ describe('moveEnemy', () => {
 
   it('bewegt einen Gegner delta-time-basiert mit seiner eigenen speed', () => {
     const enemy = createEnemy({ x: 200, y: 150 }, MAIN, { x: 1, y: 0 });
-    moveEnemy(enemy, field, 1, () => 0.5);
+    move(enemy, field, 1, () => 0.5);
     expect(enemy.position.x).toBeCloseTo(200 + MAIN.speed);
     expect(enemy.position.y).toBeCloseTo(150);
   });
@@ -68,8 +78,8 @@ describe('moveEnemy', () => {
   it('funktioniert mit derselben Funktion für Haupt- und Mini-Gegner', () => {
     const main = createEnemy({ x: 100, y: 150 }, MAIN, { x: 1, y: 0 });
     const mini = createEnemy({ x: 100, y: 150 }, MINI, { x: 1, y: 0 });
-    moveEnemy(main, field, 1, () => 0.5);
-    moveEnemy(mini, field, 1, () => 0.5);
+    move(main, field, 1, () => 0.5);
+    move(mini, field, 1, () => 0.5);
 
     expect(main.position.x).toBeCloseTo(100 + MAIN.speed);
     expect(mini.position.x).toBeCloseTo(100 + MINI.speed);
@@ -86,7 +96,7 @@ describe('moveEnemy', () => {
       return seed / 0x7fffffff;
     };
     for (let i = 0; i < 3000; i++) {
-      moveEnemy(enemy, field, 1 / 30, rng);
+      move(enemy, field, 1 / 30, rng);
       expect(isPointInPolygon(enemy.position, field)).toBe(true);
     }
   });
@@ -100,7 +110,7 @@ describe('moveEnemy', () => {
       return seed / 0x7fffffff;
     };
     for (let i = 0; i < 3000; i++) {
-      moveEnemy(enemy, field, 1 / 30, rng);
+      move(enemy, field, 1 / 30, rng);
       expect(enemy.position.x).toBeGreaterThanOrEqual(margin - 1e-6);
       expect(enemy.position.x).toBeLessThanOrEqual(400 - margin + 1e-6);
       expect(enemy.position.y).toBeGreaterThanOrEqual(margin - 1e-6);
@@ -120,7 +130,7 @@ describe('moveEnemy', () => {
     expect(distanceBefore).toBeLessThan(MAIN.size / 2);
 
     for (let i = 0; i < 60; i++) {
-      moveEnemy(enemy, tightField, 1 / 30, () => 0.5);
+      move(enemy, tightField, 1 / 30, () => 0.5);
     }
 
     const distanceAfter = closestPointOnPerimeter(tightField, enemy.position).distance;
@@ -130,7 +140,7 @@ describe('moveEnemy', () => {
 
   it('kehrt an einer Wand die Richtung um, wenn keine Zufallsrichtung passt (Fallback)', () => {
     const enemy = createEnemy({ x: 399, y: 150 }, MAIN, { x: 1, y: 0 });
-    moveEnemy(enemy, field, 1, () => 0);
+    move(enemy, field, 1, () => 0);
     expect(enemy.direction.x).toBeLessThan(0);
     expect(isPointInPolygon(enemy.position, field)).toBe(true);
   });
@@ -146,7 +156,7 @@ describe('moveEnemy', () => {
     ];
     const enemy = createEnemy({ x: 60, y: 60 }, MAIN, { x: 1, y: 1 });
     for (let i = 0; i < 1500; i++) {
-      moveEnemy(enemy, lShaped, 1 / 30, () => Math.random());
+      move(enemy, lShaped, 1 / 30, () => Math.random());
       expect(isPointInPolygon(enemy.position, lShaped)).toBe(true);
     }
   });
@@ -162,31 +172,31 @@ describe('moveEnemy – Pausen (Nutzer-Feedback: "manchmal für eine Sekunde anh
 
   it('bewegt sich normal, solange das Pause-Intervall noch nicht erreicht ist', () => {
     const enemy = createEnemy(start, MAIN, { x: 1, y: 0 });
-    moveEnemy(enemy, field, ENEMY_PAUSE_INTERVAL_SECONDS - 1, () => 0.5);
+    move(enemy, field, ENEMY_PAUSE_INTERVAL_SECONDS - 1, () => 0.5);
     expect(enemy.position.x).toBeCloseTo(start.x + MAIN.speed * (ENEMY_PAUSE_INTERVAL_SECONDS - 1));
-    expect(enemy.pauseRemainingSeconds).toBe(0);
+    expect(walkOf(enemy).pauseRemainingSeconds).toBe(0);
   });
 
   it('hält beim Erreichen des Intervalls an, statt sich zu bewegen', () => {
     const enemy = createEnemy(start, MAIN, { x: 1, y: 0 });
-    moveEnemy(enemy, field, ENEMY_PAUSE_INTERVAL_SECONDS, () => 0.5);
+    move(enemy, field, ENEMY_PAUSE_INTERVAL_SECONDS, () => 0.5);
     expect(enemy.position).toEqual(start); // keine Bewegung diesen Frame
-    expect(enemy.pauseRemainingSeconds).toBe(ENEMY_PAUSE_DURATION_SECONDS);
+    expect(walkOf(enemy).pauseRemainingSeconds).toBe(ENEMY_PAUSE_DURATION_SECONDS);
   });
 
   it('bleibt für die gesamte Pausendauer stehen und bewegt sich danach wieder', () => {
     const enemy = createEnemy(start, MAIN, { x: 1, y: 0 });
-    moveEnemy(enemy, field, ENEMY_PAUSE_INTERVAL_SECONDS, () => 0.5); // Pause beginnt
+    move(enemy, field, ENEMY_PAUSE_INTERVAL_SECONDS, () => 0.5); // Pause beginnt
 
     // Mitten in der Pause: weiterhin keine Bewegung.
-    moveEnemy(enemy, field, ENEMY_PAUSE_DURATION_SECONDS / 2, () => 0.5);
+    move(enemy, field, ENEMY_PAUSE_DURATION_SECONDS / 2, () => 0.5);
     expect(enemy.position).toEqual(start);
-    expect(enemy.pauseRemainingSeconds).toBeCloseTo(ENEMY_PAUSE_DURATION_SECONDS / 2);
+    expect(walkOf(enemy).pauseRemainingSeconds).toBeCloseTo(ENEMY_PAUSE_DURATION_SECONDS / 2);
 
     // Pause zu Ende: nächster Frame bewegt sich der Gegner wieder normal.
-    moveEnemy(enemy, field, ENEMY_PAUSE_DURATION_SECONDS / 2, () => 0.5);
-    expect(enemy.pauseRemainingSeconds).toBe(0);
-    moveEnemy(enemy, field, 1, () => 0.5);
+    move(enemy, field, ENEMY_PAUSE_DURATION_SECONDS / 2, () => 0.5);
+    expect(walkOf(enemy).pauseRemainingSeconds).toBe(0);
+    move(enemy, field, 1, () => 0.5);
     expect(enemy.position.x).toBeCloseTo(start.x + MAIN.speed);
   });
 });
@@ -198,7 +208,7 @@ describe('moveEnemies', () => {
       createEnemy({ x: 100, y: 150 }, MAIN, { x: 1, y: 0 }),
       createEnemy({ x: 100, y: 150 }, MINI, { x: 1, y: 0 }),
     ];
-    moveEnemies(list, field, 1, () => 0.5);
+    moveEnemies(list, walkOf, field, 1, () => 0.5);
     expect(list[0].position.x).toBeCloseTo(100 + MAIN.speed);
     expect(list[1].position.x).toBeCloseTo(100 + MINI.speed);
   });

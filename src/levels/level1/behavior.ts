@@ -1,11 +1,30 @@
-import { moveEnemies } from '../../game/enemyMovement';
+import type { Enemy } from '../../game/enemy';
+import { createRandomWalkState, moveEnemies, type RandomWalkState } from '../../game/enemyMovement';
 import { tickEnemyShooting, type Projectile } from '../../game/projectile';
 import type { LevelEnemyUpdateContext } from '../types';
 
 /**
+ * Pausen-Zustand der erratischen Lauf-Bewegung, je Gegner – bewusst neben der
+ * geteilten `Enemy`-Struktur gehalten (siehe `RandomWalkState`). `WeakMap`
+ * spart jede Lebenszyklus-Verdrahtung: ein bei `rebuildField` frisch erzeugter
+ * Gegner bekommt beim ersten Frame automatisch einen neuen Zustand, alte
+ * Gegner werden mitsamt Eintrag vom GC eingesammelt.
+ */
+const walkStates = new WeakMap<Enemy, RandomWalkState>();
+function walkStateFor(enemy: Enemy): RandomWalkState {
+  let state = walkStates.get(enemy);
+  if (!state) {
+    state = createRandomWalkState();
+    walkStates.set(enemy, state);
+  }
+  return state;
+}
+
+/**
  * Gegner-Logik von Level 1:
  *  - Bewegung: erratische Achs-Bewegung ALLER Gegner (`moveEnemies` behandelt
- *    Haupt- und Mini-Gegner gleich), begrenzt aufs aktive Feld-Polygon.
+ *    Haupt- und Mini-Gegner gleich), begrenzt aufs aktive Feld-Polygon. Der
+ *    Pausen-Timer je Gegner liegt in `walkStates` (nicht auf `Enemy`).
  *  - Schiessen: nur der Hauptgegner – ein gezielter Schuss auf die
  *    Spielerposition im konfigurierten Takt (`mainEnemyShooting`). Die
  *    Mini-Gegner schiessen in Level 1 nicht (`miniEnemyShooting` ist
@@ -22,7 +41,7 @@ export function updateLevel1Enemies(context: LevelEnemyUpdateContext): Projectil
   const { mainEnemy, miniEnemies, field, playerPosition, dt, mainEnemyShooting, miniEnemyShooting } =
     context;
 
-  moveEnemies([mainEnemy, ...miniEnemies], field, dt);
+  moveEnemies([mainEnemy, ...miniEnemies], walkStateFor, field, dt);
 
   const shots: Projectile[] = [];
   const mainShot = tickEnemyShooting(mainEnemy, mainEnemyShooting, playerPosition, dt);

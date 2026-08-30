@@ -1,5 +1,5 @@
 import type { Point } from './field';
-import { ENEMY_PAUSE_INTERVAL_SECONDS, type Enemy, type Vec } from './enemy';
+import { type Enemy, type Vec } from './enemy';
 import { closestPointOnPerimeter } from './geometry';
 import { isPointInPolygon } from './polygon';
 
@@ -19,6 +19,13 @@ const CARDINAL_DIRECTIONS: readonly Vec[] = [
 ];
 
 /**
+ * Durchschnittliches Intervall (Sekunden) zwischen zwei Pausen eines Gegners
+ * bei der erratischen Lauf-Bewegung – `moveEnemy` würfelt pro Zyklus per
+ * Zufall etwas darum herum (siehe `nextPauseIntervalSeconds`), damit nicht
+ * alle Gegner exakt im selben Takt anhalten.
+ */
+export const ENEMY_PAUSE_INTERVAL_SECONDS = 10;
+/**
  * Wie lange ein Gegner bei einer Pause stehen bleibt (Nutzer-Feedback:
  * "manchmal für eine Sekunde anhalten").
  */
@@ -32,6 +39,34 @@ const ENEMY_PAUSE_INTERVAL_JITTER_SECONDS = 2;
  *  (Tests) das Ergebnis leicht vorhersagen können. */
 function nextPauseIntervalSeconds(rng: () => number): number {
   return ENEMY_PAUSE_INTERVAL_SECONDS + (rng() * 2 - 1) * ENEMY_PAUSE_INTERVAL_JITTER_SECONDS;
+}
+
+/**
+ * Zustand der erratischen Lauf-Bewegung (`moveEnemy`) FÜR EINEN Gegner: die
+ * Pausen-Timer (Nutzer-Feedback: Gegner halten ab und zu kurz an). Bewusst
+ * neben `Enemy` gehalten – die geteilte Gegner-Struktur soll nicht mit jedem
+ * Bewegungsmuster mitwachsen (ein Level mit z.B. Snake-Bewegung bringt seinen
+ * eigenen Zustandstyp mit). Der Aufrufer (das `updateEnemies`-Behavior des
+ * Levels) hält je Gegner eine Instanz und reicht sie an `moveEnemy`.
+ */
+export interface RandomWalkState {
+  /** Sekunden seit der letzten Pause – zählt hoch bis `nextPauseIntervalSeconds`. */
+  timeSinceLastPause: number;
+  /** > 0, solange der Gegner gerade pausiert (zählt pro Frame runter). */
+  pauseRemainingSeconds: number;
+  /** Zufällig neu gewürfeltes Intervall (Sekunden) bis zur nächsten Pause –
+   *  erneuert nach jeder Pause, damit Gegner nicht alle im gleichen Takt anhalten. */
+  nextPauseIntervalSeconds: number;
+}
+
+/** Frischer `RandomWalkState`. Erstes Intervall bewusst ohne Zufalls-Jitter
+ *  (kein `rng` nötig) – der Jitter kommt ab der zweiten Pause dazu. */
+export function createRandomWalkState(): RandomWalkState {
+  return {
+    timeSinceLastPause: 0,
+    pauseRemainingSeconds: 0,
+    nextPauseIntervalSeconds: ENEMY_PAUSE_INTERVAL_SECONDS,
+  };
 }
 
 /**
@@ -99,6 +134,8 @@ export function randomDirection(rng: () => number = Math.random): Vec {
  * (`ENEMY_PAUSE_DURATION_SECONDS`, im Schnitt alle
  * `ENEMY_PAUSE_INTERVAL_SECONDS` ± Zufallsstreuung) – bewegt sich während
  * einer laufenden Pause diesen Frame gar nicht, unabhängig von Eingabe/KI.
+ * Dieser Pausen-Zustand liegt in `walk` (`RandomWalkState`, vom Aufrufer je
+ * Gegner gehalten), NICHT auf `enemy`.
  *
  * Und (Nutzer-Feedback): die "bleibt innerhalb der Fläche"-Prüfung hält
  * zusätzlich `enemy.size / 2` Sicherheitsabstand zum Rand ein (siehe
@@ -117,20 +154,21 @@ export function randomDirection(rng: () => number = Math.random): Vec {
  */
 export function moveEnemy(
   enemy: Enemy,
+  walk: RandomWalkState,
   polygon: Point[],
   dt: number,
   rng: () => number = Math.random,
 ): void {
-  if (enemy.pauseRemainingSeconds > 0) {
-    enemy.pauseRemainingSeconds = Math.max(0, enemy.pauseRemainingSeconds - dt);
+  if (walk.pauseRemainingSeconds > 0) {
+    walk.pauseRemainingSeconds = Math.max(0, walk.pauseRemainingSeconds - dt);
     return;
   }
 
-  enemy.timeSinceLastPause += dt;
-  if (enemy.timeSinceLastPause >= enemy.nextPauseIntervalSeconds) {
-    enemy.timeSinceLastPause = 0;
-    enemy.pauseRemainingSeconds = ENEMY_PAUSE_DURATION_SECONDS;
-    enemy.nextPauseIntervalSeconds = nextPauseIntervalSeconds(rng);
+  walk.timeSinceLastPause += dt;
+  if (walk.timeSinceLastPause >= walk.nextPauseIntervalSeconds) {
+    walk.timeSinceLastPause = 0;
+    walk.pauseRemainingSeconds = ENEMY_PAUSE_DURATION_SECONDS;
+    walk.nextPauseIntervalSeconds = nextPauseIntervalSeconds(rng);
     return; // Pause beginnt erst DIESEN Frame – noch keine Bewegung.
   }
 
@@ -183,12 +221,18 @@ export function moveEnemy(
   // wirklich zu engen Gangs – dort ist Stehenbleiben das korrekte Verhalten).
 }
 
-/** Bewegt alle übergebenen Gegner für einen Frame (siehe `moveEnemy`). */
+/**
+ * Bewegt alle übergebenen Gegner für einen Frame (siehe `moveEnemy`).
+ * `walkFor` liefert den `RandomWalkState` je Gegner – der Aufrufer hält die
+ * Zustände (z.B. in einer `WeakMap<Enemy, RandomWalkState>`), da `moveEnemy`
+ * sie über Frames hinweg fortschreibt.
+ */
 export function moveEnemies(
   enemies: readonly Enemy[],
+  walkFor: (enemy: Enemy) => RandomWalkState,
   polygon: Point[],
   dt: number,
   rng: () => number = Math.random,
 ): void {
-  for (const enemy of enemies) moveEnemy(enemy, polygon, dt, rng);
+  for (const enemy of enemies) moveEnemy(enemy, walkFor(enemy), polygon, dt, rng);
 }
