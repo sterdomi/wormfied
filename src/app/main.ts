@@ -399,12 +399,25 @@ function showStartScreen(canvas: HTMLCanvasElement, logoImage: HTMLImageElement)
 }
 
 /**
+ * Was ein abgeschlossenes Level ins nächste mitnimmt (Nutzer-Feedback: Score
+ * und Leben laufen über den Levelwechsel weiter). Das Schild dagegen startet
+ * pro Level frisch bei `STARTING_SHIELD`.
+ */
+interface LevelCarryOver {
+  score: number;
+  lives: number;
+}
+
+/**
  * Ergebnis eines `start()`-Laufs – sagt `boot()`, wie es weitergeht:
  * `toStartScreen` nach Game Over (zurück zum Startbildschirm, wieder ab
  * Level 1), `nextLevel` nach Levelabschluss + Enter (ohne Startbildschirm
- * direkt ins nächste Level – bei nur einem Level eine Wiederholung).
+ * direkt ins nächste Level – bei nur einem Level eine Wiederholung), samt
+ * dem Score-/Leben-Stand, den das nächste Level übernimmt.
  */
-type StartOutcome = 'toStartScreen' | 'nextLevel';
+type StartOutcome =
+  | { kind: 'toStartScreen' }
+  | { kind: 'nextLevel'; carryOver: LevelCarryOver };
 
 /**
  * Startet eine Partie mit `level`. Löst mit `toStartScreen` auf, sobald nach
@@ -413,6 +426,9 @@ type StartOutcome = 'toStartScreen' | 'nextLevel';
  * gedrückt wird. In beiden Fällen ist die Partie vorher sauber abgebaut
  * (`teardown`), den weiteren Ablauf (nächstes Level / Startbildschirm)
  * steuert `boot()`.
+ *
+ * `carryOver` (aus dem `nextLevel`-Ergebnis des vorigen Levels) hebt Score
+ * und Leben auf deren Endstand an; `null` = frische Partie (Startwerte).
  */
 function start(
   canvas: HTMLCanvasElement,
@@ -423,6 +439,7 @@ function start(
   playerCyborgImage: HTMLImageElement,
   playerWalkCyborgImage: HTMLImageElement,
   logoImage: HTMLImageElement,
+  carryOver: LevelCarryOver | null,
 ): Promise<StartOutcome> {
   // Wird synchron im Promise-Executor unten zugewiesen (läuft vor jedem
   // anderen Code in dieser Funktion) – die Definite-Assignment-Assertion ist
@@ -695,6 +712,14 @@ function start(
   const view = setupCanvas(canvas);
   const input = setupInput();
   rebuildField();
+  if (carryOver) {
+    // Score + Leben laufen über den Levelwechsel weiter (Nutzer-Feedback) –
+    // `rebuildField` bzw. `createPlayerState` starten sie bei 0 / STARTING_LIVES,
+    // hier auf den Endstand des vorigen Levels gehoben. Das Schild bleibt
+    // bewusst frisch (`STARTING_SHIELD`).
+    scoring.score = carryOver.score;
+    playerState.lives = carryOver.lives;
+  }
   hud.setScore(scoring.score);
   hud.setLives(playerState.lives);
   hud.setShield(playerState.shield);
@@ -725,7 +750,7 @@ function start(
         gameOverAt !== null && performance.now() - gameOverAt >= GAME_OVER_DISPLAY_MS;
       if (displayTimeElapsed || restartPressed) {
         teardown();
-        resolveStart('toStartScreen');
+        resolveStart({ kind: 'toStartScreen' });
       }
       return;
     }
@@ -745,10 +770,15 @@ function start(
         return;
       }
       // Levelabschluss bestätigt: Partie abbauen, den weiteren Ablauf
-      // (nächstes Level, ohne Startbildschirm) übernimmt `boot()`.
+      // (nächstes Level, ohne Startbildschirm) übernimmt `boot()`. Score +
+      // Leben (inkl. Levelabschluss-Bonus, der schon in `scoring.score`
+      // steckt) wandern als `carryOver` mit.
       if (restartPressed) {
         teardown();
-        resolveStart('nextLevel');
+        resolveStart({
+          kind: 'nextLevel',
+          carryOver: { score: scoring.score, lives: playerState.lives },
+        });
       }
       return;
     }
@@ -1360,10 +1390,9 @@ function start(
 async function boot(): Promise<void> {
   showLoading(gameCanvas);
 
-  // TODO(Level 2): Levelbilder + Musik pro Level laden (statt hier einmal
-  // fest für Level 1) und Score/Leben über den Levelwechsel hinweg mitnehmen –
-  // aktuell startet jedes Level bei 0 Punkten / 3 Leben. Solange es nur ein
-  // Level gibt, ist `levels[0]` unten überall die richtige Wahl.
+  // TODO(Level 2): Levelbilder + Musik pro Level laden statt hier einmal fest
+  // für Level 1. Solange es nur ein Level gibt, ist `levels[0]` unten überall
+  // die richtige Wahl.
   const level = levels[0];
   // Levelspezifische Hintergrundmusik (falls konfiguriert) zu den globalen
   // SFX dazumischen – bewusst nicht Teil von `SOUND_SOURCES`, da sie über
@@ -1396,13 +1425,15 @@ async function boot(): Promise<void> {
   // Startbildschirm ↔ Partie im Wechsel. `start()` meldet über seinen
   // `StartOutcome` zurück, wie es weitergeht:
   //  - `toStartScreen` (Game Over): zurück zum Startbildschirm, wieder ab
-  //    Level 1.
+  //    Level 1, mit frischem Score/Leben (`carryOver` zurück auf `null`).
   //  - `nextLevel` (Levelabschluss + Enter): ohne Startbildschirm direkt ins
-  //    nächste Level. `% levels.length` lässt hinter dem letzten Level wieder
-  //    das erste folgen (bei nur einem Level: Wiederholung von Level 1 –
-  //    ersetzt den früheren In-Place-Neustart `restartGame`).
+  //    nächste Level, Score + Leben laufen über `carryOver` weiter.
+  //    `% levels.length` lässt hinter dem letzten Level wieder das erste
+  //    folgen (bei nur einem Level: Wiederholung von Level 1 – ersetzt den
+  //    früheren In-Place-Neustart `restartGame`).
   let levelIndex = 0;
   let showStart = true;
+  let carryOver: LevelCarryOver | null = null;
   for (;;) {
     if (showStart) await showStartScreen(gameCanvas, logoImage);
     const outcome = await start(
@@ -1414,13 +1445,16 @@ async function boot(): Promise<void> {
       playerCyborgImage,
       playerWalkCyborgImage,
       logoImage,
+      carryOver,
     );
-    if (outcome === 'nextLevel') {
+    if (outcome.kind === 'nextLevel') {
       levelIndex = (levelIndex + 1) % levels.length;
       showStart = false;
+      carryOver = outcome.carryOver;
     } else {
       levelIndex = 0;
       showStart = true;
+      carryOver = null;
     }
   }
 }
