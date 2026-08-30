@@ -281,6 +281,8 @@ describe('levelClearPercentBonus', () => {
     expect(levelClearPercentBonus(85)).toBe(1000);
     expect(levelClearPercentBonus(94.9)).toBe(6000); // 93 %-Stufe
     expect(levelClearPercentBonus(99)).toBe(35000);
+    expect(levelClearPercentBonus(99.8)).toBe(35000); // Spitzenstufe erst ab 99.9
+    expect(levelClearPercentBonus(99.9)).toBe(60000);
     expect(levelClearPercentBonus(100)).toBe(60000);
   });
 

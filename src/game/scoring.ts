@@ -34,13 +34,15 @@ export const defaultMainEnemyDefeatedPoints = 2000;
  *
  * Absteigend sortiert (`levelClearPercentBonus` nimmt die erste passende
  * Stufe). `80` ist bewusst mit Bonus 0 gelistet, damit die Tabelle im
- * Level-Complete-Overlay genau bei der Abschlussschwelle beginnt.
+ * Level-Complete-Overlay genau bei der Abschlussschwelle beginnt. Die
+ * Spitzenstufe liegt bei 99.9 % (nicht 100 %) – ein exakt perfekter Abschluss
+ * ist praktisch unerreichbar, ebenso im Volfied-Original.
  */
 export const LEVEL_CLEAR_PERCENT_BONUS_TIERS: readonly {
   minPercent: number;
   bonus: number;
 }[] = [
-  { minPercent: 100, bonus: 60_000 },
+  { minPercent: 99.9, bonus: 60_000 },
   { minPercent: 99, bonus: 35_000 },
   { minPercent: 97, bonus: 18_000 },
   { minPercent: 95, bonus: 10_000 },
