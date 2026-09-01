@@ -74,6 +74,7 @@ describe('Level-Registry', () => {
     expect(level2.mainEnemy.shooting?.enabled).toBe(true);
     expect(level2.mainEnemy.shooting!.cooldownSeconds).toBeGreaterThan(0);
     expect(level2.mainEnemy.shooting!.projectileAssetSrc).toMatch(/projectiles\/torpedo\.png$/);
+    expect(level2.mainEnemy.shooting!.soundSrc).toMatch(/sound\/torpedo\.mp3$/);
     expect(level2.miniEnemies.config.shooting?.enabled ?? false).toBe(false);
 
     // Spieler startet Level 2 mit Kanone (→ Cyborg-Look) ausgerüstet.

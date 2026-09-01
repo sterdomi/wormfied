@@ -1,5 +1,6 @@
 import { tickEnemyShooting, type Projectile } from '../../game/projectile';
 import type { LevelEnemyUpdateContext } from '../types';
+import { spawnTorpedoLaunchBubbles } from './bubbles';
 import { advanceSpitMinis, chainSegmentsInOrder, spitMiniFromMouth } from './mouthSpit';
 import { advanceSnakeBody, snakeBodyFor } from './snakeBody';
 
@@ -54,5 +55,16 @@ export function updateLevel2Enemies(context: LevelEnemyUpdateContext): Projectil
   advanceSpitMinis(miniEnemies, dockPoint, field, dt, undefined, activeLine);
 
   const shot = tickEnemyShooting(mainEnemy, mainEnemyShooting, playerPosition, dt);
+  if (shot) {
+    // Hinter dem gerade abgefeuerten Torpedo ein aufsteigendes Bläschen-
+    // Wölkchen: Abschussort entgegen der Schussrichtung versetzt (weit genug
+    // hinter die Kopf-Mitte, dass die Blasen nicht komplett unter dem
+    // Kopf-Sprite hängen).
+    const len = Math.hypot(shot.velocity.x, shot.velocity.y) || 1;
+    spawnTorpedoLaunchBubbles(
+      mainEnemy.position.x - (shot.velocity.x / len) * mainEnemy.size * 0.45,
+      mainEnemy.position.y - (shot.velocity.y / len) * mainEnemy.size * 0.45,
+    );
+  }
   return shot ? [shot] : [];
 }

@@ -328,6 +328,20 @@ const MUSIC_SOUND_KEY = 'music';
 function levelMusicKey(level: LevelConfig): string {
   return `${MUSIC_SOUND_KEY}:${level.id}`;
 }
+
+/** Pfad des levelspezifischen Schuss-Sounds (`shooting.soundSrc`), falls
+ *  einer gesetzt ist – Hauptgegner hat Vorrang vor den Mini-Gegnern. */
+function levelEnemyShotSrc(level: LevelConfig): string | undefined {
+  return level.mainEnemy.shooting?.soundSrc ?? level.miniEnemies.config.shooting?.soundSrc;
+}
+/**
+ * Sound-Key für den Gegner-Schuss dieses Levels: ein eigener Key pro Level-`id`
+ * (analog `levelMusicKey`), sobald `shooting.soundSrc` gesetzt ist – sonst der
+ * globale `enemy_shot`-SFX aus `SOUND_SOURCES`.
+ */
+function enemyShotSoundKey(level: LevelConfig): string {
+  return levelEnemyShotSrc(level) ? `enemy_shot:${level.id}` : 'enemy_shot';
+}
 /** Deutlich leiser als die SFX, damit sie im Hintergrund bleibt (Nutzer-Feedback: nochmals 30% leiser als zuvor, 0.35 → 0.245). */
 const MUSIC_VOLUME = 0.245;
 
@@ -920,9 +934,10 @@ function start(
         miniEnemyShooting: level.miniEnemies.config.shooting,
         playerJustUndocked,
       });
+      const enemyShotKey = enemyShotSoundKey(level);
       for (const shot of shots) {
         projectiles.push(shot);
-        audioManager.play('enemy_shot');
+        audioManager.play(enemyShotKey);
       }
     }
 
@@ -1163,8 +1178,14 @@ function start(
     ctx.drawImage(foreground.canvas, 0, 0, FIELD_WIDTH, FIELD_HEIGHT);
 
     // Rein dekorativ, ohne Spiellogik (Level 2: aufsteigende Luftblasen im
-    // Wasser) – zeichnet zustandslos aus `now`, siehe `LevelDecorationRenderer`.
-    level.renderDecoration?.(ctx, { width: FIELD_WIDTH, height: FIELD_HEIGHT, now });
+    // Wasser + Bläschen-Spur hinter dem Torpedo) – zeichnet zustandslos aus
+    // `now` (+ den aktiven Projektilen), siehe `LevelDecorationRenderer`.
+    level.renderDecoration?.(ctx, {
+      width: FIELD_WIDTH,
+      height: FIELD_HEIGHT,
+      now,
+      enemyProjectiles: projectiles,
+    });
 
     // Spielfeld-Umriss (aktuell ein Rechteck, später ein komplexeres Polygon).
     // Feinere Linie als zuvor (Nutzer-Feedback, Vergleich mit dem
@@ -1245,16 +1266,17 @@ function start(
       ctx.restore();
     }
 
-    // Projektile: nach den Gegnern, vor Spielfigur/Linie.
+    // Projektile: nach den Gegnern, vor Spielfigur/Linie. In Flugrichtung
+    // gedreht (`velocity`-Winkel), damit gerichtete Sprites wie der
+    // Level-2-Torpedo (Grafik zeigt nach +x) in Schussrichtung zeigen; eine
+    // runde Kugel bleibt davon unberührt.
     if (assets.projectile) {
       for (const p of projectiles) {
-        ctx.drawImage(
-          assets.projectile,
-          p.position.x - p.size / 2,
-          p.position.y - p.size / 2,
-          p.size,
-          p.size,
-        );
+        ctx.save();
+        ctx.translate(p.position.x, p.position.y);
+        ctx.rotate(Math.atan2(p.velocity.y, p.velocity.x));
+        ctx.drawImage(assets.projectile, -p.size / 2, -p.size / 2, p.size, p.size);
+        ctx.restore();
       }
     }
     for (const p of playerProjectiles) {
@@ -1478,10 +1500,14 @@ async function boot(): Promise<void> {
     const cached = levelImagesCache.get(level.id);
     if (cached) return cached;
     showLoading(gameCanvas);
+    const enemyShotSrc = levelEnemyShotSrc(level);
     const [images] = await Promise.all([
       loadLevelImages(level),
       level.musicSrc
         ? audioManager.loadSound(levelMusicKey(level), level.musicSrc)
+        : Promise.resolve(),
+      enemyShotSrc
+        ? audioManager.loadSound(enemyShotSoundKey(level), enemyShotSrc)
         : Promise.resolve(),
     ]);
     levelImagesCache.set(level.id, images);

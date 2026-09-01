@@ -1,5 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
-import { renderLevel2Bubbles } from './bubbles';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import {
+  renderLevel2Bubbles,
+  spawnTorpedoLaunchBubbles,
+  _resetTorpedoLaunchBubbles,
+} from './bubbles';
 
 /** 2D-Context-Stub, der die Mittelpunkte aller `arc`-Aufrufe mitschreibt. */
 function stubCtx() {
@@ -22,6 +26,8 @@ const W = 960;
 const H = 540;
 
 describe('renderLevel2Bubbles', () => {
+  beforeEach(() => _resetTorpedoLaunchBubbles());
+
   it('zeichnet Blasen, ohne zu werfen', () => {
     const { ctx, arcs } = stubCtx();
     expect(() => renderLevel2Bubbles(ctx, { width: W, height: H, now: 1234 })).not.toThrow();
@@ -48,6 +54,70 @@ describe('renderLevel2Bubbles', () => {
       return ys[Math.floor(ys.length / 2)];
     };
     expect(medianY(t1.arcs)).toBeLessThan(medianY(t0.arcs));
+  });
+
+  it('ein Abschuss-Wölkchen fügt kurzzeitig Blasen am Abschussort hinzu', () => {
+    spawnTorpedoLaunchBubbles(300, 400);
+    const t = performance.now();
+
+    const withBurst = stubCtx();
+    renderLevel2Bubbles(withBurst.ctx, { width: W, height: H, now: t + 300 });
+
+    _resetTorpedoLaunchBubbles();
+    const without = stubCtx();
+    renderLevel2Bubbles(without.ctx, { width: W, height: H, now: t + 300 });
+
+    expect(withBurst.arcs.length).toBeGreaterThan(without.arcs.length);
+    const near = withBurst.arcs.filter((p) => Math.hypot(p.x - 300, p.y - 400) < 130);
+    expect(near.length).toBeGreaterThan(0);
+  });
+
+  it('nach Ablauf der Lebensdauer trägt das Abschuss-Wölkchen nichts mehr bei', () => {
+    spawnTorpedoLaunchBubbles(300, 400);
+    const t = performance.now();
+
+    const expired = stubCtx();
+    renderLevel2Bubbles(expired.ctx, { width: W, height: H, now: t + 4000 });
+
+    _resetTorpedoLaunchBubbles();
+    const none = stubCtx();
+    renderLevel2Bubbles(none.ctx, { width: W, height: H, now: t + 4000 });
+
+    expect(expired.arcs).toEqual(none.arcs);
+  });
+
+  it('zeichnet eine Bläschen-Spur hinter einem fliegenden Projektil', () => {
+    const base = stubCtx();
+    renderLevel2Bubbles(base.ctx, { width: W, height: H, now: 1000 });
+
+    const proj = { position: { x: 500, y: 270 }, velocity: { x: 500, y: 0 }, size: 18 };
+    const withTrail = stubCtx();
+    renderLevel2Bubbles(withTrail.ctx, {
+      width: W,
+      height: H,
+      now: 1000,
+      enemyProjectiles: [proj],
+    });
+
+    // Der Grundschleier ist bei gleicher `now` identisch → die zusätzlichen
+    // arcs sind genau die Spur.
+    expect(withTrail.arcs.length).toBeGreaterThan(base.arcs.length);
+    const trailArcs = withTrail.arcs.slice(base.arcs.length);
+    expect(trailArcs.length).toBeGreaterThan(0);
+    for (const p of trailArcs) {
+      // Spur liegt HINTER dem Projektil (fliegt nach +x) …
+      expect(p.x).toBeLessThan(500);
+      // … und grob auf seiner Flugbahn.
+      expect(Math.abs(p.y - 270)).toBeLessThan(60);
+    }
+  });
+
+  it('ohne Projektile keine Spur', () => {
+    const withEmpty = stubCtx();
+    renderLevel2Bubbles(withEmpty.ctx, { width: W, height: H, now: 1000, enemyProjectiles: [] });
+    const without = stubCtx();
+    renderLevel2Bubbles(without.ctx, { width: W, height: H, now: 1000 });
+    expect(withEmpty.arcs).toEqual(without.arcs);
   });
 
   it('bleibt vom Zeichenbereich her im Feld (plus Schlängel-Toleranz)', () => {

@@ -44,8 +44,9 @@ export const level2: LevelConfig = {
       enabled: true,
       cooldownSeconds: 2.6,
       projectileSpeed: 600,
-      projectileSize: 18,
+      projectileSize: 90,
       projectileAssetSrc: '/assets/projectiles/torpedo.png',
+      soundSrc: '/assets/sound/torpedo.mp3',
     },
   },
   miniEnemies: {

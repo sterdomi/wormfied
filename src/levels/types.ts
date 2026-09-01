@@ -12,6 +12,12 @@ export interface ShootingConfig {
   /** Projektil-Rendergrösse (Durchmesser) in Pixel. */
   projectileSize: number;
   projectileAssetSrc: string;
+  /**
+   * Optionaler Schuss-Sound (Pfad wie `LevelConfig.musicSrc`). Fehlt er,
+   * spielt der globale `enemy_shot`-SFX. Wird pro Level unter einem eigenen
+   * Key geladen (`enemyShotSoundKey` in `main.ts`), analog zur Level-Musik.
+   */
+  soundSrc?: string;
 }
 
 /** Konfiguration eines Gegnertyps (Hauptgegner oder Mini-Gegner). */
@@ -203,7 +209,8 @@ export interface LevelEnemyUpdateContext {
 export type LevelEnemyUpdater = (context: LevelEnemyUpdateContext) => Projectile[];
 
 /** Per-Frame-Zustand für einen rein dekorativen Level-Überzug
- *  (`LevelDecorationRenderer`) – kein Spielzustand, nur Masse + Frame-Zeit. */
+ *  (`LevelDecorationRenderer`) – kein Spielzustand, nur Masse + Frame-Zeit
+ *  (+ optional Objekte, an die sich ein Effekt hängt). */
 export interface LevelDecorationState {
   /** Logische Spielfeldbreite in Pixel. */
   width: number;
@@ -211,6 +218,12 @@ export interface LevelDecorationState {
   height: number;
   /** Gemeinsame Frame-Wanduhrzeit (`performance.now()`, Millisekunden). */
   now: number;
+  /**
+   * Aktuell fliegende Gegner-Projektile – nur für Deko-Effekte, die daran
+   * hängen (Level 2: Bläschen-Spur hinter dem Torpedo). Fehlt oder leer, wenn
+   * gerade keine unterwegs sind.
+   */
+  enemyProjectiles?: readonly Projectile[];
 }
 
 /**
