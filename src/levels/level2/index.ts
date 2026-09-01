@@ -1,5 +1,6 @@
 import { defaultMainEnemyDefeatedPoints, defaultMiniEnemyDefeatedPoints } from '../../game/scoring';
 import { SHIELD_DECAY_PER_SECOND } from '../../game/playerState';
+import { defaultBonusStones } from '../defaultBonusStones';
 import type { LevelConfig } from '../types';
 import { updateLevel2Enemies } from './behavior';
 import { spawnTorpedoBubbleBurst } from './bubbles';
@@ -90,33 +91,7 @@ export const level2: LevelConfig = {
   // Nutzer-Feedback: der Spieler startet Level 2 mit Cyborg + Kanone
   // ausgerüstet (Kanone dauerhaft aktiv → automatisch der Cyborg-Look).
   startsWithCannon: true,
-  // TODO(später): eigenes Level-2-Balancing – vorerst 1:1 von Level 1.
-  bonusStones: {
-    spawning: {
-      spawnIntervalSeconds: 10,
-      maxSimultaneous: 2,
-      lifetimeSeconds: 10,
-      radius: 16,
-    },
-    speedBoost: {
-      assetSrc: '/assets/bonuses/bonus-speed.svg',
-      speedMultiplier: 2,
-      effectDurationSeconds: 5,
-    },
-    cannon: {
-      assetSrc: '/assets/bonuses/bonus-cannon.svg',
-      fireIntervalSeconds: 0.35,
-      projectileSpeed: 650,
-      projectileSize: 14,
-      projectileAssetSrc: '/assets/projectiles/kugel.svg',
-    },
-    freeze: {
-      assetSrc: '/assets/bonuses/bonus-freeze.svg',
-      effectDurationSeconds: 5,
-    },
-    bomb: {
-      assetSrc: '/assets/bonuses/bonus-bomb.svg',
-    },
-  },
+  // Bonussteine (Instruktion 14) – 1:1 von Level 1 (`defaultBonusStones.ts`).
+  bonusStones: defaultBonusStones,
   musicSrc: '/assets/levels/level2/level2.mp3',
 };
