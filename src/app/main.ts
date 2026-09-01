@@ -837,6 +837,12 @@ function start(
     // Kanone-Schuss vom Rand aus (Nutzer-Feedback) nutzt dieselbe Taste und
     // würde sonst schon beim reinen Zielen/Schiessen ohne Losfahren feuern.
     let playerJustUndocked = false;
+    // `true` in dem Frame, in dem ein vollständiger Rückzug den Foreground-
+    // Schnappschuss wiederherstellt (siehe unten) – unterdrückt dann den
+    // finalen `carvePath`-Aufruf weiter unten, der sonst genau diesen Frame
+    // wieder ein kleines Stück "Spur" auf den frisch wiederhergestellten
+    // Foreground carven würde.
+    let retreatCancelledDrawing = false;
 
     if (player.mode === 'onEdge') {
       // Andock/Abdock-Toggle (Instruktion 15): ändert nur `isUndocked`, keine
@@ -889,17 +895,29 @@ function start(
           )
         ) {
           session = null;
-          foregroundSnapshot = null; // Versuch beendet (Split oder blosses Andocken)
           spark = null; // erreicht → der Spieler ist dem Stromball entkommen
-          // Automatisches Andocken (Instruktion 15, Punkt 6): das ist seit der
-          // Bereinigung in Instruktion 15 der EINZIGE verbleibende Grund, aus
-          // dem `advanceDrawing` hier `true` liefert (Rand erreicht).
+          // Automatisches Andocken (Instruktion 15, Punkt 6): `advanceDrawing`
+          // liefert hier `true`, wenn entweder der Rand erreicht (Split) ODER
+          // der Spieler seine eigene Linie bis zum Ausgangspunkt zurückgefahren
+          // ist (Nutzer-Feedback, kein Split – siehe unten).
           audioManager.stop(drawLoopNode);
           drawLoopNode = null;
           audioManager.play('dock');
           // Neu abgeschlossene Linie(n) sofort verarbeiten und aus dem Kanal
           // nehmen (nach dem Split sind sie Teil der Feld-Polygon-Kanten).
-          completedLines.splice(before).forEach((line) => handleCompletedLine(line.points));
+          const newlyCompleted = completedLines.splice(before);
+          if (newlyCompleted.length > 0) {
+            newlyCompleted.forEach((line) => handleCompletedLine(line.points));
+          } else if (foregroundSnapshot) {
+            // Kein Split, sondern ein vollständiger Rückzug bis zum
+            // Ausgangspunkt: den pfadbasiert ausgeschnittenen Foreground
+            // dieses Versuchs wiederherstellen (Nutzer-Feedback) – sonst
+            // bleiben unschöne "Spuren" ohne jede Funktion zurück, obwohl
+            // nichts abgetrennt wurde. Gleiches Vorgehen wie bei `loseLife`.
+            foreground.restore(foregroundSnapshot);
+            retreatCancelledDrawing = true;
+          }
+          foregroundSnapshot = null; // Versuch beendet (Split, Rückzug oder blosses Andocken)
           // 80% erreicht -> Level eingefroren, Rest dieses Frames überspringen.
           if (scoring.isLevelComplete) return;
         }
@@ -907,7 +925,11 @@ function start(
     }
 
     carve = carve || session?.hasLeftEdge === true;
-    if (carve && (prevPos.x !== player.position.x || prevPos.y !== player.position.y)) {
+    if (
+      carve &&
+      !retreatCancelledDrawing &&
+      (prevPos.x !== player.position.x || prevPos.y !== player.position.y)
+    ) {
       // Pfadbasiertes Ausschneiden (Übergangslösung, siehe foregroundLayer.ts):
       // Instruktion 5 ergänzt das um polygon-exaktes Flächen-Ausschneiden.
       foreground.carvePath(prevPos.x, prevPos.y, player.position.x, player.position.y);
