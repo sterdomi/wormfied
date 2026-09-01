@@ -163,6 +163,24 @@ export function spitMiniFromMouth(head: Enemy, mini: Enemy, target: Point): void
 }
 
 /**
+ * Setzt `mini` direkt in die `returning`-Phase: es zählt ab jetzt NICHT als
+ * Ketten-Segment (`isChainSegment === false`) und wandert unter
+ * `advanceSpitMinis` von selbst ans Ketten-Ende, wo es andockt. Für neue
+ * Glieder, die aus dem Loch kriechen (`level2/hole.ts`) – sie sollen weder
+ * fliegen noch frei umherlaufen, nur zur Schlange aufschliessen.
+ */
+export function enterReturningFromHole(mini: Enemy): void {
+  spitStates.set(mini, {
+    phase: 'returning',
+    velocity: { x: 0, y: 0 },
+    target: { ...mini.position },
+    flightSeconds: 0,
+    freeSeconds: 0,
+    walk: createRandomWalkState(),
+  });
+}
+
+/**
  * Ein Frame für alle bereits ausgespuckten Glieder in `minis`:
  *  - `flying`    geradeaus auf ihr Ziel zu, danach `free`;
  *  - `free`      erratisch umherlaufen (`moveEnemy`), nach `FREE_ROAM_SECONDS`

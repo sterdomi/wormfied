@@ -19,6 +19,11 @@ import { renderLevel2Water } from './water';
  * entfernt ein Glied wie gewohnt, die Kette wird dann kürzer. Level-Abschluss
  * läuft wie in Level 1 über die eroberte Fläche, nicht über besiegte Minis.
  *
+ * Loch (`hole.ts`): aus einem festen Loch kriecht alle paar Sekunden ein neues
+ * Körperglied und schliesst ans Ketten-Ende auf – die Schlange wächst (bis zu
+ * einem Deckel). Erobert der Spieler die Loch-Region (trennt sie mit einer
+ * Linie ab), ist das Loch versiegelt und der Nachschub gestoppt.
+ *
  * Abdocken: bei jedem Abdocken des Spielers spuckt der Kopf das vorderste noch
  * angedockte Körperglied durch den Mund aus (kurz mit `gegner_schuss.png` als
  * Schuss-Pose) – es fliegt auf die Spielerposition zu, läuft kurz frei umher

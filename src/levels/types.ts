@@ -197,6 +197,13 @@ export interface LevelEnemyUpdateContext {
    * `level2/mouthSpit.ts`); die übrigen Level ignorieren das Feld.
    */
   playerJustUndocked?: boolean;
+  /**
+   * Fügt zur Laufzeit einen neuen Mini-Gegner an `position` in die
+   * `miniEnemies`-Liste ein und liefert ihn zurück. `main.ts` baut ihn aus
+   * `level.miniEnemies.config`. Level 2 nutzt es für den Loch-Spawner
+   * (`level2/hole.ts`); die übrigen Level lassen das Feld weg.
+   */
+  spawnMiniEnemyAt?: (position: Point) => Enemy;
 }
 
 /**

@@ -167,4 +167,19 @@ describe('updateLevel2Enemies', () => {
     ctx.playerJustUndocked = true;
     expect(() => updateLevel2Enemies(ctx)).not.toThrow();
   });
+
+  it('das Loch spawnt nach dem Intervall ein neues Glied – die Schlange wird länger', () => {
+    const ctx = context();
+    ctx.spawnMiniEnemyAt = (p) => {
+      const e = createEnemy(p, { speed: 250, size: 98 });
+      ctx.miniEnemies.push(e);
+      return e;
+    };
+    const before = ctx.miniEnemies.length;
+
+    // 9 s an Frames (> Spawn-Intervall von 8 s).
+    for (let i = 0; i < 60 * 9; i++) updateLevel2Enemies(ctx);
+
+    expect(ctx.miniEnemies.length).toBeGreaterThan(before);
+  });
 });

@@ -1,8 +1,9 @@
 import type { Vec } from '../../game/enemy';
 import type { Point } from '../../game/field';
 import type { LevelEnemyAssets, LevelEnemyRenderState } from '../types';
+import { peekHoleState, type HoleState } from './hole';
 import { chainSegmentsInOrder, isSpitPoseActive } from './mouthSpit';
-import { BODY_MINI_SCALE } from './snakeBody';
+import { BODY_MINI_SCALE } from '../../game/snakeBody';
 
 /**
  * Lokale „Vorne"-Richtung von `gegner.png` / `gegner_walk.png` als Winkel-Offset
@@ -28,14 +29,50 @@ function drawGegner(
 }
 
 /**
+ * Das Loch (`hole.ts`): flache dunkle Ellipse mit weichem Rand. Offen = tiefes
+ * Schwarz + leicht pulsierender Licht-Ring; versiegelt = kleiner, grau, ohne
+ * Ring. Gezeichnet vor Schlange/Gliedern (liegt auf dem Meeresgrund).
+ */
+function drawHole(ctx: CanvasRenderingContext2D, hole: HoleState, now: number): void {
+  const rx = hole.sealed ? 24 : 42;
+  ctx.save();
+  ctx.translate(hole.position.x, hole.position.y);
+  ctx.scale(1, 0.55); // perspektivisch flach
+
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+  if (hole.sealed) {
+    g.addColorStop(0, 'rgba(64, 74, 84, 0.6)');
+    g.addColorStop(1, 'rgba(64, 74, 84, 0)');
+  } else {
+    g.addColorStop(0, 'rgba(0, 0, 0, 0.8)');
+    g.addColorStop(0.6, 'rgba(6, 18, 32, 0.55)');
+    g.addColorStop(1, 'rgba(6, 18, 32, 0)');
+  }
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(0, 0, rx, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (!hole.sealed) {
+    const pulse = 0.5 + 0.5 * Math.sin(now / 600);
+    ctx.strokeStyle = `rgba(120, 205, 255, ${0.12 + 0.16 * pulse})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, rx * 0.86, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/**
  * Gegner-Ebene von Level 2: die Schlange = Kopf (`gegner.png`) + bis zu drei
  * Körperglieder (die angedockten `miniEnemies`, bei `BODY_MINI_SCALE` der
  * Kopf-Grösse). Positionen/Richtungen setzt `advanceSnakeBody` im selben Frame
  * vor `render` – hier wird nur gezeichnet.
  *
- * Zeichenreihenfolge: lose Glieder, dann Kette von hinten nach vorne, dann der
- * Kopf zuletzt → er überdeckt den Hals. `hideMainEnemy` (Levelabschluss)
- * blendet den Kopf aus.
+ * Zeichenreihenfolge: das Loch (`hole.ts`, liegt auf dem Grund), dann lose
+ * Glieder, dann Kette von hinten nach vorne, dann der Kopf zuletzt → er
+ * überdeckt den Hals. `hideMainEnemy` (Levelabschluss) blendet den Kopf aus.
  *
  * Animation (Nutzer-Feedback: „verwachsene" Schlange soll nicht wackeln):
  * - **Kopf**: animiert (Lauf-Takt `useWalkFrame`, Wechsel `gegner` ↔
@@ -56,6 +93,10 @@ export function renderLevel2Enemies(
   state: LevelEnemyRenderState,
 ): void {
   const { mainEnemy, miniEnemies, mainEnemyScale, hideMainEnemy, useWalkFrame, now } = state;
+
+  // Das Loch zuerst – es liegt auf dem Grund, unter Schlange und Gliedern.
+  const hole = peekHoleState(mainEnemy);
+  if (hole) drawHole(ctx, hole, now);
 
   const bodySize = mainEnemy.size * BODY_MINI_SCALE;
 

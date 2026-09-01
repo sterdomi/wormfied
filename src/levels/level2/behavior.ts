@@ -1,8 +1,9 @@
 import { tickEnemyShooting, type Projectile } from '../../game/projectile';
 import type { LevelEnemyUpdateContext } from '../types';
 import { spawnTorpedoBubbleBurst } from './bubbles';
+import { holeStateFor, updateHole } from './hole';
 import { advanceSpitMinis, chainSegmentsInOrder, spitMiniFromMouth } from './mouthSpit';
-import { advanceSnakeBody, snakeBodyFor } from './snakeBody';
+import { advanceSnakeBody, snakeBodyFor } from '../../game/snakeBody';
 
 /**
  * Gegner-Logik von Level 2: der Hauptgegner ist der Schlangenkopf, die (bis zu)
@@ -11,6 +12,10 @@ import { advanceSnakeBody, snakeBodyFor } from './snakeBody';
  * auf den Kopf-Trail – sie laufen also nicht selbst, sondern folgen als Kette
  * (Reihenfolge: `chainSegmentsInOrder`). Wird ein Mini eingekesselt oder
  * abgeschossen (entfällt aus `miniEnemies`), wird die Kette einfach kürzer.
+ *
+ * Loch (`hole.ts`): alle paar Sekunden kriecht ein neues Körperglied aus einem
+ * festen Loch und schliesst ans Ketten-Ende auf – die Schlange wächst, bis zum
+ * Deckel bzw. bis der Spieler die Loch-Region erobert (versiegelt).
  *
  * Abdocken (`context.playerJustUndocked`): der Kopf spuckt dann das vorderste
  * noch angedockte Körperglied durch den Mund aus. Es fliegt auf die
@@ -37,7 +42,13 @@ export function updateLevel2Enemies(context: LevelEnemyUpdateContext): Projectil
     mainEnemyShooting,
     activeLine,
     playerJustUndocked,
+    spawnMiniEnemyAt,
   } = context;
+
+  // Loch-Spawner: alle paar Sekunden kriecht ein neues Glied aus dem Loch und
+  // schliesst ans Ketten-Ende auf (bis zum Deckel bzw. bis der Spieler das Loch
+  // erobert/versiegelt hat – siehe `hole.ts`).
+  updateHole(holeStateFor(mainEnemy, field), field, miniEnemies, dt, spawnMiniEnemyAt);
 
   // Abdocken: das vorderste (kopfnächste) noch angedockte Glied durch den Mund
   // ausspucken – ab jetzt ist es kein Ketten-Segment mehr.

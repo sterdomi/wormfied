@@ -933,6 +933,14 @@ function start(
         mainEnemyShooting: level.mainEnemy.shooting,
         miniEnemyShooting: level.miniEnemies.config.shooting,
         playerJustUndocked,
+        // Laufzeit-Spawn eines Mini-Gegners (Level 2: Loch-Spawner). Push in
+        // die live `miniEnemies`-Liste; spätere `.filter()`-Neuzuweisungen in
+        // diesem Frame behalten ihn (er ist dann Teil des gefilterten Arrays).
+        spawnMiniEnemyAt: (position: Point): Enemy => {
+          const mini = createEnemy(position, level.miniEnemies.config, randomDirection());
+          miniEnemies.push(mini);
+          return mini;
+        },
       });
       const enemyShotKey = enemyShotSoundKey(level);
       for (const shot of shots) {
