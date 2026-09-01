@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { createEnemy } from '../../game/enemy';
-import { createRectangularField } from '../../game/field';
+import { createEnemy } from './enemy';
+import { createRectangularField } from './field';
 import { advanceSnakeBody, bodySegmentDistance, createSnakeBodyState } from './snakeBody';
 
 // Bewusst riesig, damit der Kopf in keinem Test die Wand erreicht und der

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { createRectangularField } from '../../game/field';
-import { isPointInPolygon } from '../../game/polygon';
+import { createRectangularField } from './field';
+import { isPointInPolygon } from './polygon';
 import {
   advanceSnakeHead,
   createSnakeHeadState,

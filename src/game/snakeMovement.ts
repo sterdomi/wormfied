@@ -1,31 +1,29 @@
-import type { Vec } from '../../game/enemy';
-import type { Point } from '../../game/field';
-import { fitsInPolygon } from '../../game/enemyMovement';
-import {
-  closestPointOnPerimeter,
-  closestPointOnPolyline,
-  segmentCrossesPolyline,
-} from '../../game/geometry';
-import { isPointInPolygon } from '../../game/polygon';
+import type { Vec } from './enemy';
+import type { Point } from './field';
+import { fitsInPolygon } from './enemyMovement';
+import { closestPointOnPerimeter, closestPointOnPolyline, segmentCrossesPolyline } from './geometry';
+import { isPointInPolygon } from './polygon';
 
 /**
- * Schlangenartige Bewegung des Schlangenkopfs (Level 2) – bewusst NICHT die
+ * Wiederverwendbare schlangenartige Kopf-Bewegung – bewusst NICHT die
  * achsparallele, erratische Lauf-Bewegung von Level 1 (`moveEnemy` in
  * `enemyMovement.ts`). Der Kopf läuft kontinuierlich in Richtung seines
  * Headings, ändert dieses in einem lockeren Abbiegetakt und kurvt dabei mit
- * begrenzter Drehrate – so entsteht ein weicher Schlangen-Slalom statt harter
- * Knicke.
+ * begrenzter Drehrate – so entsteht ein weicher Slalom statt harter Knicke.
+ * Ursprünglich für Level 2 (die Schlange) gebaut, level-agnostisch gehalten,
+ * damit ein späteres Level mit ähnlichem Bewegungsmuster (z.B. ein Aal) es
+ * wiederverwenden kann.
  *
  * Wichtig für die Optik: das Heading dreht sich IMMER nur mit begrenzter Rate,
  * auch beim Ausweichen vom Rand (kein Springen). Sonst zeigt der Kopf-Sprite
  * plötzlich in eine ganz andere Richtung als der nachgezogene Körper
- * (`snakeBody.ts`), und die Schlange sieht „geknickt" aus. Deshalb wird der
+ * (`snakeBody.ts`), und der Körper sieht „geknickt" aus. Deshalb wird der
  * Rand über eine Vorausschau FRÜH erkannt und das Ziel-Heading sanft am Rand
  * entlang gelenkt, statt erst im letzten Moment hart zu korrigieren.
  *
  * Der Bewegungsmuster-Zustand (`SnakeHeadState`) liegt bewusst neben `Enemy`
- * (vgl. Docstring in `enemy.ts` – „Snake-Abbiegetakt") und wird vom Level-2-
- * Behavior je Kopf gehalten (`snakeBody.ts`, `WeakMap`).
+ * (vgl. Docstring in `enemy.ts` – „Snake-Abbiegetakt") und wird vom jeweiligen
+ * Level-Behavior je Kopf gehalten (`snakeBody.ts`, `WeakMap`).
  */
 
 /** Mittlerer Abstand (Sekunden) zwischen zwei Abbiege-Impulsen. */

@@ -1,13 +1,16 @@
-import { type Enemy, type Vec } from '../../game/enemy';
-import { enemyMovementMargin } from '../../game/enemyMovement';
-import type { Point } from '../../game/field';
+import { type Enemy, type Vec } from './enemy';
+import { enemyMovementMargin } from './enemyMovement';
+import type { Point } from './field';
 import { advanceSnakeHead, createSnakeHeadState, type SnakeHeadState } from './snakeMovement';
 
 /**
- * Schlangenkörper von Level 2: der Hauptgegner (`gegner.png`) ist der Kopf, die
- * (bis zu) drei Mini-Gegner sind seine Körperglieder – sie laufen NICHT mehr
+ * Wiederverwendbarer Schlangenkörper: der Hauptgegner ist der Kopf, die (bis
+ * zu) drei Mini-Gegner sind seine Körperglieder – sie laufen NICHT mehr
  * eigenständig umher, sondern werden hier pro Frame auf den Kopf-Trail gesetzt,
- * sodass Kopf + Minis als EINE Schlange erscheinen.
+ * sodass Kopf + Minis als EIN Körper erscheinen. Ursprünglich für Level 2 (die
+ * Schlange) gebaut, level-agnostisch gehalten (hängt nur an `game/*`), damit
+ * ein späteres Level mit ähnlichem Bewegungsmuster (z.B. ein Aal) es
+ * wiederverwenden kann, ohne quer in ein anderes Level-Package zu importieren.
  *
  * Die Minis bleiben dabei ganz normale Einträge in `miniEnemies[]`: Kollision,
  * Einkesselung und Kanonentreffer entfernen ein Glied wie gewohnt – die Kette
@@ -16,9 +19,10 @@ import { advanceSnakeHead, createSnakeHeadState, type SnakeHeadState } from './s
  * Der Trail-/Abbiege-Zustand hängt in einer modul-lokalen
  * `WeakMap<Enemy, SnakeBodyState>` mit dem Kopf-`Enemy` als Key – wie Level 1
  * seinen `walkStates` (frischer Kopf bei `rebuildField` → frischer Zustand, der
- * alte wird mitsamt Eintrag vom GC geholt). `behavior.ts` holt ihn pro Frame
- * über `snakeBodyFor(head)` und schreibt darin die Mini-Positionen fort;
- * `render.ts` liest danach nur noch `mini.position` / `mini.direction`.
+ * alte wird mitsamt Eintrag vom GC geholt). Das jeweilige Level-`behavior.ts`
+ * holt ihn pro Frame über `snakeBodyFor(head)` und schreibt darin die
+ * Mini-Positionen fort; `render.ts` liest danach nur noch `mini.position` /
+ * `mini.direction`.
  */
 
 /** Render-Grösse eines Körperglieds als Vielfaches der Kopf-Render-Grösse. */
