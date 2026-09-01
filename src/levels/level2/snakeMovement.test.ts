@@ -56,6 +56,22 @@ describe('advanceSnakeHead', () => {
     }
   });
 
+  it('kommt aus einer Ecke wieder frei (Regression: blieb unten links hängen)', () => {
+    // Kopf tief in der Ecke unten-links, Heading genau in die Ecke hinein.
+    const state = createSnakeHeadState({ x: -1, y: 1 });
+    let pos = { x: MARGIN + 2, y: 400 - MARGIN - 2 };
+    const edgeDist = (p: { x: number; y: number }): number =>
+      Math.min(p.x, p.y, 600 - p.x, 400 - p.y);
+    let maxDist = edgeDist(pos);
+    for (let i = 0; i < 400; i++) {
+      pos = advanceSnakeHead(pos, state, FIELD, MARGIN, SPEED, DT, () => 0.5);
+      expect(isPointInPolygon(pos, FIELD)).toBe(true);
+      maxDist = Math.max(maxDist, edgeDist(pos));
+    }
+    // Er hat sich deutlich von Ecke und Wand gelöst, statt hängen zu bleiben.
+    expect(maxDist).toBeGreaterThan(MARGIN + 30);
+  });
+
   it('begrenzt die Drehrate pro Frame', () => {
     const state = createSnakeHeadState({ x: 1, y: 0 });
     // Abbiege-Impuls sofort erzwingen, mit maximalem Ziel-Winkel (rng ~ 1).

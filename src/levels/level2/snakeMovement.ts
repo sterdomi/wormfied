@@ -118,6 +118,31 @@ function alongObstacleTarget(position: Point, near: Point, heading: Vec): Vec {
 }
 
 /**
+ * Ausweich-Ziel mit Ecken-Absicherung: normalerweise `alongObstacleTarget` (am
+ * Hindernis entlang gleiten). Führt dieses „Entlang" aber nach kurzer Strecke
+ * selbst aus dem Feld – der typische Ecken-Fall, wo die Tangente des einen
+ * Randes genau in den anderen Rand zeigt –, wird stattdessen Richtung
+ * Feldinneres gelenkt (`mostInwardDirection`, grösster Randabstand). Ohne das
+ * bleibt der Kopf in der Ecke hängen: Schritt 2 würfe jeden Frame wieder ein
+ * „entlang = in die andere Wand"-Ziel, das die Erholungs-Drehung aus Schritt 5
+ * neutralisiert.
+ */
+function cornerAwareEvadeTarget(
+  position: Point,
+  near: Point,
+  heading: Vec,
+  polygon: Point[],
+  margin: number,
+  step: number,
+  activeLine: readonly Point[],
+): Vec {
+  const along = alongObstacleTarget(position, near, heading);
+  const probe = { x: position.x + along.x * step * 3, y: position.y + along.y * step * 3 };
+  if (fitsInPolygon(probe, polygon, margin)) return along;
+  return mostInwardDirection(position, polygon, step, activeLine) ?? along;
+}
+
+/**
  * Die Richtung (aus `INWARD_SAMPLES` rundum), deren Ein-Schritt-Probe im Feld
  * liegt, die aktive Linie nicht kreuzt und den grössten Abstand zum Rand hat –
  * also „am weitesten weg von der Wand". `null`, wenn KEINE Probe passt.
@@ -181,17 +206,25 @@ export function advanceSnakeHead(
   let evading = false;
   if (!fitsInPolygon(lookAhead, polygon, margin)) {
     evading = true;
-    state.targetHeading = alongObstacleTarget(
+    state.targetHeading = cornerAwareEvadeTarget(
       position,
       closestPointOnPerimeter(polygon, position).point,
       state.heading,
+      polygon,
+      margin,
+      step,
+      activeLine,
     );
   } else if (segmentCrossesPolyline(position, lookAhead, activeLine)) {
     evading = true;
-    state.targetHeading = alongObstacleTarget(
+    state.targetHeading = cornerAwareEvadeTarget(
       position,
       closestPointOnPolyline(activeLine, position).point,
       state.heading,
+      polygon,
+      margin,
+      step,
+      activeLine,
     );
   }
 
@@ -220,6 +253,19 @@ export function advanceSnakeHead(
     state.heading = steerToward(state.heading, inward, SNAKE_EVADE_TURN_RATE_RAD_PER_SEC * dt);
     const moved = advance(state.heading);
     if (canReach(moved)) return moved;
+    // Der Kopf sitzt im `margin`-Puffer (oder in einer Ecke): den ratenbegrenzt
+    // gedrehten Schritt trotzdem nehmen, wenn er im Feld bleibt, die aktive
+    // Linie nicht kreuzt UND den Randabstand vergrössert – so schiebt sich der
+    // Kopf aus der Ecke heraus, statt einzufrieren (vgl. Verbesserungs-Fallback
+    // in `moveEnemy`). Reine Bewegung tiefer in die Enge bleibt blockiert.
+    if (
+      isPointInPolygon(moved, polygon) &&
+      !segmentCrossesPolyline(position, moved, activeLine) &&
+      closestPointOnPerimeter(polygon, moved).distance >
+        closestPointOnPerimeter(polygon, position).distance
+    ) {
+      return moved;
+    }
   }
 
   // 6. Nichts geht – diesen Frame stehen bleiben (Heading ist oben bereits
