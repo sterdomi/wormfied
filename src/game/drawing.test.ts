@@ -5,6 +5,7 @@ import {
   DRAW_SPEED,
   EdgeTrigger,
   headingFromInput,
+  retreatLine,
   toggleUndocked,
   tryEnterDrawing,
   type DrawInput,
@@ -156,8 +157,8 @@ describe('headingFromInput – achsparallel, keine Diagonale', () => {
     expect(headingFromInput(DOWN, { ...NONE, down: true })).toEqual(DOWN);
   });
 
-  it('nur 180°-Wende gedrückt: null (kein Zurück auf die eigene Linie)', () => {
-    expect(headingFromInput(DOWN, { ...NONE, up: true })).toBeNull();
+  it('nur 180°-Wende gedrückt: die Gegenrichtung (Nutzer-Feedback: Zurückfahren erlaubt)', () => {
+    expect(headingFromInput(DOWN, { ...NONE, up: true })).toEqual({ x: 0, y: -1 });
   });
 
   it('beide Tasten gleichzeitig (aktuelle Richtung + quer): geradeaus gewinnt, kein Abbiegen (Nutzer-Feedback: sonst effektiv Diagonalfahrt durch jeden-Frame-Wechsel)', () => {
@@ -282,6 +283,7 @@ describe('advanceDrawing – blockiert das Kreuzen der eigenen Linie', () => {
       { x: 380, y: 0 },
       { x: 380, y: 60 },
       { x: 460, y: 60 },
+      { x: 460, y: 30 }, // Spieler ist bereits hierher gefahren (Position s.u.)
     ];
     p.position = { x: 460, y: 30 };
     session.heading = { x: -1, y: 0 };
@@ -291,6 +293,115 @@ describe('advanceDrawing – blockiert das Kreuzen der eigenen Linie', () => {
 
     expect(done).toBe(false);
     expect(p.position).toEqual(before);
+  });
+});
+
+describe('retreatLine', () => {
+  it('kürzt das letzte Segment um die angegebene Distanz, ohne einen Punkt zu entfernen', () => {
+    const line: DrawnLine = {
+      points: [
+        { x: 0, y: 0 },
+        { x: 0, y: 50 },
+      ],
+    };
+    const { point, reachedStart } = retreatLine(line, 20);
+    expect(point).toEqual({ x: 0, y: 30 });
+    expect(reachedStart).toBe(false);
+    expect(line.points).toEqual([
+      { x: 0, y: 0 },
+      { x: 0, y: 30 },
+    ]);
+  });
+
+  it('entfernt Punkte vollständig und fährt im vorherigen Segment weiter, wenn die Distanz reicht', () => {
+    const line: DrawnLine = {
+      points: [
+        { x: 0, y: 0 },
+        { x: 0, y: 50 },
+        { x: 30, y: 50 },
+      ],
+    };
+    const { point, reachedStart } = retreatLine(line, 40);
+    expect(point).toEqual({ x: 0, y: 40 });
+    expect(reachedStart).toBe(false);
+    expect(line.points).toEqual([
+      { x: 0, y: 0 },
+      { x: 0, y: 40 },
+    ]);
+  });
+
+  it('stoppt spätestens am Startpunkt (reachedStart), auch bei überschüssiger Distanz', () => {
+    const line: DrawnLine = {
+      points: [
+        { x: 0, y: 0 },
+        { x: 0, y: 50 },
+      ],
+    };
+    const { point, reachedStart } = retreatLine(line, 1000);
+    expect(point).toEqual({ x: 0, y: 0 });
+    expect(reachedStart).toBe(true);
+    expect(line.points).toEqual([{ x: 0, y: 0 }]);
+  });
+});
+
+describe('advanceDrawing – Zurückfahren der eigenen Linie (Nutzer-Feedback)', () => {
+  it('Gegenrichtung kürzt die Linie und fährt den Spieler zurück, statt weiterzuzeichnen', () => {
+    const p = playerOnTopEdge();
+    const session = enterDrawing(p, { down: true });
+    advanceDrawing(session, p, field, { ...NONE, down: true }, 0.5, []); // 180px rein
+    const forwardY = p.position.y;
+    const pointsBefore = session.line.points.length;
+
+    const done = advanceDrawing(session, p, field, { ...NONE, up: true }, 0.1, []);
+
+    expect(done).toBe(false);
+    expect(p.mode).toBe('drawing'); // Session läuft weiter, nur verkürzt
+    expect(p.position.x).toBeCloseTo(400);
+    expect(p.position.y).toBeCloseTo(forwardY - DRAW_SPEED * 0.1);
+    expect(session.line.points.length).toBeLessThanOrEqual(pointsBefore);
+  });
+
+  it('vollständiges Zurückfahren bis zum Ausgangspunkt dockt wieder an, ohne die Linie abzuschliessen', () => {
+    const p = playerOnTopEdge(); // (400, 0)
+    const session = enterDrawing(p, { down: true });
+    const completed: DrawnLine[] = [];
+
+    for (let i = 0; i < 10; i++) {
+      advanceDrawing(session, p, field, { ...NONE, down: true }, 1 / 60, completed);
+    }
+    expect(p.position.y).toBeGreaterThan(0);
+
+    let done = false;
+    for (let i = 0; i < 10_000 && !done; i++) {
+      done = advanceDrawing(session, p, field, { ...NONE, up: true }, 1 / 60, completed);
+    }
+
+    expect(done).toBe(true);
+    expect(p.mode).toBe('onEdge');
+    expect(p.isUndocked).toBe(false);
+    expect(p.position).toEqual({ x: 400, y: 0 });
+    expect(p.segmentIndex).toBe(0); // dieselbe obere Kante, keine Verschiebung
+    expect(completed).toHaveLength(0); // nichts abgetrennt – reiner Rückzug
+  });
+
+  it('nach teilweisem Zurückfahren kann wieder vorwärts weitergefahren werden', () => {
+    const p = playerOnTopEdge();
+    const session = enterDrawing(p, { down: true });
+    for (let i = 0; i < 10; i++) {
+      advanceDrawing(session, p, field, { ...NONE, down: true }, 1 / 60, []);
+    }
+    const forwardY = p.position.y;
+
+    for (let i = 0; i < 3; i++) {
+      advanceDrawing(session, p, field, { ...NONE, up: true }, 1 / 60, []);
+    }
+    const retreatedY = p.position.y;
+    expect(retreatedY).toBeLessThan(forwardY);
+
+    advanceDrawing(session, p, field, { ...NONE, down: true }, 1 / 60, []);
+
+    expect(p.position.y).toBeGreaterThan(retreatedY);
+    expect(p.mode).toBe('drawing');
   });
 });
 

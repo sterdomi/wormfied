@@ -137,13 +137,16 @@ export function tryEnterDrawing(
  *  - Taste in aktueller Richtung (auch wenn ZUSÄTZLICH eine Quer-Taste
  *    gehalten wird) → geradeaus weiter
  *  - NUR Taste quer zur aktuellen Richtung    → 90°-Abbiegen
- *  - nur Taste GEGEN die aktuelle Richtung    → `null` (kein Zurück auf die Linie)
+ *  - nur Taste GEGEN die aktuelle Richtung    → diese Gegenrichtung (Nutzer-
+ *    Feedback: der Spieler darf seine eigene Linie zurückfahren, statt hier
+ *    blockiert zu werden – `advanceDrawing` erkennt an der Linien-Geometrie,
+ *    ob das ein Rückzug ist, und kürzt die Linie statt sie zu verlängern)
  *
- * Nutzer-Feedback: "geradeaus" hat bewusst Vorrang vor "abbiegen", nicht
- * umgekehrt – hält man z.B. rechts UND unten gleichzeitig gedrückt, entstand
- * bei umgekehrter Priorität sonst jeden Frame ein Wechsel zwischen den beiden
- * Richtungen (rechts → unten → rechts → …), was sich effektiv wie
- * Diagonalfahrt anfühlte, obwohl jeder einzelne Schritt für sich
+ * Nutzer-Feedback: "geradeaus" hat bewusst Vorrang vor "abbiegen", und
+ * "abbiegen" vor "zurückfahren" – hält man z.B. rechts UND unten gleichzeitig
+ * gedrückt, entstand bei umgekehrter Priorität sonst jeden Frame ein Wechsel
+ * zwischen den beiden Richtungen (rechts → unten → rechts → …), was sich
+ * effektiv wie Diagonalfahrt anfühlte, obwohl jeder einzelne Schritt für sich
  * achsparallel war.
  */
 export function headingFromInput(current: Point | null, input: DrawInput): Point | null {
@@ -165,7 +168,11 @@ export function headingFromInput(current: Point | null, input: DrawInput): Point
   // Skalarprodukt 0 ⇒ senkrecht zur aktuellen Richtung ⇒ 90°-Abbiegen –
   // NUR geprüft, wenn die aktuelle Richtung selbst nicht (mehr) gehalten wird.
   const turn = candidates.find((c) => c.x * current.x + c.y * current.y === 0);
-  return turn ?? null;
+  if (turn) return turn;
+
+  // Genau die Gegenrichtung: als gültige Fahrtrichtung zurückgeben (statt wie
+  // zuvor `null`) – `advanceDrawing` macht daraus das eigentliche Zurückfahren.
+  return candidates.find((c) => c.x === -current.x && c.y === -current.y) ?? null;
 }
 
 /**
@@ -185,18 +192,75 @@ export function crossesOwnLine(line: DrawnLine, from: Point, to: Point): boolean
 }
 
 /**
+ * Richtung des zuletzt aufgezeichneten Liniensegments (vom vorletzten zum
+ * letzten Punkt), als Einheitsvektor – oder `null`, wenn die Linie nur den
+ * Startpunkt enthält (noch kein Segment vorhanden) oder das Segment
+ * Länge 0 hat. Dient `advanceDrawing` dazu, einen Rückzug (Eingabe GENAU
+ * entgegen dieser Richtung) von normalem Vorwärts-/Abbiege-Zeichnen zu
+ * unterscheiden – bewusst NICHT anhand von `session.heading` (das kippt nach
+ * dem ersten Rückzugs-Schritt selbst auf die Gegenrichtung, sonst würde
+ * "wieder vorwärts fahren" fälschlich erneut als Rückzug erkannt).
+ */
+function lastSegmentDirection(line: DrawnLine): Point | null {
+  if (line.points.length < 2) return null;
+  const last = line.points[line.points.length - 1];
+  const prev = line.points[line.points.length - 2];
+  const len = Math.hypot(last.x - prev.x, last.y - prev.y);
+  if (len < 1e-6) return null;
+  return { x: (last.x - prev.x) / len, y: (last.y - prev.y) / len };
+}
+
+/**
+ * Zieht `line` um `distance` Pixel vom Ende her ein – das Gegenstück zum
+ * Vorwärts-Zeichnen (`appendPoint`). Kürzt/entfernt Punkte vom Ende her, bis
+ * `distance` aufgebraucht ist. Liefert den neuen Endpunkt sowie
+ * `reachedStart: true`, sobald dabei wieder der allererste Punkt (der Rand,
+ * wo das Zeichnen begann) erreicht ist – weiter als bis dorthin lässt sich
+ * nicht zurückfahren, überschüssige `distance` verfällt.
+ */
+export function retreatLine(
+  line: DrawnLine,
+  distance: number,
+): { point: Point; reachedStart: boolean } {
+  let remaining = distance;
+  while (remaining > 0 && line.points.length > 1) {
+    const last = line.points[line.points.length - 1];
+    const prev = line.points[line.points.length - 2];
+    const segLen = Math.hypot(last.x - prev.x, last.y - prev.y);
+    if (segLen > remaining) {
+      const t = remaining / segLen;
+      line.points[line.points.length - 1] = {
+        x: last.x - (last.x - prev.x) * t,
+        y: last.y - (last.y - prev.y) * t,
+      };
+      remaining = 0;
+    } else {
+      line.points.pop();
+      remaining -= segLen;
+    }
+  }
+  const end = line.points[line.points.length - 1];
+  return { point: { x: end.x, y: end.y }, reachedStart: line.points.length === 1 };
+}
+
+/**
  * Ein Frame Zeichen-Bewegung. Mutiert `player` und `session`.
  *
  * Rückgabe `true`, wenn die Session verbraucht ist – der Spieler ist wieder
- * `onEdge`: die Linie hat geometrisch den Rand erreicht (automatisches
- * Andocken, Instruktion 5/15 – die fertige Linie kommt in `completedLines`).
+ * `onEdge`. Zwei Gründe (beide setzen `isUndocked` zurück):
+ *  - die Linie hat geometrisch den Rand erreicht (automatisches Andocken,
+ *    Instruktion 5/15 – die fertige Linie kommt in `completedLines`);
+ *  - der Spieler ist seine eigene Linie bis zum Ausgangspunkt zurückgefahren
+ *    (Nutzer-Feedback, siehe `retreatLine`) – dann OHNE Eintrag in
+ *    `completedLines`, der Ausflug wird einfach rückgängig gemacht.
  * Ein "Loslassen der Leertaste, um mitten im Feld zum nächsten Randpunkt zu
  * verbinden" gibt es seit Instruktion 15 NICHT mehr (Toggle-Modell statt
  * Halten) – der Spieler bewegt sich frei weiter, bis er selbst zurück zum
- * Rand findet oder kollidiert.
+ * Rand findet, zurückfährt oder kollidiert.
  *
- * Rückgabe `false`, wenn weitergezeichnet wird ODER der Spieler stehen bleibt
- * (keine oder rein aussenwärtige Cursor-Eingabe, oder ein Bonusstein blockiert).
+ * Rückgabe `false`, wenn weitergezeichnet/zurückgefahren wird ODER der
+ * Spieler stehen bleibt (keine oder rein aussenwärtige Cursor-Eingabe, oder
+ * ein Bonusstein blockiert).
  */
 export function advanceDrawing(
   session: DrawSession,
@@ -227,6 +291,29 @@ export function advanceDrawing(
   session.heading = heading;
 
   const step = DRAW_SPEED * speedMultiplier * dt;
+
+  // Zurückfahren (Nutzer-Feedback): zeigt `heading` GENAU entgegen der
+  // Richtung des zuletzt aufgezeichneten Segments, zieht `retreatLine` die
+  // Linie um den Schritt ein statt sie zu verlängern – kein `crossesOwnLine`-
+  // oder `isBlocked`-Check nötig, der Schritt bleibt ja innerhalb bereits
+  // befahrenen, sicheren Terrains.
+  const segDir = lastSegmentDirection(session.line);
+  if (segDir && heading.x === -segDir.x && heading.y === -segDir.y) {
+    const { point, reachedStart } = retreatLine(session.line, step);
+    player.position = point;
+    player.facing = heading;
+    if (!reachedStart) return false;
+
+    // Zurück am Ausgangspunkt (liegt auf dem Rand): wie ein regulärer
+    // Rand-Treffer wieder andocken – aber OHNE Eintrag in `completedLines`,
+    // da nichts abgetrennt wurde (siehe Docstring oben). `segmentIndex`/
+    // `segmentProgress` sind seit dem Losfahren unverändert und damit noch
+    // exakt der Ausgangspunkt.
+    player.mode = 'onEdge';
+    player.isUndocked = false;
+    return true;
+  }
+
   const to: Point = { x: from.x + heading.x * step, y: from.y + heading.y * step };
 
   // Bonusstein wirkt wie eine feste Wand (Instruktion 14, Punkt 5): einfache
