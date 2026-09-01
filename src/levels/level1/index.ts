@@ -1,4 +1,3 @@
-import { defaultMainEnemyDefeatedPoints, defaultMiniEnemyDefeatedPoints } from '../../game/scoring';
 import { SHIELD_DECAY_PER_SECOND } from '../../game/playerState';
 import { defaultBonusStones } from '../defaultBonusStones';
 import type { LevelConfig } from '../types';
@@ -59,12 +58,8 @@ export const level1: LevelConfig = {
   // ebenfalls im Level-Package, siehe `behavior.ts` – Gegenstück zu
   // `renderEnemies`, pro Frame über `level.updateEnemies(...)` aufgerufen.
   updateEnemies: updateLevel1Enemies,
-  // Entspricht den Default-Werten aus scoring.ts – Level 1 braucht (noch)
-  // keine eigene Abstufung, macht die Konfiguration aber explizit.
-  scoring: {
-    miniEnemyPoints: defaultMiniEnemyDefeatedPoints,
-    mainEnemyPoints: defaultMainEnemyDefeatedPoints,
-  },
+  // Kein eigenes `scoring` – Level 1 nutzt die Default-Werte aus scoring.ts
+  // (siehe Fallback in `awardMiniEnemyDefeated`/`awardMainEnemyDefeated`).
   // Entspricht dem Default aus playerState.ts – Level 1 macht die
   // Konfigurierbarkeit (Nutzer-Feedback) explizit, statt sich stillschweigend
   // auf den globalen Fallback zu verlassen.

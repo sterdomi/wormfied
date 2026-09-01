@@ -1,4 +1,3 @@
-import { defaultMainEnemyDefeatedPoints, defaultMiniEnemyDefeatedPoints } from '../../game/scoring';
 import { SHIELD_DECAY_PER_SECOND } from '../../game/playerState';
 import { defaultBonusStones } from '../defaultBonusStones';
 import type { LevelConfig } from '../types';
@@ -83,10 +82,7 @@ export const level2: LevelConfig = {
   renderDecoration: renderLevel2Water,
   // Torpedo-Einschlag (Linie/Spieler getroffen): Blasen-Poof am Einschlagpunkt.
   onEnemyProjectileImpact: spawnTorpedoBubbleBurst,
-  scoring: {
-    miniEnemyPoints: defaultMiniEnemyDefeatedPoints,
-    mainEnemyPoints: defaultMainEnemyDefeatedPoints,
-  },
+  // Kein eigenes `scoring` – nutzt die Default-Werte aus scoring.ts, wie Level 1.
   shieldDecayPerSecond: SHIELD_DECAY_PER_SECOND,
   // Nutzer-Feedback: der Spieler startet Level 2 mit Cyborg + Kanone
   // ausgerüstet (Kanone dauerhaft aktiv → automatisch der Cyborg-Look).
