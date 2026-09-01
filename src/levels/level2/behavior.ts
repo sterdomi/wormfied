@@ -17,7 +17,9 @@ import { advanceSnakeBody, snakeBodyFor } from '../../game/snakeBody';
  * festen Loch und schliesst ans Ketten-Ende auf – die Schlange wächst, bis zum
  * Deckel bzw. bis der Spieler die Loch-Region erobert (versiegelt).
  *
- * Abdocken (`context.playerJustUndocked`): der Kopf spuckt dann das vorderste
+ * Losfahren (`context.playerJustUndocked`, true erst wenn der Spieler
+ * tatsächlich ins Feld fährt – nicht schon beim blossen Abdock-Toggle oder
+ * einem Kanone-Schuss vom Rand aus): der Kopf spuckt dann das vorderste
  * noch angedockte Körperglied durch den Mund aus. Es fliegt auf die
  * Spielerposition zu, läuft danach kurz frei umher und kehrt schliesslich zum
  * Ende der Schlange zurück, wo es wieder andockt (siehe `mouthSpit.ts`).

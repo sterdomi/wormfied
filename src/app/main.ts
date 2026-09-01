@@ -830,9 +830,12 @@ function start(
     // Ob der befahrene Pfad diesen Frame ausgeschnitten werden soll: nur wenn
     // der Spieler sich wirklich vom Rand gelöst hat (vor ODER nach dem Schritt).
     let carve = session?.hasLeftEdge === true;
-    // `true` nur in dem Frame, in dem der Spieler tatsächlich abdockt
-    // (`isUndocked` false → true) – edge-getriggert, geht so an
+    // `true` nur in dem Frame, in dem der Spieler tatsächlich losfährt (Rand
+    // verlässt, `onEdge` → `drawing`) – edge-getriggert, geht so an
     // `level.updateEnemies` (Level 2: Kopf spuckt dann ein Körperglied aus).
+    // Bewusst NICHT an den `isUndocked`-Toggle gekoppelt (siehe unten): der
+    // Kanone-Schuss vom Rand aus (Nutzer-Feedback) nutzt dieselbe Taste und
+    // würde sonst schon beim reinen Zielen/Schiessen ohne Losfahren feuern.
     let playerJustUndocked = false;
 
     if (player.mode === 'onEdge') {
@@ -841,12 +844,17 @@ function start(
       // bei tatsächlicher Richtungseingabe nach innen, siehe `tryEnterDrawing`.
       const wasUndocked = player.isUndocked;
       toggleUndocked(player, input.state.drawJustPressed);
-      playerJustUndocked = !wasUndocked && player.isUndocked;
       // Nur beim tatsächlichen Abdocken (false → true) – nicht beim Abbrechen
-      // (true → false), dafür ist kein eigener Sound vorgesehen.
-      if (playerJustUndocked) audioManager.play('undock');
+      // (true → false), dafür ist kein eigener Sound vorgesehen. Rein optisch/
+      // akustisch – NICHT dasselbe wie `playerJustUndocked` unten, das den
+      // ausschliesslich mit der Kanone verwendeten Taste teilt (siehe oben).
+      if (!wasUndocked && player.isUndocked) audioManager.play('undock');
 
       session = tryEnterDrawing(player, field, input.state);
+      // Erst hier, NACH `tryEnterDrawing`, tatsächlich `true`: der Spieler
+      // fährt diesen Frame wirklich ins Feld, nicht bloss der Tastendruck, der
+      // (vom Rand aus) auch nur die Kanone abfeuern könnte.
+      playerJustUndocked = session !== null;
       if (session) {
         // Zeichenversuch beginnt: Foreground-Zustand sichern (Rückgängig bei Kollision).
         foregroundSnapshot = foreground.snapshot();

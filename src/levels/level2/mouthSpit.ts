@@ -9,11 +9,12 @@ import {
 import type { Point } from '../../game/field';
 
 /**
- * „Maul-Spucke" von Level 2: Sobald der Spieler abdockt
- * (`LevelEnemyUpdateContext.playerJustUndocked`), spuckt der Schlangenkopf das
- * vorderste noch angedockte Körperglied (`miniEnemies`-Kette) durch den Mund
- * aus. Das Glied ist dann KEIN Ketten-Segment mehr, sondern durchläuft drei
- * Phasen:
+ * „Maul-Spucke" von Level 2: Sobald der Spieler tatsächlich ins Feld losfährt
+ * (`LevelEnemyUpdateContext.playerJustUndocked`, NICHT schon beim blossen
+ * Abdock-Toggle oder einem Kanone-Schuss vom Rand aus – siehe Kommentar dort),
+ * spuckt der Schlangenkopf das vorderste noch angedockte Körperglied
+ * (`miniEnemies`-Kette) durch den Mund aus. Das Glied ist dann KEIN
+ * Ketten-Segment mehr, sondern durchläuft drei Phasen:
  *
  *  1. `flying`    – fliegt geradlinig auf die beim Abschuss gemerkte
  *                   Spielerposition zu (`MOUTH_SPIT_SPEED`);
