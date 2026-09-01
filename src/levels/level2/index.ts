@@ -2,6 +2,7 @@ import { defaultMainEnemyDefeatedPoints, defaultMiniEnemyDefeatedPoints } from '
 import { SHIELD_DECAY_PER_SECOND } from '../../game/playerState';
 import type { LevelConfig } from '../types';
 import { updateLevel2Enemies } from './behavior';
+import { renderLevel2Bubbles } from './bubbles';
 import { renderLevel2Enemies } from './render';
 
 /**
@@ -23,7 +24,9 @@ import { renderLevel2Enemies } from './render';
  * wieder andockt (siehe `mouthSpit.ts`).
  *
  * Schiessen: nur der Kopf (`mainEnemy.shooting`, siehe `behavior.ts`). Eigenes
- * Background-/Foreground-Artwork + Musik; Bonusstein-Werte von Level 1.
+ * Background-/Foreground-Artwork + Musik; Bonusstein-Werte von Level 1. Der
+ * Foreground ist Wasser – `renderDecoration` legt aufsteigende Luftblasen
+ * darüber (`bubbles.ts`).
  */
 export const level2: LevelConfig = {
   id: 'level2',
@@ -42,7 +45,7 @@ export const level2: LevelConfig = {
       cooldownSeconds: 2.6,
       projectileSpeed: 600,
       projectileSize: 18,
-      projectileAssetSrc: '/assets/projectiles/kugel.svg',
+      projectileAssetSrc: '/assets/projectiles/torpedo.png',
     },
   },
   miniEnemies: {
@@ -54,13 +57,15 @@ export const level2: LevelConfig = {
       // Radien, und die Positionen setzt `advanceSnakeBody`.
       assetSrc: '/assets/levels/level2/gegner.png',
       walkAssetSrc: '/assets/levels/level2/gegner_walk.png',
-      speed: 250,
+      speed: 500,
       size: 98,
       // Körperglieder schiessen nicht.
     },
   },
   renderEnemies: renderLevel2Enemies,
   updateEnemies: updateLevel2Enemies,
+  // Wasser-Ambiente: aufsteigende Luftblasen über dem Foreground.
+  renderDecoration: renderLevel2Bubbles,
   scoring: {
     miniEnemyPoints: defaultMiniEnemyDefeatedPoints,
     mainEnemyPoints: defaultMainEnemyDefeatedPoints,

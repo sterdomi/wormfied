@@ -1157,9 +1157,14 @@ function start(
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
 
-    // Ebenen: Background → Foreground (Offscreen, ausgeschnitten) → Spiel-Layer.
+    // Ebenen: Background → Foreground (Offscreen, ausgeschnitten) → optionaler
+    // Deko-Überzug des Levels → Spiel-Layer.
     ctx.drawImage(assets.background, 0, 0, FIELD_WIDTH, FIELD_HEIGHT);
     ctx.drawImage(foreground.canvas, 0, 0, FIELD_WIDTH, FIELD_HEIGHT);
+
+    // Rein dekorativ, ohne Spiellogik (Level 2: aufsteigende Luftblasen im
+    // Wasser) – zeichnet zustandslos aus `now`, siehe `LevelDecorationRenderer`.
+    level.renderDecoration?.(ctx, { width: FIELD_WIDTH, height: FIELD_HEIGHT, now });
 
     // Spielfeld-Umriss (aktuell ein Rechteck, später ein komplexeres Polygon).
     // Feinere Linie als zuvor (Nutzer-Feedback, Vergleich mit dem

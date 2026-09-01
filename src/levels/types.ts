@@ -202,6 +202,30 @@ export interface LevelEnemyUpdateContext {
  */
 export type LevelEnemyUpdater = (context: LevelEnemyUpdateContext) => Projectile[];
 
+/** Per-Frame-Zustand für einen rein dekorativen Level-Überzug
+ *  (`LevelDecorationRenderer`) – kein Spielzustand, nur Masse + Frame-Zeit. */
+export interface LevelDecorationState {
+  /** Logische Spielfeldbreite in Pixel. */
+  width: number;
+  /** Logische Spielfeldhöhe in Pixel. */
+  height: number;
+  /** Gemeinsame Frame-Wanduhrzeit (`performance.now()`, Millisekunden). */
+  now: number;
+}
+
+/**
+ * Zeichnet einen rein dekorativen Überzug eines Levels – NACH dem Foreground
+ * und VOR der Spiel-Ebene, pro Frame aus `render()` in `main.ts` aufgerufen.
+ * Für Ambiente ohne jede Spiellogik (z.B. im Wasser-Level 2 aufsteigende
+ * Luftblasen). Sollte zustandslos aus `state.now` zeichnen, wie der
+ * Bonusstein-Puls und die Bein-Animation – dann braucht es keinen
+ * `update()`-Takt und kein Teardown.
+ */
+export type LevelDecorationRenderer = (
+  ctx: CanvasRenderingContext2D,
+  state: LevelDecorationState,
+) => void;
+
 /**
  * Vollständige Konfiguration eines Levels. Jedes Level ist ein eigenes
  * Unterpackage unter `src/levels/` und exportiert genau ein solches Objekt.
@@ -230,6 +254,12 @@ export interface LevelConfig {
    * `main.ts` frei vom Bewegungsmuster einzelner Level.
    */
   updateEnemies: LevelEnemyUpdater;
+  /**
+   * Optionaler rein dekorativer Überzug (siehe `LevelDecorationRenderer`) –
+   * Ambiente ohne Spiellogik, zwischen Foreground und Spiel-Ebene. Fehlt er,
+   * hat das Level keinen.
+   */
+  renderDecoration?: LevelDecorationRenderer;
   scoring?: DefeatScoring;
   bonusStones: BonusStonesConfig;
   /** Hintergrundmusik-Loop für dieses Level. Optional – fehlt sie, bleibt es still. */

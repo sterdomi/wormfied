@@ -73,7 +73,7 @@ describe('Level-Registry', () => {
     // In Level 2 schiesst nur der Kopf, nicht die Körperglieder.
     expect(level2.mainEnemy.shooting?.enabled).toBe(true);
     expect(level2.mainEnemy.shooting!.cooldownSeconds).toBeGreaterThan(0);
-    expect(level2.mainEnemy.shooting!.projectileAssetSrc).toMatch(/\.svg$/);
+    expect(level2.mainEnemy.shooting!.projectileAssetSrc).toMatch(/projectiles\/torpedo\.png$/);
     expect(level2.miniEnemies.config.shooting?.enabled ?? false).toBe(false);
 
     // Spieler startet Level 2 mit Kanone (→ Cyborg-Look) ausgerüstet.
