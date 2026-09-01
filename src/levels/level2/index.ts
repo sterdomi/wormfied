@@ -7,8 +7,8 @@ import { renderLevel2Enemies } from './render';
 /**
  * Level 2.
  *
- * Gegner: eine **Schlange** aus dem Level-2-Drachen (`gegner.svg`) als Kopf und
- * den **drei Mini-Gegnern als Körperglieder** (`gegner.svg` bei 75 % der
+ * Gegner: eine **Schlange** aus dem Level-2-Drachen (`gegner.png`) als Kopf und
+ * den **drei Mini-Gegnern als Körperglieder** (`gegner.png` bei 75 % der
  * Kopf-Grösse, siehe `BODY_MINI_SCALE`). Der Kopf bewegt sich schlangenartig
  * (`snakeMovement.ts`), die drei Minis folgen ihm auf dem Trail als Kette
  * (`snakeBody.ts`) – Kopf + Minis erscheinen als EINE Schlange.
@@ -16,6 +16,11 @@ import { renderLevel2Enemies } from './render';
  * Die Minis bleiben normale `miniEnemies`: Einkesselung / Kanonentreffer
  * entfernt ein Glied wie gewohnt, die Kette wird dann kürzer. Level-Abschluss
  * läuft wie in Level 1 über die eroberte Fläche, nicht über besiegte Minis.
+ *
+ * Abdocken: bei jedem Abdocken des Spielers spuckt der Kopf das vorderste noch
+ * angedockte Körperglied durch den Mund aus – es fliegt auf die Spielerposition
+ * zu, läuft kurz frei umher und kehrt dann zum Ende der Schlange zurück, wo es
+ * wieder andockt (siehe `mouthSpit.ts`).
  *
  * Schiessen: nur der Kopf (`mainEnemy.shooting`, siehe `behavior.ts`). Eigenes
  * Background-/Foreground-Artwork + Musik; Bonusstein-Werte von Level 1.
@@ -26,8 +31,8 @@ export const level2: LevelConfig = {
   backgroundSrc: '/assets/levels/level2/background.png',
   foregroundSrc: '/assets/levels/level2/foreground.png',
   mainEnemy: {
-    assetSrc: '/assets/levels/level2/gegner.svg',
-    walkAssetSrc: '/assets/levels/level2/gegner-walk.svg',
+    assetSrc: '/assets/levels/level2/gegner.png',
+    walkAssetSrc: '/assets/levels/level2/gegner_walk.png',
     // Etwas flotter als der Level-1-Hauptgegner (240); der weiche Kurvenlauf
     // hält die Schlange trotzdem gut lesbar.
     speed: 250,
@@ -47,8 +52,8 @@ export const level2: LevelConfig = {
       // `BODY_MINI_SCALE` in `snakeBody.ts`) macht daraus die Körperglieder.
       // `size` hier ist nur der logische Wert; die Kollisionslogik nutzt feste
       // Radien, und die Positionen setzt `advanceSnakeBody`.
-      assetSrc: '/assets/levels/level2/gegner.svg',
-      walkAssetSrc: '/assets/levels/level2/gegner-walk.svg',
+      assetSrc: '/assets/levels/level2/gegner.png',
+      walkAssetSrc: '/assets/levels/level2/gegner_walk.png',
       speed: 250,
       size: 98,
       // Körperglieder schiessen nicht.

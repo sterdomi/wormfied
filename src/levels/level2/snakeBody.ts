@@ -4,7 +4,7 @@ import type { Point } from '../../game/field';
 import { advanceSnakeHead, createSnakeHeadState, type SnakeHeadState } from './snakeMovement';
 
 /**
- * Schlangenkörper von Level 2: der Hauptgegner (`gegner.svg`) ist der Kopf, die
+ * Schlangenkörper von Level 2: der Hauptgegner (`gegner.png`) ist der Kopf, die
  * (bis zu) drei Mini-Gegner sind seine Körperglieder – sie laufen NICHT mehr
  * eigenständig umher, sondern werden hier pro Frame auf den Kopf-Trail gesetzt,
  * sodass Kopf + Minis als EINE Schlange erscheinen.

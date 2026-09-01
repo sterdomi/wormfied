@@ -816,6 +816,10 @@ function start(
     // Ob der befahrene Pfad diesen Frame ausgeschnitten werden soll: nur wenn
     // der Spieler sich wirklich vom Rand gelöst hat (vor ODER nach dem Schritt).
     let carve = session?.hasLeftEdge === true;
+    // `true` nur in dem Frame, in dem der Spieler tatsächlich abdockt
+    // (`isUndocked` false → true) – edge-getriggert, geht so an
+    // `level.updateEnemies` (Level 2: Kopf spuckt dann ein Körperglied aus).
+    let playerJustUndocked = false;
 
     if (player.mode === 'onEdge') {
       // Andock/Abdock-Toggle (Instruktion 15): ändert nur `isUndocked`, keine
@@ -823,9 +827,10 @@ function start(
       // bei tatsächlicher Richtungseingabe nach innen, siehe `tryEnterDrawing`.
       const wasUndocked = player.isUndocked;
       toggleUndocked(player, input.state.drawJustPressed);
+      playerJustUndocked = !wasUndocked && player.isUndocked;
       // Nur beim tatsächlichen Abdocken (false → true) – nicht beim Abbrechen
       // (true → false), dafür ist kein eigener Sound vorgesehen.
-      if (!wasUndocked && player.isUndocked) audioManager.play('undock');
+      if (playerJustUndocked) audioManager.play('undock');
 
       session = tryEnterDrawing(player, field, input.state);
       if (session) {
@@ -913,6 +918,7 @@ function start(
         dt,
         mainEnemyShooting: level.mainEnemy.shooting,
         miniEnemyShooting: level.miniEnemies.config.shooting,
+        playerJustUndocked,
       });
       for (const shot of shots) {
         projectiles.push(shot);

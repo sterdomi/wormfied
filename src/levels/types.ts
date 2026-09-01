@@ -174,6 +174,14 @@ export interface LevelEnemyUpdateContext {
    */
   mainEnemyShooting?: ShootingConfig;
   miniEnemyShooting?: ShootingConfig;
+  /**
+   * `true` in GENAU dem Frame, in dem der Spieler vom Rand abdockt
+   * (`isUndocked` false → true) – edge-getriggert, wie der `undock`-Sound in
+   * `main.ts`. Level 2 nutzt es, damit der Schlangenkopf beim Abdocken das
+   * vorderste Körperglied durch den Mund ausspuckt (siehe
+   * `level2/mouthSpit.ts`); die übrigen Level ignorieren das Feld.
+   */
+  playerJustUndocked?: boolean;
 }
 
 /**

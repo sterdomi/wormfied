@@ -4,7 +4,7 @@ import type { LevelEnemyAssets, LevelEnemyRenderState } from '../types';
 import { BODY_MINI_SCALE } from './snakeBody';
 
 /**
- * Lokale „Vorne"-Richtung von `gegner.svg` / `gegner-walk.svg` als Winkel-Offset
+ * Lokale „Vorne"-Richtung von `gegner.png` / `gegner_walk.png` als Winkel-Offset
  * auf `atan2(dir.y, dir.x)`. Die Grafik zeigt im Sprite nach LINKS (−x), also
  * `+Math.PI`, damit der Drache in die Laufrichtung schaut (Nutzer-Feedback:
  * „verkehrt herum zusammengesetzt"). Für eine andere Zeichenrichtung: `0`
@@ -27,7 +27,7 @@ function drawGegner(
 }
 
 /**
- * Gegner-Ebene von Level 2: die Schlange = Kopf (`gegner.svg`) + bis zu drei
+ * Gegner-Ebene von Level 2: die Schlange = Kopf (`gegner.png`) + bis zu drei
  * Körperglieder (die `miniEnemies`, gerendert mit demselben Sprite bei
  * `BODY_MINI_SCALE` der Kopf-Grösse). Positionen/Richtungen setzt
  * `advanceSnakeBody` im selben Frame vor `render` – hier wird nur gezeichnet.
