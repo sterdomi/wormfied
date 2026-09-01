@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   renderLevel2Bubbles,
-  spawnTorpedoLaunchBubbles,
-  _resetTorpedoLaunchBubbles,
+  spawnTorpedoBubbleBurst,
+  _resetTorpedoBubbleBursts,
 } from './bubbles';
 
 /** 2D-Context-Stub, der die Mittelpunkte aller `arc`-Aufrufe mitschreibt. */
@@ -26,7 +26,7 @@ const W = 960;
 const H = 540;
 
 describe('renderLevel2Bubbles', () => {
-  beforeEach(() => _resetTorpedoLaunchBubbles());
+  beforeEach(() => _resetTorpedoBubbleBursts());
 
   it('zeichnet Blasen, ohne zu werfen', () => {
     const { ctx, arcs } = stubCtx();
@@ -57,13 +57,13 @@ describe('renderLevel2Bubbles', () => {
   });
 
   it('ein Abschuss-Wölkchen fügt kurzzeitig Blasen am Abschussort hinzu', () => {
-    spawnTorpedoLaunchBubbles(300, 400);
+    spawnTorpedoBubbleBurst(300, 400);
     const t = performance.now();
 
     const withBurst = stubCtx();
     renderLevel2Bubbles(withBurst.ctx, { width: W, height: H, now: t + 300 });
 
-    _resetTorpedoLaunchBubbles();
+    _resetTorpedoBubbleBursts();
     const without = stubCtx();
     renderLevel2Bubbles(without.ctx, { width: W, height: H, now: t + 300 });
 
@@ -73,13 +73,13 @@ describe('renderLevel2Bubbles', () => {
   });
 
   it('nach Ablauf der Lebensdauer trägt das Abschuss-Wölkchen nichts mehr bei', () => {
-    spawnTorpedoLaunchBubbles(300, 400);
+    spawnTorpedoBubbleBurst(300, 400);
     const t = performance.now();
 
     const expired = stubCtx();
     renderLevel2Bubbles(expired.ctx, { width: W, height: H, now: t + 4000 });
 
-    _resetTorpedoLaunchBubbles();
+    _resetTorpedoBubbleBursts();
     const none = stubCtx();
     renderLevel2Bubbles(none.ctx, { width: W, height: H, now: t + 4000 });
 

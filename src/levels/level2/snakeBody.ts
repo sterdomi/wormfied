@@ -28,10 +28,15 @@ export const BODY_MINI_SCALE = 0.75;
  * Weglänge Kopf-Mittelpunkt → erstes Körperglied, als Vielfaches der
  * Kopf-Render-Grösse (`head.size`). Als Faktor gehalten, damit die Kette bei
  * einer Grössen-Änderung verbunden bleibt. Grösser = Glied sitzt weiter hinten.
+ * Sehr klein (Nutzer-Feedback: „der erste Mini muss viel näher"): das erste
+ * Glied sitzt praktisch direkt hinter dem Kopf, die Schlange wirkt als EIN
+ * Körper statt als Perlenkette.
  */
-export const HEAD_TO_BODY_GAP_FACTOR = 0.5;
-/** Abstand zwischen zwei Körpergliedern, als Vielfaches von `head.size`. */
-export const SEGMENT_SPACING_FACTOR = 0.42;
+export const HEAD_TO_BODY_GAP_FACTOR = 0.20;
+/** Abstand zwischen zwei Körpergliedern, als Vielfaches von `head.size` –
+ *  sehr eng (Nutzer-Feedback), damit die ganze Kette dicht am Kopf sitzt,
+ *  siehe `HEAD_TO_BODY_GAP_FACTOR`. */
+export const SEGMENT_SPACING_FACTOR = 0.20;
 
 /** Kürzeste Kopf-Verschiebung, die einen neuen Trail-Punkt wert ist. */
 const MIN_TRAIL_STEP = 0.5;

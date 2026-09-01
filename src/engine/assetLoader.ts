@@ -31,6 +31,11 @@ export interface LevelImages {
    * nur vorhanden, wenn das Level `mainEnemy.walkAssetSrc` setzt.
    */
   mainEnemyWalk?: HTMLImageElement;
+  /**
+   * „Schuss"-Pose des Hauptgegners – nur vorhanden, wenn das Level
+   * `mainEnemy.shootAssetSrc` setzt.
+   */
+  mainEnemyShoot?: HTMLImageElement;
   /** Sprite der Mini-Gegner (ein Bild für alle). */
   miniEnemy: HTMLImageElement;
   /** Zweite Bein-Pose der Mini-Gegner, analog zu `mainEnemyWalk`. */
@@ -76,6 +81,7 @@ export async function loadLevelImages(level: LevelConfig): Promise<LevelImages> 
     bonusBomb,
     playerProjectile,
     projectile,
+    mainEnemyShoot,
   ] = await Promise.all([
     loadImage(level.foregroundSrc),
     loadImage(level.backgroundSrc),
@@ -89,6 +95,7 @@ export async function loadLevelImages(level: LevelConfig): Promise<LevelImages> 
     loadImage(level.bonusStones.bomb.assetSrc),
     loadImage(level.bonusStones.cannon.projectileAssetSrc),
     loadOptionalImage(projectileSrc),
+    loadOptionalImage(level.mainEnemy.shootAssetSrc),
   ]);
 
   return {
@@ -96,6 +103,7 @@ export async function loadLevelImages(level: LevelConfig): Promise<LevelImages> 
     background,
     mainEnemy,
     mainEnemyWalk,
+    mainEnemyShoot,
     miniEnemy,
     miniEnemyWalk,
     bonusSpeed,

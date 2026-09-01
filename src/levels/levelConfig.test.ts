@@ -63,6 +63,7 @@ describe('Level-Registry', () => {
     // Kopf = Level-2-Drache, mit zweiter Pose für die Lauf-Animation.
     expect(level2.mainEnemy.assetSrc).toMatch(/level2\/gegner\.png$/);
     expect(level2.mainEnemy.walkAssetSrc).toMatch(/level2\/gegner_walk\.png$/);
+    expect(level2.mainEnemy.shootAssetSrc).toMatch(/level2\/gegner_schuss\.png$/);
     expect(level2.mainEnemy.speed).toBeGreaterThan(0);
     expect(level2.mainEnemy.size).toBeGreaterThan(0);
 
@@ -76,6 +77,8 @@ describe('Level-Registry', () => {
     expect(level2.mainEnemy.shooting!.projectileAssetSrc).toMatch(/projectiles\/torpedo\.png$/);
     expect(level2.mainEnemy.shooting!.soundSrc).toMatch(/sound\/torpedo\.mp3$/);
     expect(level2.miniEnemies.config.shooting?.enabled ?? false).toBe(false);
+    // Torpedo-Einschlag löst einen Effekt aus (Blasen-Poof).
+    expect(typeof level2.onEnemyProjectileImpact).toBe('function');
 
     // Spieler startet Level 2 mit Kanone (→ Cyborg-Look) ausgerüstet.
     expect(level2.startsWithCannon).toBe(true);

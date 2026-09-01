@@ -2,8 +2,9 @@ import { defaultMainEnemyDefeatedPoints, defaultMiniEnemyDefeatedPoints } from '
 import { SHIELD_DECAY_PER_SECOND } from '../../game/playerState';
 import type { LevelConfig } from '../types';
 import { updateLevel2Enemies } from './behavior';
-import { renderLevel2Bubbles } from './bubbles';
+import { spawnTorpedoBubbleBurst } from './bubbles';
 import { renderLevel2Enemies } from './render';
+import { renderLevel2Water } from './water';
 
 /**
  * Level 2.
@@ -19,14 +20,19 @@ import { renderLevel2Enemies } from './render';
  * läuft wie in Level 1 über die eroberte Fläche, nicht über besiegte Minis.
  *
  * Abdocken: bei jedem Abdocken des Spielers spuckt der Kopf das vorderste noch
- * angedockte Körperglied durch den Mund aus – es fliegt auf die Spielerposition
- * zu, läuft kurz frei umher und kehrt dann zum Ende der Schlange zurück, wo es
- * wieder andockt (siehe `mouthSpit.ts`).
+ * angedockte Körperglied durch den Mund aus (kurz mit `gegner_schuss.png` als
+ * Schuss-Pose) – es fliegt auf die Spielerposition zu, läuft kurz frei umher
+ * und kehrt dann zum Ende der Schlange zurück, wo es wieder andockt (siehe
+ * `mouthSpit.ts`).
  *
- * Schiessen: nur der Kopf (`mainEnemy.shooting`, siehe `behavior.ts`). Eigenes
- * Background-/Foreground-Artwork + Musik; Bonusstein-Werte von Level 1. Der
- * Foreground ist Wasser – `renderDecoration` legt aufsteigende Luftblasen
- * darüber (`bubbles.ts`).
+ * Schiessen: nur der Kopf (`mainEnemy.shooting`, siehe `behavior.ts`), Sound
+ * `torpedo.mp3`. Schlägt der Torpedo ein (Linie/Spieler getroffen), steigt am
+ * Einschlagpunkt ein Blasen-Poof auf (`onEnemyProjectileImpact`).
+ *
+ * Eigenes Background-/Foreground-Artwork + Musik; Bonusstein-Werte von Level 1.
+ * Der Foreground ist Wasser – `renderDecoration` legt den Unterwasser-Look
+ * darüber: Tiefen-Grading, Godrays und aufsteigende Luftblasen (`water.ts` /
+ * `bubbles.ts`).
  */
 export const level2: LevelConfig = {
   id: 'level2',
@@ -36,6 +42,8 @@ export const level2: LevelConfig = {
   mainEnemy: {
     assetSrc: '/assets/levels/level2/gegner.png',
     walkAssetSrc: '/assets/levels/level2/gegner_walk.png',
+    // Kurz eingeblendet, während der Kopf ein Körperglied ausspuckt.
+    shootAssetSrc: '/assets/levels/level2/gegner_schuss.png',
     // Etwas flotter als der Level-1-Hauptgegner (240); der weiche Kurvenlauf
     // hält die Schlange trotzdem gut lesbar.
     speed: 250,
@@ -65,8 +73,10 @@ export const level2: LevelConfig = {
   },
   renderEnemies: renderLevel2Enemies,
   updateEnemies: updateLevel2Enemies,
-  // Wasser-Ambiente: aufsteigende Luftblasen über dem Foreground.
-  renderDecoration: renderLevel2Bubbles,
+  // Unterwasser-Look über dem Foreground: Tiefen-Grading, Godrays, Luftblasen.
+  renderDecoration: renderLevel2Water,
+  // Torpedo-Einschlag (Linie/Spieler getroffen): Blasen-Poof am Einschlagpunkt.
+  onEnemyProjectileImpact: spawnTorpedoBubbleBurst,
   scoring: {
     miniEnemyPoints: defaultMiniEnemyDefeatedPoints,
     mainEnemyPoints: defaultMainEnemyDefeatedPoints,

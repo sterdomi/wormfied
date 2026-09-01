@@ -51,6 +51,31 @@ const FREE_ROAM_SECONDS = 3;
 const RETURN_SPEED = 360;
 /** Abstand zum Ketten-Ende, ab dem das zurückkehrende Glied wieder andockt. */
 const DOCK_RADIUS = 50;
+/**
+ * So lange nach einem Maul-Spuck zeigt der Kopf die „Schuss"-Pose (ms).
+ * Deutlich über einem kurzen Flash (Nutzer-Feedback „man sieht das
+ * `gegner_schuss.png` nicht") – der Kopf steht bei angedockter Kette ohnehin
+ * still, es gibt also keinen Bewegungs-Hinweis auf den Sprite-Wechsel.
+ */
+const SPIT_POSE_MS = 800;
+
+/**
+ * Wanduhrzeit (`performance.now()`) des letzten Maul-Spucks – von `render.ts`
+ * über `isSpitPoseActive` abgefragt, um kurz das `gegner_schuss`-Sprite zu
+ * zeigen. Modul-lokal wie der übrige Maul-Spuck-Zustand.
+ */
+let lastSpitAtMs = Number.NEGATIVE_INFINITY;
+
+/** `true`, solange (seit dem letzten Ausspucken) die „Schuss"-Kopfpose gilt. */
+export function isSpitPoseActive(nowMs: number): boolean {
+  const since = nowMs - lastSpitAtMs;
+  return since >= 0 && since < SPIT_POSE_MS;
+}
+
+/** Nur für Tests: „Schuss"-Pose zurücksetzen (kein Spuck kürzlich). */
+export function _resetSpitPose(): void {
+  lastSpitAtMs = Number.NEGATIVE_INFINITY;
+}
 
 type SpitPhase = 'flying' | 'free' | 'returning';
 
@@ -126,6 +151,7 @@ export function spitMiniFromMouth(head: Enemy, mini: Enemy, target: Point): void
     y: head.position.y + forward.y * head.size * 0.35,
   };
   mini.direction = { ...toTarget };
+  lastSpitAtMs = performance.now(); // → `render.ts` zeigt kurz das Schuss-Sprite
   spitStates.set(mini, {
     phase: 'flying',
     velocity: { x: toTarget.x * MOUTH_SPIT_SPEED, y: toTarget.y * MOUTH_SPIT_SPEED },

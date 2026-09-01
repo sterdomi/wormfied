@@ -1027,6 +1027,7 @@ function start(
       if (li >= 0) {
         const hitPos = { x: projectiles[li].position.x, y: projectiles[li].position.y };
         projectiles.splice(li, 1);
+        level.onEnemyProjectileImpact?.(hitPos.x, hitPos.y);
         if (!spark) spark = createSpark(session.line, player.position, hitPos);
       }
 
@@ -1055,6 +1056,8 @@ function start(
         PLAYER_HIT_RADIUS,
       );
       if (hi >= 0) {
+        const hit = projectiles[hi].position;
+        level.onEnemyProjectileImpact?.(hit.x, hit.y);
         projectiles.splice(hi, 1);
         loseLife();
       }

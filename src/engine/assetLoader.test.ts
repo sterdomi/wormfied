@@ -103,9 +103,10 @@ describe('loadLevelImages', () => {
     expect((images.bonusFreeze as unknown as FakeImage).src).toBe('freeze.svg');
     expect((images.bonusBomb as unknown as FakeImage).src).toBe('bomb.svg');
     expect((images.playerProjectile as unknown as FakeImage).src).toBe('playerBullet.svg');
-    // Keine Lauf-Pose konfiguriert → nicht geladen, bleibt undefined.
+    // Keine Lauf-/Schuss-Pose konfiguriert → nicht geladen, bleibt undefined.
     expect(images.mainEnemyWalk).toBeUndefined();
     expect(images.miniEnemyWalk).toBeUndefined();
+    expect(images.mainEnemyShoot).toBeUndefined();
   });
 
   it('lädt die optionale zweite Bein-Pose (Lauf-Animation), falls im Level konfiguriert', async () => {
@@ -114,7 +115,13 @@ describe('loadLevelImages', () => {
       name: 'L',
       foregroundSrc: 'fg.png',
       backgroundSrc: 'bg.png',
-      mainEnemy: { assetSrc: 'main.svg', walkAssetSrc: 'main-walk.svg', speed: 90, size: 40 },
+      mainEnemy: {
+        assetSrc: 'main.svg',
+        walkAssetSrc: 'main-walk.svg',
+        shootAssetSrc: 'main-shoot.svg',
+        speed: 90,
+        size: 40,
+      },
       miniEnemies: {
         count: 3,
         config: { assetSrc: 'mini.svg', walkAssetSrc: 'mini-walk.svg', speed: 120, size: 22 },
@@ -141,5 +148,6 @@ describe('loadLevelImages', () => {
 
     expect((images.mainEnemyWalk as unknown as FakeImage).src).toBe('main-walk.svg');
     expect((images.miniEnemyWalk as unknown as FakeImage).src).toBe('mini-walk.svg');
+    expect((images.mainEnemyShoot as unknown as FakeImage).src).toBe('main-shoot.svg');
   });
 });

@@ -1,6 +1,7 @@
 import type { Vec } from '../../game/enemy';
 import type { Point } from '../../game/field';
 import type { LevelEnemyAssets, LevelEnemyRenderState } from '../types';
+import { chainSegmentsInOrder, isSpitPoseActive } from './mouthSpit';
 import { BODY_MINI_SCALE } from './snakeBody';
 
 /**
@@ -28,17 +29,24 @@ function drawGegner(
 
 /**
  * Gegner-Ebene von Level 2: die Schlange = Kopf (`gegner.png`) + bis zu drei
- * Körperglieder (die `miniEnemies`, gerendert mit demselben Sprite bei
- * `BODY_MINI_SCALE` der Kopf-Grösse). Positionen/Richtungen setzt
- * `advanceSnakeBody` im selben Frame vor `render` – hier wird nur gezeichnet.
+ * Körperglieder (die angedockten `miniEnemies`, bei `BODY_MINI_SCALE` der
+ * Kopf-Grösse). Positionen/Richtungen setzt `advanceSnakeBody` im selben Frame
+ * vor `render` – hier wird nur gezeichnet.
  *
- * - Von hinten nach vorne (letztes Glied zuerst, Kopf zuletzt) → der Kopf
- *   überdeckt den Hals.
- * - `hideMainEnemy` (Levelabschluss) blendet den Kopf aus; die Körperglieder
- *   sind zu dem Zeitpunkt ohnehin schon aus `miniEnemies` entfernt (mit
- *   Explosionen, siehe `main.ts`).
- * - Maul-/Lauf-Animation über den gemeinsamen `useWalkFrame`-Takt, wie bei den
- *   Level-1-Gegnern.
+ * Zeichenreihenfolge: lose Glieder, dann Kette von hinten nach vorne, dann der
+ * Kopf zuletzt → er überdeckt den Hals. `hideMainEnemy` (Levelabschluss)
+ * blendet den Kopf aus.
+ *
+ * Animation (Nutzer-Feedback: „verwachsene" Schlange soll nicht wackeln):
+ * - **Kopf**: animiert (Lauf-Takt `useWalkFrame`, Wechsel `gegner` ↔
+ *   `gegner_walk`) NUR solange keine Körperglieder angedockt sind. Hängt
+ *   mindestens ein Glied an ihm, steht er still und zeigt `gegner_walk`
+ *   (wie die statischen Körperglieder). Ausnahme: kurz nach einem Maul-Spuck
+ *   (`isSpitPoseActive`) die „Schuss"-Pose `assets.mainEnemyShoot`.
+ * - **Angedockte Glieder**: alle bis auf das LETZTE statisch mit `gegner_walk`
+ *   (nicht animiert). Nur das letzte Glied (Schwanz) animiert weiter.
+ * - **Lose Glieder** (ausgespuckt / frei / zurückkehrend, siehe `mouthSpit.ts`):
+ *   animieren wie gehabt.
  *
  * Erfüllt `LevelEnemyRenderer`, Aufruf pro Frame aus `render()` in `main.ts`.
  */
@@ -47,14 +55,42 @@ export function renderLevel2Enemies(
   assets: LevelEnemyAssets,
   state: LevelEnemyRenderState,
 ): void {
-  const { mainEnemy, miniEnemies, mainEnemyScale, hideMainEnemy, useWalkFrame } = state;
+  const { mainEnemy, miniEnemies, mainEnemyScale, hideMainEnemy, useWalkFrame, now } = state;
 
-  const headSprite = useWalkFrame && assets.mainEnemyWalk ? assets.mainEnemyWalk : assets.mainEnemy;
-  const bodySprite = useWalkFrame && assets.miniEnemyWalk ? assets.miniEnemyWalk : assets.miniEnemy;
   const bodySize = mainEnemy.size * BODY_MINI_SCALE;
 
-  for (let i = miniEnemies.length - 1; i >= 0; i--) {
-    drawGegner(ctx, bodySprite, miniEnemies[i].position, miniEnemies[i].direction, bodySize);
+  // Angedockte Glieder ("verwachsen") in Kettenreihenfolge, Rest = lose Gegner.
+  const chain = chainSegmentsInOrder(miniEnemies);
+  const chainSet = new Set(chain);
+  const loose = miniEnemies.filter((m) => !chainSet.has(m));
+  const grownTogether = chain.length > 0;
+
+  const animatedBody =
+    useWalkFrame && assets.miniEnemyWalk ? assets.miniEnemyWalk : assets.miniEnemy;
+  // „verwende gegner_walk" – statisch, ohne Lauf-Takt (Glieder UND „verwachsener" Kopf).
+  const staticBody = assets.miniEnemyWalk ?? assets.miniEnemy;
+  const staticHead = assets.mainEnemyWalk ?? assets.mainEnemy;
+
+  // Kopf: Schuss-Pose > (mit Kette) statisch `gegner_walk` > (ohne Kette) Lauf-Animation.
+  const headSprite =
+    isSpitPoseActive(now) && assets.mainEnemyShoot
+      ? assets.mainEnemyShoot
+      : grownTogether
+        ? staticHead
+        : useWalkFrame && assets.mainEnemyWalk
+          ? assets.mainEnemyWalk
+          : assets.mainEnemy;
+
+  // Lose Gegner zuerst (Reihenfolge unkritisch), animiert.
+  for (const m of loose) {
+    drawGegner(ctx, animatedBody, m.position, m.direction, bodySize);
+  }
+
+  // Kette von hinten (Schwanz) nach vorne: nur der Schwanz animiert, der Rest
+  // statisch mit `gegner_walk`.
+  for (let i = chain.length - 1; i >= 0; i--) {
+    const isTail = i === chain.length - 1;
+    drawGegner(ctx, isTail ? animatedBody : staticBody, chain[i].position, chain[i].direction, bodySize);
   }
 
   if (!hideMainEnemy) {

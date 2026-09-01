@@ -30,6 +30,13 @@ export interface EnemyConfig {
    * `assetSrc` gezeichnet (kein Bein-"Wackeln").
    */
   walkAssetSrc?: string;
+  /**
+   * Optionale „Schuss"-Pose des Sprites, kurz eingeblendet, wenn der Gegner
+   * feuert. In Level 2 zeigt der Kopf sie, während er ein Körperglied durch
+   * den Mund ausspuckt (siehe `mouthSpit.ts` / `render.ts`). Fehlt sie, bleibt
+   * es bei `assetSrc`/`walkAssetSrc`.
+   */
+  shootAssetSrc?: string;
   /** Bewegungsgeschwindigkeit in Pixel/Sekunde. */
   speed: number;
   /** Rendergrösse (Durchmesser) in Pixel. */
@@ -112,6 +119,8 @@ export interface BonusStonesConfig {
 export interface LevelEnemyAssets {
   mainEnemy: HTMLImageElement;
   mainEnemyWalk?: HTMLImageElement;
+  /** „Schuss"-Pose des Hauptgegners (`EnemyConfig.shootAssetSrc`), optional. */
+  mainEnemyShoot?: HTMLImageElement;
   miniEnemy: HTMLImageElement;
   miniEnemyWalk?: HTMLImageElement;
 }
@@ -273,6 +282,14 @@ export interface LevelConfig {
    * hat das Level keinen.
    */
   renderDecoration?: LevelDecorationRenderer;
+  /**
+   * Optionaler Effekt-Haken, wenn ein GEGNER-Projektil einschlägt – die
+   * Zeichenlinie oder den Spieler getroffen (nicht: aus dem Feld geflogen).
+   * `x`/`y` = Einschlagpunkt. Rein visuell/Sound, KEINE Spiellogik (die läuft
+   * unabhängig weiter); `main.ts` ruft ihn beim Verbrauch des Projektils auf.
+   * Level 2 lässt hier Blasen aufsteigen (`spawnTorpedoBubbleBurst`).
+   */
+  onEnemyProjectileImpact?: (x: number, y: number) => void;
   scoring?: DefeatScoring;
   bonusStones: BonusStonesConfig;
   /** Hintergrundmusik-Loop für dieses Level. Optional – fehlt sie, bleibt es still. */

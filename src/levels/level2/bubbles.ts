@@ -1,4 +1,5 @@
 import type { LevelDecorationState } from '../types';
+import { clamp01, lerp, mulberry32 } from './rng';
 
 /**
  * Aufsteigende Luftblasen für das Wasser-Level 2 – rein dekorativ, zwischen
@@ -11,10 +12,12 @@ import type { LevelDecorationState } from '../types';
  *    Bonusstein-Puls / die Bein-Animation in `render()`), also kein
  *    `update()`-Takt, kein Teardown. Feste Parameter einmalig per gesätem PRNG
  *    (deterministisch, u.a. für Tests).
- *  - **Abschuss-Wölkchen**: Wenn der Schlangenkopf einen Torpedo abfeuert, ruft
- *    `behavior.ts` `spawnTorpedoLaunchBubbles(x, y)` auf – hinter dem Torpedo
- *    steigt dann ein kurzlebiges Bläschen-Wölkchen auf. Das ist der einzige
- *    Zustand hier: eine kleine, gedeckelte Liste von (Ort, Geburtszeit).
+ *  - **Bläschen-Wölkchen** (`spawnTorpedoBubbleBurst(x, y)`): ein kurzlebiges,
+ *    aufsteigendes Wölkchen an einem Punkt. Ausgelöst von `behavior.ts` beim
+ *    Abfeuern (hinter dem Torpedo) und von `main.ts` über
+ *    `LevelConfig.onEnemyProjectileImpact` beim Einschlag (Linie/Spieler
+ *    getroffen). Das ist der einzige Zustand hier: eine kleine, gedeckelte
+ *    Liste von (Ort, Geburtszeit).
  *  - die **Torpedo-Spur**: hinter jedem fliegenden Projektil
  *    (`LevelDecorationState.enemyProjectiles`) eine kurze Bläschen-Fahne, die
  *    aufsteigt. Ebenfalls zustandslos – berechnet aus Projektil-Position/
@@ -97,25 +100,6 @@ interface LaunchBurst {
   bornMs: number;
 }
 
-/** Kleiner deterministischer PRNG (mulberry32) – nur für die festen Parameter. */
-function mulberry32(seed: number): () => number {
-  let s = seed >>> 0;
-  return () => {
-    s = (s + 0x6d2b79f5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
-
-function clamp01(v: number): number {
-  return v < 0 ? 0 : v > 1 ? 1 : v;
-}
-
 const BUBBLES: readonly Bubble[] = (() => {
   const rand = mulberry32(0xb0bb1e5);
   const small: Bubble[] = Array.from({ length: BUBBLE_COUNT }, () => ({
@@ -174,12 +158,12 @@ const TRAIL_SAMPLES: readonly TrailSample[] = (() => {
 let bursts: LaunchBurst[] = [];
 
 /**
- * Löst hinter dem gerade abgefeuerten Torpedo ein aufsteigendes
- * Bläschen-Wölkchen aus (`x`/`y` = Abschussort, i.d.R. leicht hinter dem
- * Torpedo). Von `behavior.ts` aufgerufen, sobald der Kopf schiesst. Aeltere,
- * abgelaufene Wölkchen werden dabei gleich mit aufgeräumt.
+ * Löst an `(x, y)` ein kurzlebiges, aufsteigendes Bläschen-Wölkchen aus –
+ * beim Abfeuern (hinter dem Torpedo, aus `behavior.ts`) und beim Einschlag
+ * (Linie/Spieler getroffen, aus `main.ts` via `onEnemyProjectileImpact`).
+ * Aeltere, abgelaufene Wölkchen werden dabei gleich mit aufgeräumt.
  */
-export function spawnTorpedoLaunchBubbles(x: number, y: number): void {
+export function spawnTorpedoBubbleBurst(x: number, y: number): void {
   const nowMs = performance.now();
   bursts = bursts.filter((b) => nowMs - b.bornMs < BURST_LIFETIME_MS);
   bursts.push({ x, y, bornMs: nowMs });
@@ -187,7 +171,7 @@ export function spawnTorpedoLaunchBubbles(x: number, y: number): void {
 }
 
 /** Nur für Tests: alle aktiven Abschuss-Wölkchen verwerfen. */
-export function _resetTorpedoLaunchBubbles(): void {
+export function _resetTorpedoBubbleBursts(): void {
   bursts = [];
 }
 
@@ -243,7 +227,7 @@ export function renderLevel2Bubbles(
 
   // Abschuss-Wölkchen: pro Wölkchen die feste `BURST_PARTICLES`-Form, nach
   // Alter (0..1) hochsteigend und ausblendend. Abgelaufene werden hier nicht
-  // entfernt (das macht `spawnTorpedoLaunchBubbles`), nur übersprungen.
+  // entfernt (das macht `spawnTorpedoBubbleBurst`), nur übersprungen.
   for (const burst of bursts) {
     const age = clamp01((now - burst.bornMs) / BURST_LIFETIME_MS);
     if (age >= 1) continue;
