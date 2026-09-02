@@ -8,7 +8,7 @@ export const de = {
   bonusHeading: 'Prozent-Bonus',
   extraLifeAward: '★ Extra-Leben ★',
   restartHint: 'Enter drücken für Neustart',
-  backToStartHint: 'Enter drücken oder warten – zurück zum Start',
+  backToStartHint: 'Enter drücken – zurück zum Start',
   muteLabel: 'Ton stummschalten',
   unmuteLabel: 'Ton aktivieren',
   rotateDeviceHint: '📱 Bitte Gerät drehen – im Querformat spielen',
@@ -18,6 +18,11 @@ export const de = {
   iosInstallDismiss: 'Hinweis schliessen',
   fullscreenEnterLabel: 'Vollbild',
   fullscreenExitLabel: 'Vollbild verlassen',
+  globalTop10: 'Globale Top 10',
+  leaderboardLoading: 'Bestenliste lädt …',
+  leaderboardEmpty: 'Noch keine Einträge',
+  changeNameLabel: 'Spielername ändern',
+  namePromptMessage: 'Dein Name für die globale Bestenliste:',
 } as const;
 
 export type TranslationKey = keyof typeof de;

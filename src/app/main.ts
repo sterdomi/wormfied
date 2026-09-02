@@ -104,6 +104,8 @@ import { createHud } from '../ui/hud';
 import { setupOrientationWarning } from '../ui/orientationWarning';
 import { isTouchCapable } from '../ui/touchControls';
 import { t } from '../i18n';
+import { fetchTopScores, submitScore } from '../services/leaderboard';
+import { getPlayerName } from '../services/playerName';
 import '../styles/main.css';
 
 // Abstand des (fest grossen) Spielfelds zu Logo/Rand in "logischen" Pixeln,
@@ -197,12 +199,6 @@ const PLAYER_HIT_RADIUS = playerSize / 2;
  * für alle (kein Per-Entität-Zustand nötig), analog zum `ScreenFlash`-Timing.
  */
 const WALK_FRAME_INTERVAL_MS = 220;
-/**
- * Wie lange der Game-Over-Screen spätestens stehen bleibt, bevor es
- * automatisch zurück zum Startbildschirm geht – Enter überspringt die
- * Wartezeit und geht sofort dorthin.
- */
-const GAME_OVER_DISPLAY_MS = 10_000;
 /**
  * Wartezeit nach Levelabschluss, bevor das Highscore-/"Level geschafft"-
  * Overlay erscheint (Nutzer-Feedback): lässt die Explosionen von Haupt- +
@@ -442,9 +438,9 @@ type StartOutcome =
 
 /**
  * Startet eine Partie mit `level`. Löst mit `toStartScreen` auf, sobald nach
- * einem Game Over entweder `GAME_OVER_DISPLAY_MS` verstrichen sind ODER Enter
- * gedrückt wird; mit `nextLevel`, sobald nach dem Levelabschluss-Overlay Enter
- * gedrückt wird. In beiden Fällen ist die Partie vorher sauber abgebaut
+ * einem Game Over Enter gedrückt wird; mit `nextLevel`, sobald nach dem
+ * Levelabschluss-Overlay Enter gedrückt wird. In beiden Fällen ist die Partie
+ * vorher sauber abgebaut
  * (`teardown`), den weiteren Ablauf (nächstes Level / Startbildschirm)
  * steuert `boot()`.
  *
@@ -495,9 +491,6 @@ function start(
   // Screen-Flash bei Lebensverlust (Instruktion 17, Punkt 5) – strukturell
   // wie `Explosion` (Instruktion 12), `null` solange keiner läuft.
   let screenFlash: ScreenFlash | null = null;
-  // Zeitpunkt des Game Over (ms, performance.now) – `null`, solange keins
-  // läuft. Steuert die automatische Rückkehr zum Startbildschirm.
-  let gameOverAt: number | null = null;
   // Levelabschluss (Nutzer-Feedback): das Highscore-/"Level geschafft"-Overlay
   // soll die Explosionen von Haupt- + Mini-Gegnern nicht sofort zudecken.
   // `scoring.isLevelComplete` friert die Spiellogik schon beim Treffer ein
@@ -508,7 +501,9 @@ function start(
   let pendingLevelCompletePercent = 0;
   // Enter löst nur auf seiner steigenden Flanke aus (Leertaste liefert das
   // seit Instruktion 15 bereits fertig über `input.state.drawJustPressed`).
-  const restartTrigger = new EdgeTrigger();
+  // `let` statt `const` (Nutzer-Feedback): wird beim Eintritt in Game Over
+  // ODER Level Complete durch eine frische Instanz ersetzt, siehe dort.
+  let restartTrigger = new EdgeTrigger();
 
   const hud = createHud((muted) => audioManager.setMuted(muted));
 
@@ -692,6 +687,14 @@ function start(
       // aus, sobald die Wartezeit um ist.
       levelCompleteRevealAt = performance.now() + LEVEL_COMPLETE_REVEAL_DELAY_MS;
       pendingLevelCompletePercent = percent;
+      // Nutzer-Feedback: ein beim Levelabschluss noch gehaltener Neustart-
+      // Knopf (Enter, oder – auf Touch-Geräten – Joystick/Action-Button, die
+      // sich ihr rohes "gehalten"-Bit mit `restart` teilen, siehe `input.ts`)
+      // durfte NICHT sofort als frischer Druck fürs "nächstes Level"-Overlay
+      // zählen – sonst raste das Overlay quasi unsichtbar durch, sobald die
+      // Wartezeit um war. Frischer Trigger: zählt erst wieder nach einem
+      // echten Loslassen + neuem Druck (siehe `EdgeTrigger`).
+      restartTrigger = new EdgeTrigger();
     }
     hud.setScore(scoring.score);
   }
@@ -731,9 +734,25 @@ function start(
     audioManager.play('life_loss');
 
     if (playerState.isGameOver) {
-      hud.setGameOver(true);
-      gameOverAt = performance.now();
+      const finalScore = scoring.score;
+      hud.setGameOver(true, finalScore);
       audioManager.play('game_over');
+      // Frischer Trigger (Nutzer-Feedback, wie beim Levelabschluss oben):
+      // ein beim Sterben noch gehaltener Neustart-Knopf darf nicht sofort
+      // als Bestätigung fürs Game-Over-Overlay zählen.
+      restartTrigger = new EdgeTrigger();
+
+      // Globale Bestenliste (Nutzer-Wunsch): Score erst übermitteln, DANN
+      // laden – sonst könnte die frisch übermittelte eigene Platzierung in
+      // der angezeigten Top 10 fehlen. Bewusst "fire-and-forget" (kein
+      // `await`): ein langsames/fehlgeschlagenes Firestore-Netzwerk darf den
+      // synchronen Game-Loop nicht blockieren, siehe `services/leaderboard.ts`.
+      const playerName = getPlayerName();
+      void submitScore(playerName, finalScore)
+        .then(() => fetchTopScores())
+        .then((entries) => {
+          hud.setLeaderboard(entries, { name: playerName, score: Math.round(finalScore) });
+        });
     }
   }
 
@@ -782,11 +801,11 @@ function start(
     }
 
     if (playerState.isGameOver) {
-      // Keine Spieler-/Gegnerbewegung mehr – zurück zum Startbildschirm,
-      // entweder automatisch nach GAME_OVER_DISPLAY_MS oder sofort per Enter.
-      const displayTimeElapsed =
-        gameOverAt !== null && performance.now() - gameOverAt >= GAME_OVER_DISPLAY_MS;
-      if (displayTimeElapsed || restartPressed) {
+      // Keine Spieler-/Gegnerbewegung mehr – zurück zum Startbildschirm erst
+      // per Enter/Neustart-Taste (Nutzer-Feedback: kein automatisches
+      // Wegnavigieren mehr, u.a. weil das die globale Bestenliste abschnitt,
+      // falls deren Firestore-Abfrage noch lief, siehe `loseLife`).
+      if (restartPressed) {
         teardown();
         resolveStart({ kind: 'toStartScreen' });
       }
