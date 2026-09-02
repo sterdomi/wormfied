@@ -131,6 +131,23 @@ body {
   border-color: #555;
 }
 
+/* Namens-Button für die globale Bestenliste (`services/playerName.ts`) –
+ * gleiche Optik wie Mute/Fullscreen, reiht sich rechts daneben ein. */
+.hud__name {
+  padding: 4px 10px;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background: #14171f;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.hud__name:hover {
+  border-color: #555;
+}
+
 @keyframes hud-flash {
   0% {
     color: #a3be8c;
@@ -154,6 +171,8 @@ body {
   align-items: center;
   justify-content: center;
   gap: 12px;
+  padding: 16px 0;
+  overflow-y: auto;
   background: rgb(11 14 20 / 82%);
   color: #e5e9f0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -222,6 +241,13 @@ body {
   font-weight: 700;
   letter-spacing: 0.1em;
   color: #a3be8c;
+}
+
+/* Globale Top-10-Bestenliste im Game-Over-Overlay (`services/leaderboard.ts`). */
+.overlay__leaderboard-status {
+  margin: 0;
+  text-align: center;
+  color: #8a93a6;
 }
 
 /*

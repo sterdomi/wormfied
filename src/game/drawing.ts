@@ -70,12 +70,26 @@ export interface PerimeterHit {
  *
  * `pressed(true)` liefert nur im ERSTEN Frame `true`, danach erst wieder nach
  * einem `pressed(false)` dazwischen.
+ *
+ * Nutzer-Feedback (Levelübergang Level 2 → Level 1 ohne sichtbares
+ * Level-Complete-Overlay): `main.ts` erzeugt pro Level einen frischen
+ * `restartTrigger` UND einen frischen `input` (`setupInput()`), da beide
+ * Teil des lokalen State von `start()` sind. War der Neustart-Knopf (Enter
+ * bzw. der Touch-Action-Button, der sich sein rohes "gehalten"-Bit mit
+ * `drawJustPressed` teilt) beim Levelwechsel noch physisch gehalten – z.B.
+ * Keyboard-Repeat oder ein Finger, der den Touch-Button noch nicht
+ * losgelassen hat –, sah der neue Trigger dessen allerersten Sample-Wert
+ * `true` fälschlich als frische steigende Flanke, weil er bei `wasActive =
+ * false` startete. Der allererste Sample-Wert zählt deshalb NIE als
+ * Flanke, egal ob er `true` oder `false` ist – er dient nur zum Einlesen
+ * des Startzustands, eine echte Flanke braucht danach immer erst ein
+ * beobachtetes `false` dazwischen.
  */
 export class EdgeTrigger {
-  private wasActive = false;
+  private wasActive: boolean | null = null;
 
   pressed(active: boolean): boolean {
-    const rising = active && !this.wasActive;
+    const rising = this.wasActive === false && active;
     this.wasActive = active;
     return rising;
   }

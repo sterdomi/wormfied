@@ -1,0 +1,41 @@
+rules_version = '2';
+
+/**
+ * Dieses Firebase-Projekt ("flamel-surfer") wird von zwei Apps geteilt:
+ * flamel (Collection `scores`) und Wormfied (Collection `wormfied_scores`,
+ * siehe `src/services/leaderboard.ts`). Ein Projekt hat nur EINE Firestore-
+ * Rules-Datei – der `scores`-Block unten ist flamels bestehende Regel
+ * (1:1 aus der Firebase Console übernommen, Stand 2026-09-02), NICHT von
+ * Wormfied verändern. Bei künftigen Deploys (`firebase deploy --only
+ * firestore:rules`) IMMER zuerst den aktuellen Stand aus der Console holen
+ * und hier mergen, statt blind zu überschreiben.
+ */
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // flamel – bestehende Highscore-Collection, unverändert.
+    match /scores/{document=**} {
+      allow read: if true;
+      allow write: if request.resource.data.keys().hasOnly(['name', 'score']) &&
+                      request.resource.data.name.size() <= 7 &&
+                      request.resource.data.score is number;
+    }
+
+    // Wormfied – globale Highscore-Liste (siehe src/services/leaderboard.ts):
+    // - Lesen: öffentlich (jeder sieht die Top 10).
+    // - Erstellen: öffentlich, aber mit strikter Formvalidierung (kein
+    //   beliebiges Schreiben von Feldern/Typen, Name/Score begrenzt).
+    // - Ändern/Löschen: niemandem erlaubt (Einträge sind unveränderlich).
+    match /wormfied_scores/{scoreId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['name', 'score', 'createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 16
+        && request.resource.data.score is number
+        && request.resource.data.score >= 0
+        && request.resource.data.score <= 1000000
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+  }
+}

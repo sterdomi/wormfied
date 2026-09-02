@@ -44,6 +44,18 @@ describe('EdgeTrigger – steigende Flanke (weiterhin für Neustart/Enter genutz
     expect(trigger.pressed(false)).toBe(false); // losgelassen
     expect(trigger.pressed(true)).toBe(true); // erneut gedrückt
   });
+
+  it('wertet den allerersten Sample-Wert nie als Flanke (auch wenn er schon "true" ist)', () => {
+    // Regressionstest fürs Nutzer-Feedback: ein pro Level frisch erzeugter
+    // Trigger (main.ts, `restartTrigger`) darf einen beim Levelwechsel noch
+    // gehaltenen Neustart-Knopf nicht sofort als frischen Druck werten –
+    // sonst überspringt Level 1 sein Level-Complete-Overlay unsichtbar.
+    const trigger = new EdgeTrigger();
+    expect(trigger.pressed(true)).toBe(false); // schon gehalten, keine Flanke
+    expect(trigger.pressed(true)).toBe(false); // weiterhin gehalten
+    expect(trigger.pressed(false)).toBe(false); // losgelassen
+    expect(trigger.pressed(true)).toBe(true); // jetzt eine echte Flanke
+  });
 });
 
 describe('toggleUndocked – Abdocken/Abbrechen (Instruktion 15, Punkt 3 + 5)', () => {

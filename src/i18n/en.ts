@@ -10,7 +10,7 @@ export const en: Record<TranslationKey, string> = {
   bonusHeading: 'Percentage bonus',
   extraLifeAward: '★ Extra life ★',
   restartHint: 'Press Enter to restart',
-  backToStartHint: 'Press Enter or wait – back to start',
+  backToStartHint: 'Press Enter – back to start',
   muteLabel: 'Mute sound',
   unmuteLabel: 'Unmute sound',
   rotateDeviceHint: '📱 Please rotate your device – landscape only',
@@ -20,4 +20,9 @@ export const en: Record<TranslationKey, string> = {
   iosInstallDismiss: 'Dismiss hint',
   fullscreenEnterLabel: 'Fullscreen',
   fullscreenExitLabel: 'Exit fullscreen',
+  globalTop10: 'Global Top 10',
+  leaderboardLoading: 'Loading leaderboard …',
+  leaderboardEmpty: 'No entries yet',
+  changeNameLabel: 'Change player name',
+  namePromptMessage: 'Your name for the global leaderboard:',
 };

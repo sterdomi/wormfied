@@ -6,6 +6,8 @@ import {
 } from '../game/scoring';
 import { isIOS } from '../engine/platform';
 import { setupIosInstallHint } from './iosInstallHint';
+import { type LeaderboardEntry } from '../services/leaderboard';
+import { getPlayerName, setPlayerName } from '../services/playerName';
 
 export interface Hud {
   /** Prozentanzeige der eroberten Fläche (Wert 0–100). */
@@ -18,10 +20,18 @@ export interface Hud {
   setShield: (shield: number) => void;
   /** Kurzes Aufblitzen der Leben-Anzeige (Feedback bei Extra-Leben). */
   flashLives: () => void;
-  /** Game-Over-Overlay ein-/ausblenden. */
-  setGameOver: (visible: boolean) => void;
+  /** Game-Over-Overlay ein-/ausblenden (optional mit Endstand für die Statuszeile). */
+  setGameOver: (visible: boolean, score?: number) => void;
   /** Level-Complete-Overlay ein-/ausblenden (mit erreichtem Prozent + Score). */
   setLevelComplete: (visible: boolean, percent?: number, score?: number) => void;
+  /**
+   * Befüllt die globale Top-10-Liste im Game-Over-Overlay. `'loading'`
+   * während der Firestore-Abfrage läuft (`app/main.ts`), danach die
+   * geladenen Einträge (leeres Array = "noch keine Einträge"). `ownEntry`
+   * hebt die soeben übermittelte eigene Platzierung hervor, falls sie unter
+   * den Top 10 gelandet ist.
+   */
+  setLeaderboard: (state: 'loading' | LeaderboardEntry[], ownEntry?: LeaderboardEntry) => void;
   dispose: () => void;
 }
 
@@ -84,6 +94,56 @@ function renderLevelCompleteBonus(container: HTMLElement, percent: number): void
     extra.textContent = t('extraLifeAward');
     container.append(extra);
   }
+}
+
+/**
+ * Füllt die Top-10-Liste im Game-Over-Overlay: Ladehinweis, "keine
+ * Einträge" oder die Rangliste (Rang, Name, Score) mit der eigenen soeben
+ * übermittelten Platzierung hervorgehoben (analog zur hervorgehobenen Stufe
+ * in `renderLevelCompleteBonus`).
+ */
+function renderLeaderboard(
+  container: HTMLElement,
+  state: 'loading' | LeaderboardEntry[],
+  ownEntry?: LeaderboardEntry,
+): void {
+  container.replaceChildren();
+
+  const heading = document.createElement('p');
+  heading.className = 'overlay__bonus-heading';
+  heading.textContent = t('globalTop10');
+  container.append(heading);
+
+  if (state === 'loading') {
+    const loading = document.createElement('p');
+    loading.className = 'overlay__leaderboard-status';
+    loading.textContent = t('leaderboardLoading');
+    container.append(loading);
+    return;
+  }
+
+  if (state.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'overlay__leaderboard-status';
+    empty.textContent = t('leaderboardEmpty');
+    container.append(empty);
+    return;
+  }
+
+  state.forEach((entry, index) => {
+    const row = document.createElement('div');
+    row.className = 'overlay__bonus-row';
+    if (ownEntry && entry.name === ownEntry.name && entry.score === ownEntry.score) {
+      row.classList.add('overlay__bonus-row--hit');
+    }
+
+    const rank = document.createElement('span');
+    rank.textContent = `${index + 1}. ${entry.name}`;
+    const score = document.createElement('span');
+    score.textContent = Math.round(entry.score).toLocaleString('de-CH');
+    row.append(rank, score);
+    container.append(row);
+  });
 }
 
 /** Befüllt ein Overlay-Element (`#gameover` / `#levelcomplete`) mit Titel,
@@ -196,23 +256,47 @@ export function createHud(onMuteChange: (muted: boolean) => void): Hud {
     document.addEventListener('fullscreenchange', onFullscreenChange);
   }
 
+  /**
+   * Namens-Button für die globale Bestenliste (`services/leaderboard.ts`):
+   * `window.prompt()` statt eines eigenen Eingabefelds – einfachste Lösung,
+   * die nicht mit der globalen Enter-Taste (Neustart-Trigger, `input.ts`)
+   * kollidiert, da sie den Game-Loop während der Eingabe synchron anhält.
+   */
+  const nameButton = document.createElement('button');
+  nameButton.type = 'button';
+  nameButton.className = 'hud__name';
+  nameButton.textContent = '👤';
+  nameButton.setAttribute('aria-label', t('changeNameLabel'));
+  nameButton.title = t('changeNameLabel');
+  nameButton.addEventListener('click', () => {
+    const next = window.prompt(t('namePromptMessage'), getPlayerName());
+    if (next !== null) setPlayerName(next);
+  });
+
   // Drei Grid-Spalten (siehe main.css `#hud`): links Score/Leben/Schild,
   // Mitte die (grosse, garantiert nicht überlappende) Prozentanzeige,
-  // rechts Mute/Fullscreen.
+  // rechts Mute/Fullscreen/Name.
   const leftGroup = document.createElement('div');
   leftGroup.className = 'hud__left';
   leftGroup.append(scoreEl, livesEl, shieldEl);
 
   const rightGroup = document.createElement('div');
   rightGroup.className = 'hud__right';
-  rightGroup.append(muteButton, ...(fullscreenButton ? [fullscreenButton] : []));
+  rightGroup.append(muteButton, ...(fullscreenButton ? [fullscreenButton] : []), nameButton);
 
   bar.append(leftGroup, claimedEl, rightGroup);
 
-  // Game Over führt (per Enter oder automatisch nach GAME_OVER_DISPLAY_MS,
-  // main.ts) zurück zum Startbildschirm statt direkt zu einer neuen Partie
-  // wie beim Level-Complete-Overlay.
-  buildOverlay(gameOverEl, 'gameOver', 'backToStartHint');
+  // Game Over führt (per Enter, main.ts) zurück zum Startbildschirm statt
+  // direkt zu einer neuen Partie wie beim Level-Complete-Overlay.
+  const gameOverStats = buildOverlay(gameOverEl, 'gameOver', 'backToStartHint');
+  // Globale Top-10-Liste zwischen Statuszeile und Hinweis, analog zur
+  // Prozent-Bonus-Tabelle im Level-Complete-Overlay unten – befüllt von
+  // `setLeaderboard` (main.ts stösst dort Submit + Abfrage bei echtem Game
+  // Over an, siehe `services/leaderboard.ts`).
+  const leaderboardContainer = document.createElement('div');
+  leaderboardContainer.className = 'overlay__bonus overlay__leaderboard';
+  gameOverStats.after(leaderboardContainer);
+
   const levelCompleteStats = buildOverlay(levelCompleteEl, 'levelComplete', 'restartHint');
   // Prozent-Bonus-Tabelle zwischen Statuszeile und Hinweis – nur im
   // Level-Complete-Overlay, befüllt von `setLevelComplete` (braucht `percent`).
@@ -259,7 +343,11 @@ export function createHud(onMuteChange: (muted: boolean) => void): Hud {
     setLives,
     setShield,
     flashLives,
-    setGameOver: (visible: boolean): void => {
+    setGameOver: (visible: boolean, score?: number): void => {
+      if (visible) {
+        gameOverStats.textContent = score !== undefined ? formatScore(score) : '';
+        renderLeaderboard(leaderboardContainer, 'loading');
+      }
       gameOverEl.hidden = !visible;
     },
     setLevelComplete: (visible: boolean, percent?: number, score?: number): void => {
@@ -268,6 +356,9 @@ export function createHud(onMuteChange: (muted: boolean) => void): Hud {
         renderLevelCompleteBonus(levelCompleteBonus, percent);
       }
       levelCompleteEl.hidden = !visible;
+    },
+    setLeaderboard: (state: 'loading' | LeaderboardEntry[], ownEntry?: LeaderboardEntry): void => {
+      renderLeaderboard(leaderboardContainer, state, ownEntry);
     },
     dispose: (): void => {
       clearTimeout(flashTimer);
