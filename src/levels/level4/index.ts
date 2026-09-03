@@ -21,9 +21,12 @@ import { renderLevel4Enemies } from './render';
  * unteren Bereich. Eine schwarze U-Linie zeigt die Grenze
  * (`renderLevel4Decoration`).
  *
- * Noch NICHT drin: Wirkung des Rhythmus (Spawns / Schockwellen o.ä.),
- * Papageien (`miniEnemies.count` = 0), echtes Dschungel-Background
- * (Platzhalter). Foreground: eigenes Dschungel-Laub (`foreground.png`).
+ * 6 fliegende **Papageien** als Mini-Gegner (erratische Flug-Bewegung wie in
+ * Level 1, `behavior.ts`; Zwei-Frame-Flügelschlag `papagei_up` ↔ `papagei_down`).
+ *
+ * Noch NICHT drin: Wirkung des Rhythmus (Spawns / Schockwellen o.ä.), echtes
+ * Dschungel-Background (Platzhalter). Foreground: eigenes Dschungel-Laub
+ * (`foreground.png`).
  *
  * Bonussteine wie Level 1 (alle vier Typen).
  */
@@ -39,12 +42,14 @@ export const level4: LevelConfig = {
     size: 130,
   },
   miniEnemies: {
-    // Noch keine Papageien.
-    count: 0,
+    // 6 fliegende Papageien – erratische Flug-Bewegung, Zwei-Frame-Flügelschlag
+    // (`papagei_up` = Flügel oben, `papagei_down` = Flügel unten), kein Schiessen.
+    count: 6,
     config: {
-      assetSrc: '/assets/levels/level4/gorilla_bereit.png',
-      speed: 200,
-      size: 40,
+      assetSrc: '/assets/levels/level4/papagei_up.png',
+      walkAssetSrc: '/assets/levels/level4/papagei_down.png',
+      speed: 185,
+      size: 46,
     },
   },
   renderEnemies: renderLevel4Enemies,
