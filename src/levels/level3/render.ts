@@ -3,6 +3,10 @@ import type { Point } from '../../game/field';
 import { BODY_MINI_SCALE } from '../../game/snakeBody';
 import type { LevelEnemyAssets, LevelEnemyRenderState } from '../types';
 import { electricChargeIntensity } from './electric';
+import { classifyLevel3Minis } from './enemySet';
+
+/** Rendergrösse einer frei laufenden Plasma-Mini (kreisrund, keine Rotation). */
+const PLASMA_RENDER_SIZE = 60;
 
 /**
  * Lokale „Vorne"-Richtung der Körper-/Schwanz-Sprites (`body.png`, `tail.png`)
@@ -78,21 +82,23 @@ function drawHead(
 }
 
 /**
- * Gegner-Ebene von Level 3: der Aal = Kopf (`head.png`) + N Körpersegmente
- * (`body.png`, = die `miniEnemies`) + Schwanz (`tail.png` fürs letzte Segment).
- * Positionen/Richtungen setzt `advanceSnakeBody` im selben Frame vor `render`
- * (`behavior.ts`) – hier wird nur gezeichnet.
+ * Gegner-Ebene von Level 3. Die geteilte `miniEnemies`-Liste wird in
+ * `enemySet.ts` in zwei Gruppen geteilt:
  *
- * Anders als in Level 2 gibt es keine losen/ausgespuckten Glieder und kein
- * Loch: die Segmente hängen immer als eine Kette am Kopf (Array-Reihenfolge).
- * Das Schwanz-Sprite `tail.png` wird über `miniEnemies.config.walkAssetSrc`
- * geladen und kommt hier als `assets.miniEnemyWalk` an – Level 3 hat keine
- * Lauf-Animation, der „walk"-Slot trägt nur den Schwanz.
+ *  - **Aal**: Kopf (`head.png`) + Körpersegmente (`body.png`) + Schwanz
+ *    (`tail.png`, letztes Segment). Positionen/Richtungen setzt
+ *    `advanceSnakeBody` / `updateElectric` im selben Frame vor `render`.
+ *    Zeichenreihenfolge: von hinten (Schwanz) nach vorne, Kopf zuletzt.
+ *  - **Plasma-Minis**: frei laufende Gegner, `gegner_mini.png` ↔
+ *    `gegner_mini_walk.png` im gemeinsamen Lauf-Takt (`useWalkFrame`).
+ *    Kreisrund – keine Rotation.
  *
- * Zeichenreihenfolge: von hinten (Schwanz) nach vorne, Kopf zuletzt → er
- * überdeckt das erste Segment. `hideMainEnemy` (Levelabschluss) blendet den
- * Kopf aus.
+ * Sprite-Slots (Level 3 nutzt eigene, bespoke Zuordnung): der Aal-Kopf hat
+ * keine Lauf-/Schuss-Animation, daher tragen `mainEnemyWalk` = `body.png` und
+ * `mainEnemyShoot` = `tail.png`; `miniEnemy` / `miniEnemyWalk` = die
+ * Plasma-Mini-Grafiken.
  *
+ * `hideMainEnemy` (Levelabschluss) blendet den Kopf aus.
  * Erfüllt `LevelEnemyRenderer`, Aufruf pro Frame aus `render()` in `main.ts`.
  */
 export function renderLevel3Enemies(
@@ -100,20 +106,34 @@ export function renderLevel3Enemies(
   assets: LevelEnemyAssets,
   state: LevelEnemyRenderState,
 ): void {
-  const { mainEnemy, miniEnemies, mainEnemyScale, hideMainEnemy } = state;
+  const { mainEnemy, miniEnemies, mainEnemyScale, hideMainEnemy, useWalkFrame } = state;
+  const { body, roamers } = classifyLevel3Minis(miniEnemies);
 
   const bodySize = mainEnemy.size * BODY_MINI_SCALE;
-  const bodySprite = assets.miniEnemy;
-  const tailSprite = assets.miniEnemyWalk ?? assets.miniEnemy;
+  const bodySprite = assets.mainEnemyWalk ?? assets.mainEnemy;
+  const tailSprite = assets.mainEnemyShoot ?? bodySprite;
+  const plasmaSprite =
+    useWalkFrame && assets.miniEnemyWalk ? assets.miniEnemyWalk : assets.miniEnemy;
 
-  // Von hinten nach vorne zeichnen; das letzte Segment ist der Schwanz.
-  for (let i = miniEnemies.length - 1; i >= 0; i--) {
-    const isTail = i === miniEnemies.length - 1;
+  // Frei laufende Plasma-Minis zuerst (liegen hinter dem Aal), kreisrund.
+  for (const m of roamers) {
+    ctx.drawImage(
+      plasmaSprite,
+      m.position.x - PLASMA_RENDER_SIZE / 2,
+      m.position.y - PLASMA_RENDER_SIZE / 2,
+      PLASMA_RENDER_SIZE,
+      PLASMA_RENDER_SIZE,
+    );
+  }
+
+  // Aal-Körper von hinten nach vorne; das letzte Segment ist der Schwanz.
+  for (let i = body.length - 1; i >= 0; i--) {
+    const isTail = i === body.length - 1;
     drawSegment(
       ctx,
       isTail ? tailSprite : bodySprite,
-      miniEnemies[i].position,
-      miniEnemies[i].direction,
+      body[i].position,
+      body[i].direction,
       bodySize,
     );
   }

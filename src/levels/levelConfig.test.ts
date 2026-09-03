@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { levels } from './index';
+import { EEL_BODY_COUNT, ROAMER_COUNT } from './level3/enemySet';
 import { DRAW_SPEED } from '../game/drawing';
 import { EDGE_SPEED } from '../game/playerMovement';
 
@@ -96,12 +97,16 @@ describe('Level-Registry', () => {
     // Eigenes Unterwasser-Artwork (nicht die Level-1/2-Bilder).
     expect(level3.backgroundSrc).toMatch(/level3\/background\.png$/);
     expect(level3.foregroundSrc).toMatch(/level3\/foreground\.png$/);
-    // Aal: Kopf head.png, Körpersegmente body.png, Schwanz tail.png (walk-Slot).
+    // Aal-Kopf = head.png; Körper-/Schwanz-Grafik reist an den freien
+    // mainEnemy-Slots mit (kein Lauf-/Schuss-Sprite am Aal-Kopf).
     expect(level3.mainEnemy.assetSrc).toMatch(/level3\/head\.png$/);
-    expect(level3.miniEnemies.config.assetSrc).toMatch(/level3\/body\.png$/);
-    expect(level3.miniEnemies.config.walkAssetSrc).toMatch(/level3\/tail\.png$/);
-    // Mehrere Körpersegmente – je mehr, desto länger der Aal.
-    expect(level3.miniEnemies.count).toBeGreaterThan(3);
+    expect(level3.mainEnemy.walkAssetSrc).toMatch(/level3\/body\.png$/);
+    expect(level3.mainEnemy.shootAssetSrc).toMatch(/level3\/tail\.png$/);
+    // miniEnemies.config = die frei laufenden Plasma-Minis.
+    expect(level3.miniEnemies.config.assetSrc).toMatch(/level3\/gegner_mini\.png$/);
+    expect(level3.miniEnemies.config.walkAssetSrc).toMatch(/level3\/gegner_mini_walk\.png$/);
+    // Aal-Körpersegmente + Plasma-Minis teilen sich die eine Liste.
+    expect(level3.miniEnemies.count).toBe(EEL_BODY_COUNT + ROAMER_COUNT);
 
     // Nur der Kopf schiesst – Torpedo wie Level 2.
     expect(level3.mainEnemy.shooting?.enabled).toBe(true);
@@ -111,11 +116,12 @@ describe('Level-Registry', () => {
     // Torpedo-Einschlag löst einen Effekt aus (Blasen-Poof), Unterwasser-Look aktiv.
     expect(typeof level3.onEnemyProjectileImpact).toBe('function');
     expect(typeof level3.renderDecoration).toBe('function');
+    // Foreground-Blackout während der Strom-Attacke.
+    expect(typeof level3.foregroundBlackout).toBe('function');
 
-    // Strom-Attacke statt Kanone (Nutzer-Wunsch): kein Kanonen-Start, und die
-    // Bonussteine sind auf Speed + Freeze beschränkt (kein Kanonen-/Bomben-Bonus).
+    // Alle vier Bonustypen aktiv (keine allowedTypes-Beschränkung mehr).
     expect(level3.startsWithCannon ?? false).toBe(false);
-    expect(level3.bonusStones.spawning.allowedTypes).toEqual(['speedBoost', 'freeze']);
+    expect(level3.bonusStones.spawning.allowedTypes).toBeUndefined();
 
     // Eigene Musik.
     expect(level3.musicSrc).toMatch(/level3\/level3\.mp3$/);

@@ -5,6 +5,7 @@ import type { LevelConfig } from '../types';
 import { updateLevel3Enemies } from './behavior';
 import { renderLevel3Decoration } from './decoration';
 import { electricForegroundBlackout } from './electric';
+import { EEL_BODY_COUNT, ROAMER_COUNT } from './enemySet';
 import { renderLevel3Enemies } from './render';
 
 /**
@@ -14,30 +15,31 @@ import { renderLevel3Enemies } from './render';
  * (Tiefen-Grading, Godrays, aufsteigende Luftblasen) und dieselbe Torpedo-
  * Optik. Unterschiede zu Level 2:
  *
- *  - Der Gegner ist ein **Aal** statt der Drachen-Schlange: Kopf = `head.png`,
- *    Körper = `body.png` (N-mal als `miniEnemies` – je mehr Segmente, desto
- *    länger der Aal), Schwanz = `tail.png` fürs letzte Segment. Bewegung über
- *    `advanceSnakeBody` / `snakeMovement` (level-agnostisch in `game/`, wie für
- *    Level 2 gebaut). Das Schwanz-Sprite reist im `walkAssetSrc`-Slot der
- *    Mini-Gegner mit (Level 3 hat keine Lauf-Animation – siehe `render.ts`).
+ *  - Der Hauptgegner ist ein **Aal**: Kopf = `head.png`, Körper = `body.png`
+ *    (`EEL_BODY_COUNT` Segmente), Schwanz = `tail.png` fürs letzte Segment.
+ *    Bewegung über `advanceSnakeBody` / `snakeMovement` (level-agnostisch in
+ *    `game/`). Der Aal-Kopf hat keine Lauf-/Schuss-Animation, daher tragen die
+ *    `mainEnemy`-Slots `walkAssetSrc` = `body.png` und `shootAssetSrc` =
+ *    `tail.png` (siehe `render.ts`).
+ *  - Zusätzlich `ROAMER_COUNT` frei laufende **Plasma-Minis**
+ *    (`gegner_mini.png` ↔ `gegner_mini_walk.png`), erratische Bewegung wie in
+ *    Level 1. Aal-Körper + Minis teilen sich die eine `miniEnemies`-Liste;
+ *    `enemySet.ts` teilt sie auf (`count` = `EEL_BODY_COUNT + ROAMER_COUNT`).
  *  - **Kein Loch** (`level2/hole.ts`) und **kein Maul-Spuck**
- *    (`level2/mouthSpit.ts`): keine losen Mini-Gegner, die Segmente hängen
- *    dauerhaft als Kette am Kopf.
+ *    (`level2/mouthSpit.ts`): die Aal-Segmente hängen dauerhaft am Kopf.
  *  - **Strom-Attacke** (`electric.ts` / `decoration.ts`): im Muster 1, 3, 5,
  *    3 s (wiederholend) rollt sich der Aal zum Kreis zusammen (≈ 1 s
  *    Vorwarnung), setzt mit einem Blitz das ganze Spielfeld unter Strom
  *    (`reportFieldZap` → ein Leben, wenn der Spieler nicht am Rand angedockt
- *    ist) und rollt wieder aus.
- *  - **Keine Kanone und kein Bomben-Bonus** (Nutzer-Wunsch): der Spieler
- *    startet ohne Kanone, und die Bonussteine sind auf Speed + Freeze
- *    beschränkt (`bonusStones.spawning.allowedTypes`).
+ *    ist; `foregroundBlackout` färbt dabei den Foreground schwarz) und rollt
+ *    wieder aus. Die Plasma-Minis laufen währenddessen weiter.
  *
- * Schiessen: nur der Kopf, Torpedo (`torpedo.png` / `torpedo.mp3`) wie in
+ * Schiessen: nur der Aal-Kopf, Torpedo (`torpedo.png` / `torpedo.mp3`) wie in
  * Level 2, inkl. Bläschen-Poof beim Einschlag (`onEnemyProjectileImpact`).
  *
- * Bonusstein-Werte von Level 1. Eigenes Background-/Foreground-Artwork und
- * eigene Musik (`level3.mp3`); der Blitz-Sound (`highvoltage.mp3`) liegt in
- * `SOUND_SOURCES` / `main.ts` (beim `reportFieldZap`).
+ * Bonussteine: alle vier Typen wie Level 1 (`defaultBonusStones`). Eigenes
+ * Background-/Foreground-Artwork und eigene Musik (`level3.mp3`); der
+ * Blitz-Sound (`highvoltage.mp3`) liegt in `SOUND_SOURCES` / `main.ts`.
  */
 export const level3: LevelConfig = {
   id: 'level3',
@@ -46,6 +48,10 @@ export const level3: LevelConfig = {
   foregroundSrc: '/assets/levels/level3/foreground.png',
   mainEnemy: {
     assetSrc: '/assets/levels/level3/head.png',
+    // Aal-Kopf hat keine eigene Lauf-/Schuss-Animation – die freien Slots
+    // tragen die Aal-Körper- bzw. -Schwanz-Grafik (siehe `render.ts`).
+    walkAssetSrc: '/assets/levels/level3/body.png',
+    shootAssetSrc: '/assets/levels/level3/tail.png',
     speed: 250,
     // Deutlich kleiner als der Level-2-Kopf (130) – Nutzer-Feedback „der Aal
     // ist zu gross"; der Segment-Abstand (`snakeBody.ts`) skaliert mit, der
@@ -61,19 +67,19 @@ export const level3: LevelConfig = {
     },
   },
   miniEnemies: {
-    // Körpersegmente des Aals – das letzte wird als Schwanz (`tail.png`)
-    // gezeichnet. Mehr Segmente = längerer Aal.
-    count: 9,
+    // Aal-Körpersegmente + frei laufende Plasma-Minis in einer Liste; die
+    // Aufteilung macht `enemySet.ts` (erste EEL_BODY_COUNT = Aal, Rest = Minis).
+    count: EEL_BODY_COUNT + ROAMER_COUNT,
     config: {
-      assetSrc: '/assets/levels/level3/body.png',
-      // Kein Lauf-Sprite – der „walk"-Slot trägt das Schwanz-Sprite fürs
-      // letzte Segment (siehe `render.ts`).
-      walkAssetSrc: '/assets/levels/level3/tail.png',
-      speed: 500,
-      // Nur für die Rand-Abstandsberechnung relevant (Rendergrösse = Kopf ×
-      // `BODY_MINI_SCALE`); proportional zum kleineren Kopf mitgezogen.
-      size: 60,
-      // Körpersegmente schiessen nicht.
+      // Grafik der frei laufenden Plasma-Minis (kreisrund, Zwei-Bild-Animation).
+      // Die Aal-Körper-/Schwanz-Grafik reist an den `mainEnemy`-Slots mit.
+      assetSrc: '/assets/levels/level3/gegner_mini.png',
+      walkAssetSrc: '/assets/levels/level3/gegner_mini_walk.png',
+      speed: 250,
+      // Für die Rand-Abstandsberechnung der Plasma-Minis (Aal-Segmente setzt
+      // `advanceSnakeBody`, deren `size` ist dort unkritisch).
+      size: 54,
+      // Weder Aal-Segmente noch Plasma-Minis schiessen.
     },
   },
   renderEnemies: renderLevel3Enemies,
@@ -86,10 +92,7 @@ export const level3: LevelConfig = {
   // Torpedo-Einschlag (Linie/Spieler getroffen): Blasen-Poof am Einschlagpunkt.
   onEnemyProjectileImpact: spawnTorpedoBubbleBurst,
   shieldDecayPerSecond: SHIELD_DECAY_PER_SECOND,
-  // Kein Kanonen-Start (Nutzer-Wunsch) – Level 3 dreht sich um die Strom-Attacke.
-  bonusStones: {
-    ...defaultBonusStones,
-    spawning: { ...defaultBonusStones.spawning, allowedTypes: ['speedBoost', 'freeze'] },
-  },
+  // Alle vier Bonustypen wie Level 1.
+  bonusStones: defaultBonusStones,
   musicSrc: '/assets/levels/level3/level3.mp3',
 };
