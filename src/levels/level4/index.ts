@@ -23,10 +23,15 @@ import { renderLevel4Enemies } from './render';
  *
  * 6 fliegende **Papageien** als Mini-Gegner (erratische Flug-Bewegung wie in
  * Level 1, `behavior.ts`; Zwei-Frame-Flügelschlag `papagei_up` ↔ `papagei_down`).
+ * Sie **schiessen kleine Kugeln** auf den Spieler – im Grund-Takt der
+ * `shooting`-Config, aber je Papagei zufällig verschoben (Anfangsphase +
+ * Cooldown-Faktor in `behavior.ts`), damit nie alle sechs gleichzeitig feuern.
  *
- * Noch NICHT drin: Wirkung des Rhythmus (Spawns / Schockwellen o.ä.), echtes
- * Dschungel-Background (Platzhalter). Foreground: eigenes Dschungel-Laub
- * (`foreground.png`).
+ * Beim Doppelschlag des Gorillas (Muster 1/3/5/3 s) löst eine feldweite
+ * **Schockwelle** aus (`shockwave.ts`), die im inneren Bereich ein Leben kostet.
+ *
+ * Noch NICHT drin: echtes Dschungel-Background (Platzhalter). Foreground:
+ * eigenes Dschungel-Laub (`foreground.png`).
  *
  * Bonussteine wie Level 1 (alle vier Typen).
  */
@@ -43,13 +48,22 @@ export const level4: LevelConfig = {
   },
   miniEnemies: {
     // 6 fliegende Papageien – erratische Flug-Bewegung, Zwei-Frame-Flügelschlag
-    // (`papagei_up` = Flügel oben, `papagei_down` = Flügel unten), kein Schiessen.
+    // (`papagei_up` = Flügel oben, `papagei_down` = Flügel unten). Sie schiessen
+    // kleine Kugeln; `behavior.ts` versetzt den Takt je Papagei zufällig, damit
+    // nicht alle gleichzeitig feuern.
     count: 6,
     config: {
       assetSrc: '/assets/levels/level4/papagei_up.png',
       walkAssetSrc: '/assets/levels/level4/papagei_down.png',
       speed: 185,
       size: 46,
+      shooting: {
+        enabled: true,
+        cooldownSeconds: 3.2,
+        projectileSpeed: 300,
+        projectileSize: 12,
+        projectileAssetSrc: '/assets/projectiles/kugel.svg',
+      },
     },
   },
   renderEnemies: renderLevel4Enemies,

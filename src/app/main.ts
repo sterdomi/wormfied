@@ -323,6 +323,8 @@ const SOUND_SOURCES: Record<string, string> = {
   highvoltage: '/assets/levels/level3/highvoltage.mp3',
   // Level 4: ein Schlag des trommelnden Gorillas (`playLevelSound` aus `updateEnemies`).
   bongo_split: '/assets/levels/level4/bongo-split.mp3',
+  // Level 4: der Doppelschlag des Gorillas, der die Schockwelle auslöst.
+  boom: '/assets/levels/level4/boom.mp3',
 };
 
 /** Basis-Sound-Key für die levelspezifische Hintergrundmusik (`level.musicSrc`). */
@@ -1165,12 +1167,13 @@ function start(
       }
     }
 
-    // Feldweiter Blitz (Level 3): `highvoltage`-Sound bei jedem Einschlag (das
-    // ganze Feld steht unter Strom, unabhängig vom Spieler), und ein Leben,
-    // wenn der Spieler nicht sicher am Rand angedockt ist. Das ~1 s lange
-    // Einrollen des Aals davor ist die Vorwarnung.
+    // Feldweite Attacke (Level 3: der eingerollte Aal setzt das ganze Feld unter
+    // Strom; Level 4: die Schockwelle des Gorillas erreicht den Spieler). Kostet
+    // ein Leben, wenn der Spieler nicht sicher am Rand angedockt ist. Ein
+    // eigener Sound nur, wenn das Level `fieldZapSound` setzt (Level 3:
+    // `highvoltage`; Level 4 hat mit `boom` schon seinen Ton).
     if (fieldZapThisFrame) {
-      audioManager.play('highvoltage');
+      if (level.fieldZapSound) audioManager.play(level.fieldZapSound);
       if (!(player.mode === 'onEdge' && !player.isUndocked)) {
         loseLife();
         return;

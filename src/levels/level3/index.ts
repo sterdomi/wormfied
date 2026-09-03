@@ -96,4 +96,6 @@ export const level3: LevelConfig = {
   // Alle vier Bonustypen wie Level 1.
   bonusStones: defaultBonusStones,
   musicSrc: '/assets/levels/level3/level3.mp3',
+  // Blitz-Sound beim Feld-Zap des eingerollten Aals.
+  fieldZapSound: 'highvoltage',
 };

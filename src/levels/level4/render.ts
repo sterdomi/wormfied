@@ -1,6 +1,7 @@
 import type { Enemy } from '../../game/enemy';
 import type { LevelEnemyAssets, LevelEnemyRenderState } from '../types';
 import { FIELD_W, GORILLA_BASE_Y, peekDrumming } from './drumming';
+import { MAX_RADIUS, peekShockwave, SHOCKWAVE_ORIGIN } from './shockwave';
 import { gorillaSprite } from './sprites';
 
 /** Render-Höhe des Gorillas in Pixeln (Breite folgt dem Frame-Seitenverhältnis). */
@@ -87,4 +88,26 @@ export function renderLevel4Enemies(
   const x = FIELD_W / 2 - w / 2;
   const y = GORILLA_BASE_Y - h + h * BASE_NUDGE;
   ctx.drawImage(img, x, y, w, h);
+
+  drawShockwave(ctx);
+}
+
+/** Expandierender Ring der Schockwelle – blasst mit wachsendem Radius aus. */
+function drawShockwave(ctx: CanvasRenderingContext2D): void {
+  const sw = peekShockwave();
+  if (!sw.active || sw.radius < 4) return;
+  const fade = Math.max(0, 1 - sw.radius / MAX_RADIUS);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = `rgba(255, 224, 130, ${0.55 * fade})`;
+  ctx.lineWidth = 4 + 12 * fade;
+  ctx.beginPath();
+  ctx.arc(SHOCKWAVE_ORIGIN.x, SHOCKWAVE_ORIGIN.y, sw.radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = `rgba(255, 255, 255, ${0.35 * fade})`;
+  ctx.lineWidth = 2 + 4 * fade;
+  ctx.beginPath();
+  ctx.arc(SHOCKWAVE_ORIGIN.x, SHOCKWAVE_ORIGIN.y, Math.max(0, sw.radius - 8), 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
 }

@@ -215,12 +215,12 @@ export interface LevelEnemyUpdateContext {
    */
   spawnMiniEnemyAt?: (position: Point) => Enemy;
   /**
-   * Meldet dem Game-Loop, dass in DIESEM Frame eine feldweite Gegner-Attacke
-   * einschlägt (Level 3: der zum Kreis eingerollte Aal setzt das ganze
-   * Spielfeld unter Strom). Der Loop entscheidet dann über den Schaden – ein
-   * Leben, wenn der Spieler nicht sicher am Rand angedockt ist. Rein
-   * ereignishaft: einmal pro Blitz aufrufen, nicht pro Frame. Die übrigen
-   * Level nutzen es nicht.
+   * Meldet dem Game-Loop, dass in DIESEM Frame eine feld-/bereichsweite
+   * Gegner-Attacke den Spieler trifft (Level 3: der eingerollte Aal setzt das
+   * Feld unter Strom; Level 4: die Schockwelle des Gorillas erreicht den
+   * Spieler). Der Loop entscheidet über den Schaden – ein Leben, wenn der
+   * Spieler nicht sicher am Rand angedockt ist. Ereignishaft: nur im
+   * Treffer-Frame aufrufen.
    */
   reportFieldZap?: () => void;
   /**
@@ -344,6 +344,13 @@ export interface LevelConfig {
   bonusStones: BonusStonesConfig;
   /** Hintergrundmusik-Loop für dieses Level. Optional – fehlt sie, bleibt es still. */
   musicSrc?: string;
+  /**
+   * Sound-Key, der beim Auslösen von `reportFieldZap` abgespielt wird (Level 3:
+   * `highvoltage`, der Blitz des eingerollten Aals). Fehlt er, spielt der
+   * Feld-Zap keinen eigenen Sound – Level 4 z. B. hat mit `boom` (beim
+   * Doppelschlag) bereits seinen Ton und will den Level-3-Strom nicht.
+   */
+  fieldZapSound?: string;
   /**
    * Schild-Abnahme pro Sekunde auf dem Rand (Nutzer-Feedback: pro Level
    * konfigurierbar). Fehlt sie, gilt `SHIELD_DECAY_PER_SECOND` aus

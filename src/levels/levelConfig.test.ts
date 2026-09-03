@@ -144,10 +144,12 @@ describe('Level-Registry', () => {
     expect(level4.backgroundSrc).toMatch(/level4\//);
     expect(level4.foregroundSrc).toMatch(/level4\/foreground\.(jpg|png)$/);
     expect(level4.mainEnemy.assetSrc).toMatch(/level4\/gorilla_/);
-    // 6 Papageien als Mini-Gegner, die schiessen nicht.
+    // 6 Papageien als Mini-Gegner, die kleine Kugeln schiessen.
     expect(level4.miniEnemies.count).toBe(6);
     expect(level4.miniEnemies.config.assetSrc).toMatch(/level4\/papagei_up\.png$/);
-    expect(level4.miniEnemies.config.shooting?.enabled ?? false).toBe(false);
+    expect(level4.miniEnemies.config.shooting?.enabled).toBe(true);
+    expect(level4.miniEnemies.config.shooting!.projectileAssetSrc).toMatch(/projectiles\/kugel\.svg$/);
+    expect(level4.miniEnemies.config.shooting!.projectileSize).toBeLessThan(16);
     expect(level4.mainEnemy.shooting?.enabled ?? false).toBe(false);
     // Bonussteine wie Level 1, keine Beschränkung.
     expect(level4.bonusStones.spawning.allowedTypes).toBeUndefined();

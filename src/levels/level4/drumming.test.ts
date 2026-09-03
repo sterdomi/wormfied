@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { createEnemy, type Enemy } from '../../game/enemy';
-import { FIELD_H, FIELD_W, peekDrumming, updateDrumming } from './drumming';
+import {
+  FIELD_H,
+  FIELD_W,
+  peekDrumming,
+  SLAM_GAP_PATTERN,
+  SLAM_STRIKE_SECONDS,
+  SLAM_WINDUP_SECONDS,
+  updateDrumming,
+} from './drumming';
 
 const DT = 1 / 60;
 
@@ -13,17 +21,15 @@ describe('updateDrumming – trommelnder Gorilla (Level 4)', () => {
     const g = gorilla();
     updateDrumming(g, DT);
     expect(g.position.x).toBeCloseTo(FIELD_W / 2, 0);
-    // Bodennah, aber noch im bespielbaren oberen 80 % (unter der schwarzen Linie
-    // beginnt der gesperrte Bereich bei 0.8·H).
     expect(g.position.y).toBeGreaterThan(FIELD_H * 0.6);
     expect(g.position.y).toBeLessThanOrEqual(FIELD_H * 0.8);
   });
 
-  it('läuft das Rhythmus-Muster ab (verschiedene Frames inkl. aller Schlag-Posen)', () => {
+  it('grooved mit Einzelschlägen und schlägt dazwischen doppelt (alle Frames kommen vor)', () => {
     const g = gorilla();
     const frames = new Set<string>();
     let hits = 0;
-    for (let i = 0; i < Math.round(12 / DT); i++) {
+    for (let i = 0; i < Math.round(14 / DT); i++) {
       updateDrumming(g, DT);
       const s = peekDrumming(g)!;
       frames.add(s.frame);
@@ -32,7 +38,7 @@ describe('updateDrumming – trommelnder Gorilla (Level 4)', () => {
     for (const f of ['bereit', 'haende_hoch', 'schlag_links', 'schlag_rechts', 'schlag_beide']) {
       expect(frames.has(f)).toBe(true);
     }
-    expect(hits).toBeGreaterThan(5);
+    expect(hits).toBeGreaterThan(10);
   });
 
   it('meldet jeden Schlag als EIN `hit`-Frame (Flanke, nicht durchgehend)', () => {
@@ -49,5 +55,26 @@ describe('updateDrumming – trommelnder Gorilla (Level 4)', () => {
       }
     }
     expect(maxRun).toBe(1);
+  });
+
+  it('die Doppelschläge folgen dem Abstands-Muster 1, 3, 5, 3 s', () => {
+    const g = gorilla();
+    const slamTimes: number[] = [];
+    let now = 0;
+    for (let i = 0; i < Math.round(40 / DT); i++) {
+      now += DT;
+      updateDrumming(g, DT);
+      if (peekDrumming(g)!.shockwave) slamTimes.push(now);
+    }
+    expect(slamTimes.length).toBeGreaterThanOrEqual(6);
+    // Erster Doppelschlag: nach Pause[0] + Ausholen.
+    expect(Math.abs(slamTimes[0] - (SLAM_GAP_PATTERN[0] + SLAM_WINDUP_SECONDS))).toBeLessThan(0.1);
+    // Abstand Schlag k -> k+1 = Rest-Schlag + Groove-Pause[(k+1) % 4] + Ausholen.
+    const overhead = SLAM_STRIKE_SECONDS + SLAM_WINDUP_SECONDS;
+    for (let k = 0; k + 1 < slamTimes.length; k++) {
+      const delta = slamTimes[k + 1] - slamTimes[k];
+      const expectedGap = SLAM_GAP_PATTERN[(k + 1) % SLAM_GAP_PATTERN.length];
+      expect(Math.abs(delta - overhead - expectedGap)).toBeLessThan(0.12);
+    }
   });
 });
