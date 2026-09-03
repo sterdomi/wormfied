@@ -1,5 +1,4 @@
 import type { Enemy } from '../../game/enemy';
-import type { Point } from '../../game/field';
 
 /**
  * Level 4 – Dschungel: ein **Gorilla** sitzt unten in der Feldmitte und
@@ -46,8 +45,20 @@ const PATTERN: readonly Beat[] = [
 ];
 /** Sekunden pro Beat (~140-BPM-Gefühl). */
 export const BEAT_SECONDS = 0.42;
-/** Höhe der Kollisions-/Ankerposition des Gorillas über der Feld-Unterkante. */
-export const COLLISION_ABOVE_BOTTOM = 130;
+
+/**
+ * Logische Feldgrösse (wie `FIELD_WIDTH`/`FIELD_HEIGHT` in `main.ts`). Level 4
+ * sperrt die unteren 20 % (`createStartField`), dort sitzt der Gorilla –
+ * fixer Platz, folgt keiner schrumpfenden Fläche.
+ */
+export const FIELD_W = 960;
+export const FIELD_H = 540;
+/** Anteil der Höhe, der unten gesperrt ist (Gorilla-Bereich, schwarze Linie). */
+export const BLOCKED_BOTTOM_FRACTION = 0.2;
+/** Bildschirm-y der Grundlinie des Gorillas (= Feld-Unterkante). */
+export const GORILLA_BASE_Y = FIELD_H;
+/** Kollisions-/Logikpunkt des Gorillas: bodennah, aber noch im bespielbaren Feld. */
+const GORILLA_COLLISION_Y = FIELD_H * (1 - BLOCKED_BOTTOM_FRACTION) - 8;
 
 const STRIKE_FRAMES: ReadonlySet<GorillaFrame> = new Set([
   'schlag_links',
@@ -87,10 +98,10 @@ function frameFor(beat: Beat, p: number): GorillaFrame {
 }
 
 /**
- * Ein Frame Trommel-Logik. Mutiert `gorilla.position` (fix unten mittig in der
- * aktuell verfügbaren Fläche) + `gorilla.direction` und den WeakMap-Zustand.
+ * Ein Frame Trommel-Logik. Mutiert `gorilla.position` (fixer Platz unten mittig)
+ * + `gorilla.direction` und den WeakMap-Zustand.
  */
-export function updateDrumming(gorilla: Enemy, field: Point[], dt: number): void {
+export function updateDrumming(gorilla: Enemy, dt: number): void {
   let s = states.get(gorilla);
   if (!s) {
     s = { step: 0, t: 0, frame: 'bereit', hit: false };
@@ -107,12 +118,7 @@ export function updateDrumming(gorilla: Enemy, field: Point[], dt: number): void
   s.hit = STRIKE_FRAMES.has(nextFrame) && !STRIKE_FRAMES.has(s.frame);
   s.frame = nextFrame;
 
-  const xs = field.map((p) => p.x);
-  const ys = field.map((p) => p.y);
-  gorilla.position = {
-    x: (Math.min(...xs) + Math.max(...xs)) / 2,
-    y: Math.max(...ys) - COLLISION_ABOVE_BOTTOM,
-  };
+  gorilla.position = { x: FIELD_W / 2, y: GORILLA_COLLISION_Y };
   gorilla.direction = { x: 0, y: -1 };
 }
 

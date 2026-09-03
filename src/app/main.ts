@@ -321,6 +321,8 @@ const SOUND_SOURCES: Record<string, string> = {
   // Level-3-Strom-Attacke: der Blitz, wenn der eingerollte Aal das Feld unter
   // Strom setzt (`reportFieldZap`, siehe `updateEnemies`-Auswertung unten).
   highvoltage: '/assets/levels/level3/highvoltage.mp3',
+  // Level 4: ein Schlag des trommelnden Gorillas (`playLevelSound` aus `updateEnemies`).
+  bongo_split: '/assets/levels/level4/bongo-split.mp3',
 };
 
 /** Basis-Sound-Key für die levelspezifische Hintergrundmusik (`level.musicSrc`). */
@@ -1025,6 +1027,12 @@ function start(
       if (!wasUndocked && player.isUndocked) audioManager.play('undock');
 
       session = tryEnterDrawing(player, field, input.state);
+      if (session && level.blocksDrawingAt?.(player.position, FIELD_WIDTH, FIELD_HEIGHT)) {
+        // Level 4: aus dem gesperrten unteren Bereich (unten + Seiten bis 20 %,
+        // hinter dem Gorilla) darf der Spieler nicht ins Feld reinfahren.
+        player.mode = 'onEdge';
+        session = null;
+      }
       // Erst hier, NACH `tryEnterDrawing`, tatsächlich `true`: der Spieler
       // fährt diesen Frame wirklich ins Feld, nicht bloss der Tastendruck, der
       // (vom Rand aus) auch nur die Kanone abfeuern könnte.
@@ -1145,6 +1153,9 @@ function start(
         },
         reportFieldZap: (): void => {
           fieldZapThisFrame = true;
+        },
+        playLevelSound: (name: string): void => {
+          audioManager.play(name);
         },
       });
       const enemyShotKey = enemyShotSoundKey(level);

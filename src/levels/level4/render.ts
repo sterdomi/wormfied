@@ -1,5 +1,5 @@
 import type { LevelEnemyAssets, LevelEnemyRenderState } from '../types';
-import { COLLISION_ABOVE_BOTTOM, peekDrumming } from './drumming';
+import { FIELD_W, GORILLA_BASE_Y, peekDrumming } from './drumming';
 import { gorillaSprite } from './sprites';
 
 /** Render-Höhe des Gorillas in Pixeln (Breite folgt dem Frame-Seitenverhältnis). */
@@ -8,11 +8,12 @@ const GORILLA_RENDER_HEIGHT = 300;
 const BASE_NUDGE = 0.03;
 
 /**
- * Gegner-Ebene von Level 4: der trommelnde Gorilla, unten mittig platziert.
- * `drumming.ts` setzt Frame + Position im selben Frame vor `render`. Der
- * Sprite wird so gezeichnet, dass seine Unterkante an der Feld-Unterkante sitzt
- * und er waagerecht auf `mainEnemy.position.x` zentriert ist. `hideMainEnemy`
- * (Levelabschluss) lässt ihn weg. Papageien / Rhythmus-Wirkung: später.
+ * Gegner-Ebene von Level 4: der trommelnde Gorilla, **fix unten in der
+ * Bildschirmmitte** – seine Grundlinie liegt an der Feld-Unterkante
+ * (`GORILLA_BASE_Y`), der Grossteil des Körpers sitzt im gesperrten unteren
+ * 20 %, Kopf/Schultern ragen über die schwarze Linie ins Feld. Unabhängig von
+ * `mainEnemy.position` (das ist nur der Logik-/Kollisionspunkt). `hideMainEnemy`
+ * (Levelabschluss) lässt ihn weg.
  */
 export function renderLevel4Enemies(
   ctx: CanvasRenderingContext2D,
@@ -28,8 +29,7 @@ export function renderLevel4Enemies(
 
   const h = GORILLA_RENDER_HEIGHT * mainEnemyScale;
   const w = h * (img.naturalWidth / img.naturalHeight);
-  const fieldBottom = mainEnemy.position.y + COLLISION_ABOVE_BOTTOM;
-  const x = mainEnemy.position.x - w / 2;
-  const y = fieldBottom - h + h * BASE_NUDGE;
+  const x = FIELD_W / 2 - w / 2;
+  const y = GORILLA_BASE_Y - h + h * BASE_NUDGE;
   ctx.drawImage(img, x, y, w, h);
 }

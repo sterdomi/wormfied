@@ -223,6 +223,12 @@ export interface LevelEnemyUpdateContext {
    * Level nutzen es nicht.
    */
   reportFieldZap?: () => void;
+  /**
+   * Spielt einen in `SOUND_SOURCES` (`main.ts`) registrierten Sound ab –
+   * ereignishaft aus der Gegner-Logik heraus (Level 4: `bongo_split` bei jedem
+   * Schlag des trommelnden Gorillas). Fehlt der Sound-Key, passiert nichts.
+   */
+  playLevelSound?: (name: string) => void;
 }
 
 /**
@@ -288,6 +294,15 @@ export interface LevelConfig {
     count: number;
     config: EnemyConfig;
   };
+  /**
+   * Optional: sperrt das Reinfahren (Übergang `onEdge` → `drawing`) von
+   * bestimmten Randstellen aus. `main.ts` verwirft einen begonnenen
+   * Zeichenversuch, wenn diese Funktion für die Spielerposition `true` liefert.
+   * Das Feld-Polygon bleibt voll – der Spieler kann dort nur nicht ins Feld
+   * abbiegen. Level 4: der gesperrte untere Bereich (unten + Seiten bis 20 %
+   * Höhe), hinter dem der Gorilla trommelt.
+   */
+  blocksDrawingAt?: (pos: Point, width: number, height: number) => boolean;
   /**
    * Levelspezifische Gegner-Darstellung, pro Frame vom Game-Loop aufgerufen
    * (siehe `LevelEnemyRenderer`). Liegt im Level-Package (`render.ts`), nicht

@@ -151,5 +151,14 @@ describe('Level-Registry', () => {
     expect(level4.bonusStones.spawning.allowedTypes).toBeUndefined();
     expect(typeof level4.renderEnemies).toBe('function');
     expect(typeof level4.updateEnemies).toBe('function');
+    // Eigene Dschungel-Musik.
+    expect(level4.musicSrc).toMatch(/level4\/jungle\.mp3$/);
+    // Unten + Seiten bis 20 %: kein Reinfahren (blocksDrawingAt) + schwarze U-Linie.
+    expect(typeof level4.renderDecoration).toBe('function');
+    expect(typeof level4.blocksDrawingAt).toBe('function');
+    // Im gesperrten unteren Bereich blockiert, oben nicht.
+    expect(level4.blocksDrawingAt!({ x: 480, y: 540 }, 960, 540)).toBe(true);
+    expect(level4.blocksDrawingAt!({ x: 0, y: 500 }, 960, 540)).toBe(true);
+    expect(level4.blocksDrawingAt!({ x: 480, y: 100 }, 960, 540)).toBe(false);
   });
 });

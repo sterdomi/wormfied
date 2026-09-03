@@ -31,7 +31,7 @@
  * Subpath-Build) – funktioniert dadurch ohne Anpassung in beiden Fällen,
  * genau wie `resolveAssetPath` im App-Code (siehe `src/engine/assetPath.ts`).
  */
-const CACHE_NAME = 'wormfied-v33';
+const CACHE_NAME = 'wormfied-v34';
 
 const CORE_ASSETS = [
   './',
@@ -70,13 +70,15 @@ const CORE_ASSETS = [
   './assets/levels/level3/level3.mp3',
   './assets/levels/level3/highvoltage.mp3',
   './assets/levels/level4/background.png',
-  './assets/levels/level4/foreground.jpg',
+  './assets/levels/level4/foreground.png',
   './assets/levels/level4/gorilla_bereit.png',
   './assets/levels/level4/gorilla_haende_hoch.png',
   './assets/levels/level4/gorilla_schlag_beide.png',
   './assets/levels/level4/gorilla_schlag_links.png',
   './assets/levels/level4/gorilla_schlag_rechts.png',
   './assets/levels/level4/gorilla_bruellen.png',
+  './assets/levels/level4/bongo-split.mp3',
+  './assets/levels/level4/jungle.mp3',
   './assets/sound/undock.wav',
   './assets/sound/dock.wav',
   './assets/sound/draw_loop.wav',
