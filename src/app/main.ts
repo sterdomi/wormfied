@@ -318,6 +318,9 @@ const SOUND_SOURCES: Record<string, string> = {
   life_loss: '/assets/sound/life_loss.wav',
   game_over: '/assets/sound/game_over.wav',
   level_complete: '/assets/sound/level_complete.wav',
+  // Level-3-Strom-Attacke: der Blitz, wenn der eingerollte Aal das Feld unter
+  // Strom setzt (`reportFieldZap`, siehe `updateEnemies`-Auswertung unten).
+  highvoltage: '/assets/levels/level3/highvoltage.mp3',
 };
 
 /** Basis-Sound-Key für die levelspezifische Hintergrundmusik (`level.musicSrc`). */
@@ -1151,13 +1154,16 @@ function start(
       }
     }
 
-    // Feldweiter Blitz (Level 3): kostet ein Leben, wenn der Spieler nicht
-    // sicher am Rand angedockt ist. Das ~1 s lange Einrollen des Aals davor
-    // ist die Vorwarnung. Kein eigener Sound-Hook nötig – `loseLife` spielt
-    // `life_loss` und der Screen-Flash läuft mit.
-    if (fieldZapThisFrame && !(player.mode === 'onEdge' && !player.isUndocked)) {
-      loseLife();
-      return;
+    // Feldweiter Blitz (Level 3): `highvoltage`-Sound bei jedem Einschlag (das
+    // ganze Feld steht unter Strom, unabhängig vom Spieler), und ein Leben,
+    // wenn der Spieler nicht sicher am Rand angedockt ist. Das ~1 s lange
+    // Einrollen des Aals davor ist die Vorwarnung.
+    if (fieldZapThisFrame) {
+      audioManager.play('highvoltage');
+      if (!(player.mode === 'onEdge' && !player.isUndocked)) {
+        loseLife();
+        return;
+      }
     }
 
     // Projektile bewegen und die aus dem Bereich geflogenen aufräumen.

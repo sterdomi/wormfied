@@ -116,6 +116,9 @@ describe('Level-Registry', () => {
     // Bonussteine sind auf Speed + Freeze beschränkt (kein Kanonen-/Bomben-Bonus).
     expect(level3.startsWithCannon ?? false).toBe(false);
     expect(level3.bonusStones.spawning.allowedTypes).toEqual(['speedBoost', 'freeze']);
+
+    // Eigene Musik.
+    expect(level3.musicSrc).toMatch(/level3\/level3\.mp3$/);
   });
 
   it('level1: Spieler startet OHNE Kanone (nur per Bonusstein)', () => {

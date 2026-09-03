@@ -34,8 +34,9 @@ import { renderLevel3Enemies } from './render';
  * Schiessen: nur der Kopf, Torpedo (`torpedo.png` / `torpedo.mp3`) wie in
  * Level 2, inkl. Bläschen-Poof beim Einschlag (`onEnemyProjectileImpact`).
  *
- * Bonusstein-Werte von Level 1. Eigenes Background-/Foreground-Artwork; noch
- * keine eigene Musik.
+ * Bonusstein-Werte von Level 1. Eigenes Background-/Foreground-Artwork und
+ * eigene Musik (`level3.mp3`); der Blitz-Sound (`highvoltage.mp3`) liegt in
+ * `SOUND_SOURCES` / `main.ts` (beim `reportFieldZap`).
  */
 export const level3: LevelConfig = {
   id: 'level3',
@@ -86,4 +87,5 @@ export const level3: LevelConfig = {
     ...defaultBonusStones,
     spawning: { ...defaultBonusStones.spawning, allowedTypes: ['speedBoost', 'freeze'] },
   },
+  musicSrc: '/assets/levels/level3/level3.mp3',
 };
