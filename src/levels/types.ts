@@ -309,6 +309,15 @@ export interface LevelConfig {
    */
   renderDecoration?: LevelDecorationRenderer;
   /**
+   * Optional: Deckkraft (0..1) einer schwarzen Fläche über dem Foreground
+   * (`foreground.png`) für DIESEN Frame. `main.ts` legt sie nach dem Foreground
+   * und vor `renderDecoration`/Spiel-Ebene. Level 3 macht damit den Foreground
+   * schwarz, während der eingerollte Aal das Feld unter Strom setzt
+   * (`electricForegroundBlackout`). Fehlt die Funktion, bleibt der Foreground
+   * immer sichtbar.
+   */
+  foregroundBlackout?: () => number;
+  /**
    * Optionaler Effekt-Haken, wenn ein GEGNER-Projektil einschlägt – die
    * Zeichenlinie oder den Spieler getroffen (nicht: aus dem Feld geflogen).
    * `x`/`y` = Einschlagpunkt. Rein visuell/Sound, KEINE Spiellogik (die läuft

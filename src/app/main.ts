@@ -1405,6 +1405,15 @@ function start(
     ctx.drawImage(assets.background, 0, 0, FIELD_WIDTH, FIELD_HEIGHT);
     ctx.drawImage(foreground.canvas, 0, 0, FIELD_WIDTH, FIELD_HEIGHT);
 
+    // Foreground schwarz überblenden, solange das Level es verlangt (Level 3:
+    // der eingerollte Aal setzt das Feld unter Strom, siehe
+    // `foregroundBlackout` in der Level-Config). Deckkraft 1 = komplett schwarz.
+    const foregroundBlackout = level.foregroundBlackout?.() ?? 0;
+    if (foregroundBlackout > 0) {
+      ctx.fillStyle = `rgba(0, 0, 0, ${Math.min(1, foregroundBlackout)})`;
+      ctx.fillRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
+    }
+
     // Rein dekorativ, ohne Spiellogik (Level 2: aufsteigende Luftblasen im
     // Wasser + Bläschen-Spur hinter dem Torpedo) – zeichnet zustandslos aus
     // `now` (+ den aktiven Projektilen), siehe `LevelDecorationRenderer`.

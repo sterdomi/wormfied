@@ -234,6 +234,20 @@ export function electricChargeIntensity(): number {
 }
 
 /**
+ * Deckkraft 0..1 der schwarzen Fläche über dem Foreground (`LevelConfig.
+ * foregroundBlackout`): steigt beim Einrollen an (Vorwarnung „das Feld wird
+ * dunkel"), ist beim Blitz komplett schwarz, klingt beim Ausrollen ab, sonst 0.
+ */
+export function electricForegroundBlackout(): number {
+  const s = current;
+  if (!s) return 0;
+  if (s.phase === 'coiling') return clamp01(1 - Math.max(0, s.timer) / COIL_SECONDS);
+  if (s.phase === 'discharge') return 1;
+  if (s.phase === 'uncoiling') return clamp01(Math.max(0, s.timer) / UNCOIL_SECONDS);
+  return 0;
+}
+
+/**
  * Feld-Blitz-Helligkeit 0..1 für die Deko (`decoration.ts`). Klingt rein über
  * die Wanduhrzeit ab – unabhängig davon, ob `updateElectric` gerade tickt
  * (z.B. während des Pause-Bonussteins).

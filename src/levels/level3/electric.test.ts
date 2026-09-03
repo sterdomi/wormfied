@@ -8,6 +8,7 @@ import {
   GAP_PATTERN,
   UNCOIL_SECONDS,
   electricFieldFlash,
+  electricForegroundBlackout,
   updateElectric,
 } from './electric';
 
@@ -77,6 +78,19 @@ describe('updateElectric – Strom-Attacke Level 3', () => {
     const radii = segs.map((s) => Math.hypot(s.position.x - center.x, s.position.y - center.y));
     expect(Math.min(...radii)).toBeGreaterThan(20); // vom Kopf abgesetzter Kranz
     expect(Math.max(...radii) - Math.min(...radii)).toBeLessThan(h.size); // grob rund
+  });
+
+  it('macht den Foreground schwarz: blackout 0 beim Schwimmen, 1 beim Blitz', () => {
+    const h = makeHead();
+    const segs = makeSegments(4);
+    updateElectric(h, segs, FIELD, DT, 0);
+    expect(electricForegroundBlackout()).toBe(0);
+    let now = 0;
+    for (let i = 0; i < Math.round((GAP_PATTERN[0] + COIL_SECONDS + 0.02) / DT); i++) {
+      now += DT * 1000;
+      updateElectric(h, segs, FIELD, DT, now);
+    }
+    expect(electricForegroundBlackout()).toBe(1);
   });
 
   it('electricFieldFlash klingt nach dem Blitz über die Wanduhrzeit ab', () => {

@@ -4,6 +4,7 @@ import { spawnTorpedoBubbleBurst } from '../level2/bubbles';
 import type { LevelConfig } from '../types';
 import { updateLevel3Enemies } from './behavior';
 import { renderLevel3Decoration } from './decoration';
+import { electricForegroundBlackout } from './electric';
 import { renderLevel3Enemies } from './render';
 
 /**
@@ -79,6 +80,9 @@ export const level3: LevelConfig = {
   updateEnemies: updateLevel3Enemies,
   // Unterwasser-Look (aus dem Level-2-Paket) + Feld-Blitz der Strom-Attacke.
   renderDecoration: renderLevel3Decoration,
+  // Foreground wird schwarz, während der eingerollte Aal das Feld unter Strom
+  // setzt (Einrollen → Blitz → Ausrollen).
+  foregroundBlackout: electricForegroundBlackout,
   // Torpedo-Einschlag (Linie/Spieler getroffen): Blasen-Poof am Einschlagpunkt.
   onEnemyProjectileImpact: spawnTorpedoBubbleBurst,
   shieldDecayPerSecond: SHIELD_DECAY_PER_SECOND,
