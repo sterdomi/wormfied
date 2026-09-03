@@ -35,12 +35,12 @@ export type ElectricPhase = 'swimming' | 'coiling' | 'discharge' | 'uncoiling';
 export const GAP_PATTERN: readonly number[] = [1, 3, 5, 3];
 /** Dauer des Einrollens (Sekunden) – zugleich die Vorwarnzeit zum Andocken. */
 export const COIL_SECONDS = 1;
-/** Dauer des sichtbaren Blitzes (Sekunden). */
-export const DISCHARGE_SECONDS = 0.16;
+/** Dauer des sichtbaren Blitzes (Sekunden) – etwa doppelt so lang (Nutzer-Feedback). */
+export const DISCHARGE_SECONDS = 0.32;
 /** Dauer des Ausrollens (Sekunden). */
 export const UNCOIL_SECONDS = 0.5;
 /** Nachleuchten des Feld-Blitzes (Millisekunden) – für `electricFieldFlash`. */
-const FIELD_FLASH_MS = 380;
+const FIELD_FLASH_MS = 760;
 
 interface ElectricState {
   phase: ElectricPhase;

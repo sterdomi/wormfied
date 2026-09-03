@@ -6,7 +6,7 @@ import { electricChargeIntensity } from './electric';
 import { classifyLevel3Minis } from './enemySet';
 
 /** Rendergrösse einer frei laufenden Plasma-Mini (kreisrund, keine Rotation). */
-const PLASMA_RENDER_SIZE = 60;
+const PLASMA_RENDER_SIZE = 30;
 
 /**
  * Lokale „Vorne"-Richtung der Körper-/Schwanz-Sprites (`body.png`, `tail.png`)

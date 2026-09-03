@@ -77,8 +77,9 @@ export const level3: LevelConfig = {
       walkAssetSrc: '/assets/levels/level3/gegner_mini_walk.png',
       speed: 250,
       // Für die Rand-Abstandsberechnung der Plasma-Minis (Aal-Segmente setzt
-      // `advanceSnakeBody`, deren `size` ist dort unkritisch).
-      size: 54,
+      // `advanceSnakeBody`, deren `size` ist dort unkritisch). Halbiert
+      // (Nutzer-Feedback: „Minis zu gross"), passend zur halbierten Render-Grösse.
+      size: 27,
       // Weder Aal-Segmente noch Plasma-Minis schiessen.
     },
   },
