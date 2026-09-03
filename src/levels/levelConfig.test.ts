@@ -131,4 +131,25 @@ describe('Level-Registry', () => {
     const level1 = levels.find((l) => l.id === 'level1')!;
     expect(level1.startsWithCannon ?? false).toBe(false);
   });
+
+  it('enthält level4 an vierter Stelle', () => {
+    expect(levels.some((l) => l.id === 'level4')).toBe(true);
+    expect(levels[3]?.id).toBe('level4');
+  });
+
+  it('level4 – Dschungel: erste Ausbaustufe (trommelnder Gorilla)', () => {
+    const level4 = levels.find((l) => l.id === 'level4')!;
+
+    expect(level4.name).toBeTruthy();
+    expect(level4.backgroundSrc).toMatch(/level4\//);
+    expect(level4.foregroundSrc).toMatch(/level4\/foreground\.(jpg|png)$/);
+    expect(level4.mainEnemy.assetSrc).toMatch(/level4\/gorilla_/);
+    // Noch keine Papageien, kein Schiessen.
+    expect(level4.miniEnemies.count).toBe(0);
+    expect(level4.mainEnemy.shooting?.enabled ?? false).toBe(false);
+    // Bonussteine wie Level 1, keine Beschränkung.
+    expect(level4.bonusStones.spawning.allowedTypes).toBeUndefined();
+    expect(typeof level4.renderEnemies).toBe('function');
+    expect(typeof level4.updateEnemies).toBe('function');
+  });
 });
