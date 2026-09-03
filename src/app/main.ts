@@ -185,6 +185,12 @@ const START_SCREEN_LOGO_GAP = 56;
 const START_SCREEN_CONTROLS_GAP = 28;
 /** Dezentere Farbe für den Steuerungs-Hinweis, damit der "Enter"-CTA oben führend bleibt. */
 const COLOR_START_SCREEN_HINT = '#8a93a6';
+/** Abstand vom Steuerungs-Hinweis zur Highscore-Überschrift auf dem Startbildschirm. */
+const START_SCREEN_HIGHSCORE_GAP = 32;
+/** Zeilenhöhe einer Highscore-Zeile auf dem Startbildschirm. */
+const START_SCREEN_HIGHSCORE_LINE_HEIGHT = 22;
+/** Spaltenbreite (Rang+Name … Score) der Highscore-Liste auf dem Startbildschirm. */
+const START_SCREEN_HIGHSCORE_COLUMN_WIDTH = 380;
 /**
  * Kollisions-Toleranzradius für "Gegner/Projektil berührt Spieler direkt"
  * (Instruktion 8/11): an `playerSize` ausgerichtet statt am generischen
@@ -356,20 +362,80 @@ function showLoading(canvas: HTMLCanvasElement): void {
   ctx.fillText(t('loading'), canvas.width / 2, canvas.height / 2);
 }
 
-/** Zeichnet einen Frame des Startbildschirms: grosses Logo + Enter-Hinweis. */
+/**
+ * Zeichnet die globale Top 10 unter dem Steuerungs-Hinweis des
+ * Startbildschirms (Nutzer-Wunsch: „Highscores vom Intro-Bildschirm aus
+ * anschauen"). `state` ist `'loading'`, solange die Firestore-Abfrage in
+ * `showStartScreen` läuft, danach die Einträge (leeres Array = noch keine).
+ * Zeichnet nur so viele Zeilen, wie über der Canvas-Unterkante Platz haben.
+ */
+function renderStartScreenHighscores(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  top: number,
+  state: 'loading' | LeaderboardEntry[],
+): void {
+  const bottomMargin = 24;
+  if (top + START_SCREEN_HIGHSCORE_LINE_HEIGHT > height - bottomMargin) return; // kein Platz
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = COLOR_START_SCREEN_HINT;
+  ctx.font = 'bold 16px system-ui, sans-serif';
+  ctx.fillText(t('globalTop10'), width / 2, top);
+
+  const firstRowY = top + START_SCREEN_HIGHSCORE_LINE_HEIGHT + 8;
+
+  if (state === 'loading' || state.length === 0) {
+    ctx.font = '14px system-ui, sans-serif';
+    ctx.fillText(
+      t(state === 'loading' ? 'leaderboardLoading' : 'leaderboardEmpty'),
+      width / 2,
+      firstRowY,
+    );
+    return;
+  }
+
+  const columnWidth = Math.min(START_SCREEN_HIGHSCORE_COLUMN_WIDTH, width * 0.8);
+  const leftX = (width - columnWidth) / 2;
+  const rightX = leftX + columnWidth;
+  const fitRows = Math.floor((height - bottomMargin - firstRowY) / START_SCREEN_HIGHSCORE_LINE_HEIGHT);
+  const rowCount = Math.min(10, state.length, Math.max(0, fitRows + 1));
+
+  ctx.font = '15px system-ui, sans-serif';
+  ctx.fillStyle = COLOR_HUD;
+  for (let i = 0; i < rowCount; i++) {
+    const y = firstRowY + i * START_SCREEN_HIGHSCORE_LINE_HEIGHT;
+    ctx.textAlign = 'left';
+    ctx.fillText(`${i + 1}. ${state[i].name}`, leftX, y);
+    ctx.textAlign = 'right';
+    ctx.fillText(Math.round(state[i].score).toLocaleString('de-CH'), rightX, y);
+  }
+}
+
+/** Zeichnet einen Frame des Startbildschirms: grosses Logo + Enter-Hinweis + globale Top 10. */
 function renderStartScreen(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
   logoImage: HTMLImageElement,
+  leaderboard: 'loading' | LeaderboardEntry[],
 ): void {
   ctx.fillStyle = COLOR_BACKDROP;
   ctx.fillRect(0, 0, width, height);
 
   const logoWidth = Math.min(START_SCREEN_LOGO_WIDTH, width * 0.85);
   const logoHeight = logoWidth * LOGO_ASPECT_RATIO;
-  const blockHeight = logoHeight + START_SCREEN_LOGO_GAP;
-  const top = (height - blockHeight) / 2;
+
+  // Logo + Hinweise + (für 10 Plätze reservierte) Highscore-Liste als EINE
+  // Einheit vertikal zentrieren – sonst sitzt nur das Logo mittig und die
+  // Liste klebt unten am Rand (Nutzer-Feedback: „alles zu weit unten").
+  const hintsHeight = START_SCREEN_LOGO_GAP / 2 + START_SCREEN_CONTROLS_GAP;
+  const highscoreHeight =
+    START_SCREEN_HIGHSCORE_GAP + START_SCREEN_HIGHSCORE_LINE_HEIGHT * 11; // Überschrift + 10 Zeilen
+  const contentHeight = logoHeight + hintsHeight + highscoreHeight;
+  const top = Math.max(24, (height - contentHeight) / 2);
 
   ctx.drawImage(logoImage, (width - logoWidth) / 2, top, logoWidth, logoHeight);
 
@@ -386,6 +452,9 @@ function renderStartScreen(
   ctx.font = '16px system-ui, sans-serif';
   const controlsHint = isTouchCapable() ? t('controlsHintTouch') : t('controlsHintDesktop');
   ctx.fillText(controlsHint, width / 2, enterHintY + START_SCREEN_CONTROLS_GAP);
+
+  const highscoreTop = enterHintY + START_SCREEN_CONTROLS_GAP + START_SCREEN_HIGHSCORE_GAP;
+  renderStartScreenHighscores(ctx, width, height, highscoreTop, leaderboard);
 }
 
 /**
@@ -399,17 +468,28 @@ function showStartScreen(canvas: HTMLCanvasElement, logoImage: HTMLImageElement)
     const input = setupInput();
     const enterTrigger = new EdgeTrigger();
 
+    // Globale Top 10 einmalig beim Öffnen laden und dann anzeigen (Nutzer-
+    // Wunsch). `fetchTopScores` schluckt Fehler und liefert dann `[]`.
+    // `active` verhindert, dass eine spät eintreffende Antwort nach dem
+    // Verlassen des Startbildschirms noch etwas anfasst.
+    let leaderboard: 'loading' | LeaderboardEntry[] = 'loading';
+    let active = true;
+    void fetchTopScores().then((entries) => {
+      if (active) leaderboard = entries;
+    });
+
     const loop = createGameLoop(view.ctx, {
       update: () => {
         input.tick();
         if (enterTrigger.pressed(input.state.restart)) {
+          active = false;
           loop.stop();
           input.dispose();
           view.dispose();
           resolve();
         }
       },
-      render: (ctx) => renderStartScreen(ctx, view.width, view.height, logoImage),
+      render: (ctx) => renderStartScreen(ctx, view.width, view.height, logoImage, leaderboard),
     });
     loop.start();
   });
