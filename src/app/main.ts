@@ -1107,6 +1107,10 @@ function start(
     // nicht und schiessen nicht – bleiben aber als Hindernis an ihrer
     // Position bestehen (Kollisionen unten laufen unverändert weiter).
     const enemiesFrozen = playerState.enemyFreezeRemainingSeconds > 0;
+    // Feldweite Gegner-Attacke dieses Frames (Level 3: eingerollter Aal setzt
+    // das Feld unter Strom) – vom Level via `reportFieldZap` gemeldet, unten
+    // nach `updateEnemies` ausgewertet.
+    let fieldZapThisFrame = false;
     if (!enemiesFrozen) {
       // Bewegung + Schiessen sind levelspezifisch und liegen im Level-Package
       // (`updateEnemies`, Gegenstück zu `renderEnemies`) – mutiert `mainEnemy`
@@ -1136,12 +1140,24 @@ function start(
           miniEnemies.push(mini);
           return mini;
         },
+        reportFieldZap: (): void => {
+          fieldZapThisFrame = true;
+        },
       });
       const enemyShotKey = enemyShotSoundKey(level);
       for (const shot of shots) {
         projectiles.push(shot);
         audioManager.play(enemyShotKey);
       }
+    }
+
+    // Feldweiter Blitz (Level 3): kostet ein Leben, wenn der Spieler nicht
+    // sicher am Rand angedockt ist. Das ~1 s lange Einrollen des Aals davor
+    // ist die Vorwarnung. Kein eigener Sound-Hook nötig – `loseLife` spielt
+    // `life_loss` und der Screen-Flash läuft mit.
+    if (fieldZapThisFrame && !(player.mode === 'onEdge' && !player.isUndocked)) {
+      loseLife();
+      return;
     }
 
     // Projektile bewegen und die aus dem Bereich geflogenen aufräumen.

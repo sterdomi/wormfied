@@ -60,6 +60,13 @@ export interface BonusStoneSpawning {
   lifetimeSeconds: number;
   /** Für Rendering + Kollision/Hindernis-Verhalten. */
   radius: number;
+  /**
+   * Auf diese Bonustypen beschränken (gleichverteilt). Fehlt das Feld, sind
+   * alle vier möglich (`speedBoost` / `cannon` / `freeze` / `bomb`, je 1/4).
+   * Level 3 z.B. lässt nur `['speedBoost', 'freeze']` zu (kein Kanonen-/
+   * Bomben-Bonus – siehe `levels/level3`).
+   */
+  allowedTypes?: readonly ('speedBoost' | 'cannon' | 'freeze' | 'bomb')[];
 }
 
 /** Geschwindigkeits-Boost: Rand- UND Zeichen-Bewegung werden vorübergehend schneller. */
@@ -207,6 +214,15 @@ export interface LevelEnemyUpdateContext {
    * (`level2/hole.ts`); die übrigen Level lassen das Feld weg.
    */
   spawnMiniEnemyAt?: (position: Point) => Enemy;
+  /**
+   * Meldet dem Game-Loop, dass in DIESEM Frame eine feldweite Gegner-Attacke
+   * einschlägt (Level 3: der zum Kreis eingerollte Aal setzt das ganze
+   * Spielfeld unter Strom). Der Loop entscheidet dann über den Schaden – ein
+   * Leben, wenn der Spieler nicht sicher am Rand angedockt ist. Rein
+   * ereignishaft: einmal pro Blitz aufrufen, nicht pro Frame. Die übrigen
+   * Level nutzen es nicht.
+   */
+  reportFieldZap?: () => void;
 }
 
 /**

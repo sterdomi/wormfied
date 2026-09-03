@@ -112,8 +112,10 @@ describe('Level-Registry', () => {
     expect(typeof level3.onEnemyProjectileImpact).toBe('function');
     expect(typeof level3.renderDecoration).toBe('function');
 
-    // Wie Level 2: Spieler startet mit Kanone (→ Cyborg-Look).
-    expect(level3.startsWithCannon).toBe(true);
+    // Strom-Attacke statt Kanone (Nutzer-Wunsch): kein Kanonen-Start, und die
+    // Bonussteine sind auf Speed + Freeze beschränkt (kein Kanonen-/Bomben-Bonus).
+    expect(level3.startsWithCannon ?? false).toBe(false);
+    expect(level3.bonusStones.spawning.allowedTypes).toEqual(['speedBoost', 'freeze']);
   });
 
   it('level1: Spieler startet OHNE Kanone (nur per Bonusstein)', () => {

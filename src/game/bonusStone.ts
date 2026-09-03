@@ -220,11 +220,22 @@ export function tickBonusStoneSpawning(
   if (!position) return null;
 
   spawner.timeSinceLastSpawn = 0;
-  // Vier gleich wahrscheinliche Typen (1/4 je Typ) – EIN rng()-Aufruf für
-  // alle vier, nicht verschachtelt, damit ein deterministischer `rng` (Tests)
-  // pro Spawn genau einen Wert liefern muss.
+  // EIN rng()-Aufruf für die Typ-Wahl (nicht verschachtelt), damit ein
+  // deterministischer `rng` (Tests) pro Spawn genau einen Wert liefern muss.
   const r = rng();
+  // Standard: vier gleich wahrscheinliche Typen (1/4 je Typ). Schränkt das
+  // Level `spawning.allowedTypes` ein (z.B. Level 3: nur speedBoost/freeze),
+  // wird gleichverteilt nur daraus gewählt.
+  const allowed = spawning.allowedTypes;
   const type: BonusStoneType =
-    r < 1 / 4 ? 'speedBoost' : r < 2 / 4 ? 'cannon' : r < 3 / 4 ? 'freeze' : 'bomb';
+    allowed && allowed.length > 0
+      ? allowed[Math.min(allowed.length - 1, Math.floor(r * allowed.length))]
+      : r < 1 / 4
+        ? 'speedBoost'
+        : r < 2 / 4
+          ? 'cannon'
+          : r < 3 / 4
+            ? 'freeze'
+            : 'bomb';
   return createBonusStone(position, type, now);
 }

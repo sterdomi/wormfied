@@ -2,6 +2,7 @@ import type { Enemy, Vec } from '../../game/enemy';
 import type { Point } from '../../game/field';
 import { BODY_MINI_SCALE } from '../../game/snakeBody';
 import type { LevelEnemyAssets, LevelEnemyRenderState } from '../types';
+import { electricChargeIntensity } from './electric';
 
 /**
  * Lokale „Vorne"-Richtung der Körper-/Schwanz-Sprites (`body.png`, `tail.png`)
@@ -119,5 +120,24 @@ export function renderLevel3Enemies(
 
   if (!hideMainEnemy) {
     drawHead(ctx, mainEnemy, assets.mainEnemy, mainEnemy.size * mainEnemyScale);
+  }
+
+  // Ladeglühen um den eingerollten Aal (Strom-Attacke, `electric.ts`) – vom
+  // Einrollen bis kurz nach dem Blitz.
+  const charge = electricChargeIntensity();
+  if (charge > 0.001) {
+    const { x, y } = mainEnemy.position;
+    const radius = mainEnemy.size * (1.7 + 0.7 * charge);
+    const glow = ctx.createRadialGradient(x, y, mainEnemy.size * 0.25, x, y, radius);
+    glow.addColorStop(0, `rgba(205, 242, 255, ${0.4 * charge})`);
+    glow.addColorStop(0.55, `rgba(130, 205, 255, ${0.22 * charge})`);
+    glow.addColorStop(1, 'rgba(130, 205, 255, 0)');
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 }

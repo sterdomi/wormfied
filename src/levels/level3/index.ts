@@ -1,17 +1,17 @@
 import { SHIELD_DECAY_PER_SECOND } from '../../game/playerState';
 import { defaultBonusStones } from '../defaultBonusStones';
 import { spawnTorpedoBubbleBurst } from '../level2/bubbles';
-import { renderLevel2Water } from '../level2/water';
 import type { LevelConfig } from '../types';
 import { updateLevel3Enemies } from './behavior';
+import { renderLevel3Decoration } from './decoration';
 import { renderLevel3Enemies } from './render';
 
 /**
  * Level 3.
  *
  * Wie Level 2 ein Unterwasser-Level – gleicher dekorativer Wasser-Überzug
- * (Tiefen-Grading, Godrays, aufsteigende Luftblasen, `renderLevel2Water`) und
- * dieselbe Torpedo-Optik. Unterschiede zu Level 2:
+ * (Tiefen-Grading, Godrays, aufsteigende Luftblasen) und dieselbe Torpedo-
+ * Optik. Unterschiede zu Level 2:
  *
  *  - Der Gegner ist ein **Aal** statt der Drachen-Schlange: Kopf = `head.png`,
  *    Körper = `body.png` (N-mal als `miniEnemies` – je mehr Segmente, desto
@@ -22,12 +22,20 @@ import { renderLevel3Enemies } from './render';
  *  - **Kein Loch** (`level2/hole.ts`) und **kein Maul-Spuck**
  *    (`level2/mouthSpit.ts`): keine losen Mini-Gegner, die Segmente hängen
  *    dauerhaft als Kette am Kopf.
+ *  - **Strom-Attacke** (`electric.ts` / `decoration.ts`): im Muster 1, 3, 5,
+ *    3 s (wiederholend) rollt sich der Aal zum Kreis zusammen (≈ 1 s
+ *    Vorwarnung), setzt mit einem Blitz das ganze Spielfeld unter Strom
+ *    (`reportFieldZap` → ein Leben, wenn der Spieler nicht am Rand angedockt
+ *    ist) und rollt wieder aus.
+ *  - **Keine Kanone und kein Bomben-Bonus** (Nutzer-Wunsch): der Spieler
+ *    startet ohne Kanone, und die Bonussteine sind auf Speed + Freeze
+ *    beschränkt (`bonusStones.spawning.allowedTypes`).
  *
  * Schiessen: nur der Kopf, Torpedo (`torpedo.png` / `torpedo.mp3`) wie in
  * Level 2, inkl. Bläschen-Poof beim Einschlag (`onEnemyProjectileImpact`).
  *
- * Wie Level 2 startet der Spieler mit Kanone (→ Cyborg-Look); Bonusstein-Werte
- * von Level 1. Eigenes Background-/Foreground-Artwork; noch keine eigene Musik.
+ * Bonusstein-Werte von Level 1. Eigenes Background-/Foreground-Artwork; noch
+ * keine eigene Musik.
  */
 export const level3: LevelConfig = {
   id: 'level3',
@@ -68,12 +76,14 @@ export const level3: LevelConfig = {
   },
   renderEnemies: renderLevel3Enemies,
   updateEnemies: updateLevel3Enemies,
-  // Unterwasser-Look wie Level 2 (aus dem Level-2-Paket wiederverwendet).
-  renderDecoration: renderLevel2Water,
+  // Unterwasser-Look (aus dem Level-2-Paket) + Feld-Blitz der Strom-Attacke.
+  renderDecoration: renderLevel3Decoration,
   // Torpedo-Einschlag (Linie/Spieler getroffen): Blasen-Poof am Einschlagpunkt.
   onEnemyProjectileImpact: spawnTorpedoBubbleBurst,
   shieldDecayPerSecond: SHIELD_DECAY_PER_SECOND,
-  // Wie Level 2: Spieler startet mit Kanone (→ Cyborg-Look).
-  startsWithCannon: true,
-  bonusStones: defaultBonusStones,
+  // Kein Kanonen-Start (Nutzer-Wunsch) – Level 3 dreht sich um die Strom-Attacke.
+  bonusStones: {
+    ...defaultBonusStones,
+    spawning: { ...defaultBonusStones.spawning, allowedTypes: ['speedBoost', 'freeze'] },
+  },
 };
