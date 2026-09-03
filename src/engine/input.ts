@@ -54,6 +54,16 @@ const KEY_MAP: Readonly<Record<string, InputDirection>> = {
 };
 
 /**
+ * Ob gerade ein Textfeld (z.B. die Namenseingabe im Score-Screen, siehe
+ * `ui/hud.ts`) den Eingabefokus hält – dann sollen Tastatur-Events NICHT als
+ * Spiel-Eingabe zählen (siehe `onKeyDown`/`onKeyUp` unten).
+ */
+function isTypingIntoField(): boolean {
+  const active = document.activeElement;
+  return active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement;
+}
+
+/**
  * Desktop-Keyboard-Handler: übersetzt Pfeiltasten/WASD → Richtungen, Leertaste
  * → `drawJustPressed` (Flanke, s.u.) und Enter → `restart`. Die Spiellogik
  * kennt nur `InputState`, nicht die konkreten Tasten.
@@ -80,6 +90,12 @@ function setupKeyboardInput(): InputHandle {
   };
 
   const onKeyDown = (e: KeyboardEvent): void => {
+    // Tippt der Spieler gerade in ein Textfeld (Namenseingabe im Score-
+    // Screen, `ui/hud.ts`), sollen weder Buchstaben als Bewegung noch Enter
+    // als Neustart-Bestätigung durchschlagen – sonst würde z.B. das "w" in
+    // einem Namen die Figur bewegen oder Enter beim Speichern gleichzeitig
+    // den Screen weiterschalten.
+    if (isTypingIntoField()) return;
     if (e.code === 'Space') {
       drawHeld = true;
       e.preventDefault(); // Seiten-Scroll durch Leertaste unterdrücken
@@ -93,6 +109,7 @@ function setupKeyboardInput(): InputHandle {
   };
 
   const onKeyUp = (e: KeyboardEvent): void => {
+    if (isTypingIntoField()) return;
     if (e.code === 'Space') {
       drawHeld = false;
       return;

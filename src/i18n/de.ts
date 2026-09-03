@@ -9,6 +9,7 @@ export const de = {
   extraLifeAward: '★ Extra-Leben ★',
   restartHint: 'Enter drücken für Neustart',
   backToStartHint: 'Enter drücken – zurück zum Start',
+  toScoreScreenHint: 'Enter drücken – weiter',
   muteLabel: 'Ton stummschalten',
   unmuteLabel: 'Ton aktivieren',
   rotateDeviceHint: '📱 Bitte Gerät drehen – im Querformat spielen',
@@ -23,6 +24,13 @@ export const de = {
   leaderboardEmpty: 'Noch keine Einträge',
   changeNameLabel: 'Spielername ändern',
   namePromptMessage: 'Dein Name für die globale Bestenliste:',
+  scoreScreenTitle: 'Punktestand',
+  yourNameLabel: 'Dein Name',
+  saveNameLabel: 'Speichern',
+  nameEmptyError: 'Name darf nicht leer sein.',
+  nameSavedStatus: 'Gespeichert.',
+  nameCheckingStatus: 'Prüfe Verfügbarkeit …',
+  nameTakenError: 'Name bereits vergeben – bitte einen anderen wählen.',
 } as const;
 
 export type TranslationKey = keyof typeof de;

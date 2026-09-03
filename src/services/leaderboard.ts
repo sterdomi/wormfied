@@ -6,6 +6,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  where,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -73,5 +74,25 @@ export async function fetchTopScores(): Promise<LeaderboardEntry[]> {
   } catch (error) {
     console.error('[leaderboard] Bestenliste konnte nicht geladen werden:', error);
     return [];
+  }
+}
+
+/**
+ * Prüft, ob bereits ein Bestenlisten-Eintrag exakt diesen Namen trägt
+ * (Nutzer-Wunsch: keine Namens-Dopplungen zulassen). Best-effort, kein
+ * echter Namensschutz – es gibt keine Konten/Login, nur einzelne
+ * Score-Einträge, daher kann NICHT unterschieden werden, ob derselbe Name
+ * schon einmal von genau diesem Spieler (z.B. auf einem anderen Gerät) oder
+ * von jemand anderem verwendet wurde. Bei Firestore-Fehlern (z.B. offline)
+ * `false` – im Zweifel nicht blockieren, siehe Aufruf in `ui/hud.ts`.
+ */
+export async function isNameTaken(name: string): Promise<boolean> {
+  try {
+    const q = query(collection(db, SCORES_COLLECTION), where('name', '==', name), limit(1));
+    const snapshot = await getDocs(q);
+    return !snapshot.empty;
+  } catch (error) {
+    console.error('[leaderboard] Namensprüfung fehlgeschlagen:', error);
+    return false;
   }
 }

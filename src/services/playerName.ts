@@ -1,4 +1,3 @@
-import { t } from '../i18n';
 import { PLAYER_NAME_MAX_LENGTH } from './leaderboard';
 
 const STORAGE_KEY = 'wormfied:playerName';
@@ -10,13 +9,10 @@ function randomGuestName(): string {
 
 /**
  * Liest den gespeicherten Spielernamen aus `localStorage` (persistiert über
- * Partien/Level hinweg, siehe `app/main.ts`). Ist noch keiner gespeichert
- * (allererster Aufruf, Nutzer-Wunsch), fragt EINMALIG per `window.prompt()`
- * nach – vorausgefüllt mit einem zufälligen Gastnamen, den man überschreiben
- * kann. Egal ob überschrieben, unverändert übernommen oder der Dialog
- * abgebrochen wird: das Ergebnis landet in `localStorage`, daher erscheint
- * der Dialog danach nie wieder automatisch (nur noch manuell über den
- * 👤-Button, siehe `ui/hud.ts`).
+ * Partien/Level hinweg, siehe `app/main.ts`). Ist noch keiner gespeichert,
+ * wird EINMALIG ein zufälliger Gastname erzeugt und persistiert – ohne Dialog.
+ * Den Namen ändert man jederzeit im Score-Screen (Namensfeld mit Speichern)
+ * oder über den 👤-Button im HUD, beide in `ui/hud.ts`.
  */
 export function getPlayerName(): string {
   try {
@@ -25,9 +21,7 @@ export function getPlayerName(): string {
   } catch {
     // localStorage kann in manchen Kontexten (z.B. privates Surfen) fehlschlagen.
   }
-  const generated = randomGuestName();
-  const chosen = window.prompt(t('namePromptMessage'), generated);
-  return setPlayerName(chosen ?? generated);
+  return setPlayerName(randomGuestName());
 }
 
 /** Speichert einen vom Spieler gewählten Namen (getrimmt, längenbegrenzt). */

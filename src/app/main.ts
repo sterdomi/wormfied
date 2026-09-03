@@ -104,7 +104,7 @@ import { createHud } from '../ui/hud';
 import { setupOrientationWarning } from '../ui/orientationWarning';
 import { isTouchCapable } from '../ui/touchControls';
 import { t } from '../i18n';
-import { fetchTopScores, submitScore } from '../services/leaderboard';
+import { fetchTopScores, submitScore, type LeaderboardEntry } from '../services/leaderboard';
 import { getPlayerName } from '../services/playerName';
 import '../styles/main.css';
 
@@ -432,9 +432,7 @@ interface LevelCarryOver {
  * direkt ins nächste Level – bei nur einem Level eine Wiederholung), samt
  * dem Score-/Leben-Stand, den das nächste Level übernimmt.
  */
-type StartOutcome =
-  | { kind: 'toStartScreen' }
-  | { kind: 'nextLevel'; carryOver: LevelCarryOver };
+type StartOutcome = { kind: 'toStartScreen' } | { kind: 'nextLevel'; carryOver: LevelCarryOver };
 
 /**
  * Startet eine Partie mit `level`. Löst mit `toStartScreen` auf, sobald nach
@@ -457,6 +455,7 @@ function start(
   playerWalkCyborgImage: HTMLImageElement,
   logoImage: HTMLImageElement,
   carryOver: LevelCarryOver | null,
+  isLastLevel: boolean,
 ): Promise<StartOutcome> {
   // Wird synchron im Promise-Executor unten zugewiesen (läuft vor jedem
   // anderen Code in dieser Funktion) – die Definite-Assignment-Assertion ist
@@ -504,6 +503,17 @@ function start(
   // `let` statt `const` (Nutzer-Feedback): wird beim Eintritt in Game Over
   // ODER Level Complete durch eine frische Instanz ersetzt, siehe dort.
   let restartTrigger = new EdgeTrigger();
+  // Eigener Score-Screen (Nutzer-Wunsch): erscheint NACH dem Game-Over- bzw.
+  // (beim letzten Level) dem Level-Complete-Overlay, siehe `enterScoreScreen`
+  // unten und den `update()`-Ablauf.
+  let scoreScreenActive = false;
+  // Ergebnis der Firestore-Übermittlung (`triggerLeaderboardSubmission`) –
+  // `null` solange sie noch läuft. Getrennt vom Anzeigezeitpunkt des
+  // Score-Screens gehalten, damit die Übermittlung schon beim Sterben/
+  // Levelabschluss startet (kürzere Wartezeit) und der Score-Screen bei
+  // Öffnen sofort das Ergebnis zeigen kann, falls es bis dahin schon da ist.
+  let pendingLeaderboardEntries: LeaderboardEntry[] | null = null;
+  let pendingOwnLeaderboardEntry: LeaderboardEntry | null = null;
 
   const hud = createHud((muted) => audioManager.setMuted(muted));
 
@@ -700,6 +710,46 @@ function start(
   }
 
   /**
+   * Übermittelt den Score an die globale Bestenliste und lädt danach die
+   * Top 10 – aufgerufen sofort bei Game Over bzw. beim Abschluss des
+   * letzten Levels (nicht erst beim Öffnen des Score-Screens), damit die
+   * Firestore-Anfrage möglichst schon fertig ist, wenn der Spieler dort
+   * ankommt. Aktualisiert den bereits offenen Score-Screen live, falls er
+   * schneller geöffnet wird als die Antwort da ist.
+   */
+  function triggerLeaderboardSubmission(score: number): void {
+    const playerName = getPlayerName();
+    pendingOwnLeaderboardEntry = { name: playerName, score: Math.round(score) };
+    pendingLeaderboardEntries = null;
+    void submitScore(playerName, score)
+      .then(() => fetchTopScores())
+      .then((entries) => {
+        pendingLeaderboardEntries = entries;
+        if (scoreScreenActive) {
+          hud.setScoreScreenLeaderboard(entries, pendingOwnLeaderboardEntry!);
+        }
+      });
+  }
+
+  /**
+   * Wechselt vom Game-Over- bzw. Level-Complete-Overlay (letztes Level) in
+   * den Score-Screen (Nutzer-Wunsch): eigenes Overlay mit Endstand,
+   * prominent änderbarem Namen und globaler Top 10, bevor es zurück zum
+   * Startbildschirm geht (siehe `update()`).
+   */
+  function enterScoreScreen(score: number): void {
+    scoreScreenActive = true;
+    // Frischer Trigger (wie beim Levelabschluss/Game Over): ein beim
+    // Wechsel noch gehaltener Neustart-Knopf darf nicht sofort als
+    // Bestätigung für den Score-Screen zählen.
+    restartTrigger = new EdgeTrigger();
+    hud.setScoreScreen(true, score);
+    if (pendingLeaderboardEntries) {
+      hud.setScoreScreenLeaderboard(pendingLeaderboardEntries, pendingOwnLeaderboardEntry!);
+    }
+  }
+
+  /**
    * Lebensverlust-Ablauf (Gegner berührt aktive Linie ODER ungeschützten
    * Spieler auf dem Rand): laufenden Zeichenversuch rückgängig machen, Leben
    * abziehen, Schild auffüllen, ggf. Game Over, kurzes visuelles Feedback.
@@ -734,25 +784,15 @@ function start(
     audioManager.play('life_loss');
 
     if (playerState.isGameOver) {
-      const finalScore = scoring.score;
-      hud.setGameOver(true, finalScore);
+      hud.setGameOver(true, scoring.score);
       audioManager.play('game_over');
       // Frischer Trigger (Nutzer-Feedback, wie beim Levelabschluss oben):
       // ein beim Sterben noch gehaltener Neustart-Knopf darf nicht sofort
       // als Bestätigung fürs Game-Over-Overlay zählen.
       restartTrigger = new EdgeTrigger();
-
-      // Globale Bestenliste (Nutzer-Wunsch): Score erst übermitteln, DANN
-      // laden – sonst könnte die frisch übermittelte eigene Platzierung in
-      // der angezeigten Top 10 fehlen. Bewusst "fire-and-forget" (kein
-      // `await`): ein langsames/fehlgeschlagenes Firestore-Netzwerk darf den
-      // synchronen Game-Loop nicht blockieren, siehe `services/leaderboard.ts`.
-      const playerName = getPlayerName();
-      void submitScore(playerName, finalScore)
-        .then(() => fetchTopScores())
-        .then((entries) => {
-          hud.setLeaderboard(entries, { name: playerName, score: Math.round(finalScore) });
-        });
+      // Bewusst schon hier (nicht erst beim Öffnen des Score-Screens)
+      // angestossen, siehe `triggerLeaderboardSubmission`.
+      triggerLeaderboardSubmission(scoring.score);
     }
   }
 
@@ -800,14 +840,25 @@ function start(
       screenFlash = null;
     }
 
+    // Score-Screen (Nutzer-Wunsch) hat Vorrang vor den beiden Zweigen
+    // darunter: einmal aktiv (nach Game Over ODER letztem Level, siehe dort)
+    // ist das die letzte Station vor `toStartScreen`.
+    if (scoreScreenActive) {
+      if (restartPressed) {
+        teardown();
+        resolveStart({ kind: 'toStartScreen' });
+      }
+      return;
+    }
+
     if (playerState.isGameOver) {
-      // Keine Spieler-/Gegnerbewegung mehr – zurück zum Startbildschirm erst
+      // Keine Spieler-/Gegnerbewegung mehr – weiter zum Score-Screen erst
       // per Enter/Neustart-Taste (Nutzer-Feedback: kein automatisches
       // Wegnavigieren mehr, u.a. weil das die globale Bestenliste abschnitt,
       // falls deren Firestore-Abfrage noch lief, siehe `loseLife`).
       if (restartPressed) {
-        teardown();
-        resolveStart({ kind: 'toStartScreen' });
+        hud.setGameOver(false);
+        enterScoreScreen(scoring.score);
       }
       return;
     }
@@ -823,19 +874,34 @@ function start(
           levelCompleteRevealAt = null;
           hud.setLevelComplete(true, pendingLevelCompletePercent, scoring.score);
           audioManager.play('level_complete');
+
+          // Letztes Level geschafft (Nutzer-Feedback): das ist ein
+          // mindestens ebenso guter Erfolg wie ein Game Over – Score auch
+          // hier an die globale Bestenliste übermitteln, siehe `loseLife`.
+          if (isLastLevel) {
+            triggerLeaderboardSubmission(scoring.score);
+          }
         }
         return;
       }
-      // Levelabschluss bestätigt: Partie abbauen, den weiteren Ablauf
-      // (nächstes Level, ohne Startbildschirm) übernimmt `boot()`. Score +
-      // Leben (inkl. Levelabschluss-Bonus, der schon in `scoring.score`
-      // steckt) wandern als `carryOver` mit.
+      // Levelabschluss bestätigt: Partie abbauen. Beim letzten Level (Nutzer-
+      // Feedback) geht's wie bei Game Over über den Score-Screen zurück zum
+      // Startbildschirm statt automatisch in eine Wiederholung ab Level 1 zu
+      // rutschen; bei allen anderen Leveln übernimmt `boot()` ohne
+      // Startbildschirm das nächste Level, Score + Leben (inkl.
+      // Levelabschluss-Bonus, schon in `scoring.score`) wandern dafür als
+      // `carryOver` mit.
       if (restartPressed) {
-        teardown();
-        resolveStart({
-          kind: 'nextLevel',
-          carryOver: { score: scoring.score, lives: playerState.lives },
-        });
+        if (isLastLevel) {
+          hud.setLevelComplete(false);
+          enterScoreScreen(scoring.score);
+        } else {
+          teardown();
+          resolveStart({
+            kind: 'nextLevel',
+            carryOver: { score: scoring.score, lives: playerState.lives },
+          });
+        }
       }
       return;
     }
@@ -1509,10 +1575,15 @@ function start(
       if (e.code !== 'KeyN' || levelSkipped) return;
       levelSkipped = true;
       teardown();
-      resolveStart({
-        kind: 'nextLevel',
-        carryOver: { score: scoring.score, lives: playerState.lives },
-      });
+      // Beim letzten Level wie eine normale Levelabschluss-Bestätigung
+      // behandeln (zurück zum Start, kein `levelIndex` ausserhalb von
+      // `levels`), sonst würde dieser Debug-Shortcut auf dem letzten Level
+      // `levels[levels.length]` (undefined) anfordern.
+      resolveStart(
+        isLastLevel
+          ? { kind: 'toStartScreen' }
+          : { kind: 'nextLevel', carryOver: { score: scoring.score, lives: playerState.lives } },
+      );
     };
     window.addEventListener('keydown', onDebugKey);
     disposeDebugKeys = (): void => window.removeEventListener('keydown', onDebugKey);
@@ -1576,17 +1647,19 @@ async function boot(): Promise<void> {
 
   // Startbildschirm ↔ Partie im Wechsel. `start()` meldet über seinen
   // `StartOutcome` zurück, wie es weitergeht:
-  //  - `toStartScreen` (Game Over): zurück zum Startbildschirm, wieder ab
-  //    Level 1, mit frischem Score/Leben (`carryOver` zurück auf `null`).
-  //  - `nextLevel` (Levelabschluss + Enter): ohne Startbildschirm direkt ins
-  //    nächste Level, Score + Leben laufen über `carryOver` weiter.
-  //    `% levels.length` lässt hinter dem letzten Level wieder das erste
-  //    folgen (ersetzt den früheren In-Place-Neustart `restartGame`).
+  //  - `toStartScreen`: zurück zum Startbildschirm, wieder ab Level 1, mit
+  //    frischem Score/Leben (`carryOver` zurück auf `null`) – bei Game Over
+  //    UND (Nutzer-Feedback) beim Abschluss des LETZTEN Levels, das zählt
+  //    genauso als "fertig" wie ein Game Over.
+  //  - `nextLevel` (Levelabschluss + Enter, ausser beim letzten Level): ohne
+  //    Startbildschirm direkt ins nächste Level, Score + Leben laufen über
+  //    `carryOver` weiter.
   let levelIndex = 0;
   let showStart = true;
   let carryOver: LevelCarryOver | null = null;
   for (;;) {
     const level = levels[levelIndex];
+    const isLastLevel = levelIndex === levels.length - 1;
     const assets = await loadLevel(level);
     if (showStart) await showStartScreen(gameCanvas, logoImage);
     const outcome = await start(
@@ -1599,9 +1672,10 @@ async function boot(): Promise<void> {
       playerWalkCyborgImage,
       logoImage,
       carryOver,
+      isLastLevel,
     );
     if (outcome.kind === 'nextLevel') {
-      levelIndex = (levelIndex + 1) % levels.length;
+      levelIndex += 1;
       showStart = false;
       carryOver = outcome.carryOver;
     } else {

@@ -6,7 +6,11 @@ import {
 } from '../game/scoring';
 import { isIOS } from '../engine/platform';
 import { setupIosInstallHint } from './iosInstallHint';
-import { type LeaderboardEntry } from '../services/leaderboard';
+import {
+  isNameTaken,
+  PLAYER_NAME_MAX_LENGTH,
+  type LeaderboardEntry,
+} from '../services/leaderboard';
 import { getPlayerName, setPlayerName } from '../services/playerName';
 
 export interface Hud {
@@ -25,13 +29,23 @@ export interface Hud {
   /** Level-Complete-Overlay ein-/ausblenden (mit erreichtem Prozent + Score). */
   setLevelComplete: (visible: boolean, percent?: number, score?: number) => void;
   /**
-   * Befüllt die globale Top-10-Liste im Game-Over-Overlay. `'loading'`
-   * während der Firestore-Abfrage läuft (`app/main.ts`), danach die
-   * geladenen Einträge (leeres Array = "noch keine Einträge"). `ownEntry`
-   * hebt die soeben übermittelte eigene Platzierung hervor, falls sie unter
-   * den Top 10 gelandet ist.
+   * Eigener Score-Screen (Nutzer-Wunsch), der NACH dem Game-Over- bzw. (beim
+   * letzten Level) dem Level-Complete-Overlay erscheint: Endstand, prominent
+   * änderbarer Spielername und globale Top 10 – siehe `app/main.ts` für den
+   * Ablauf. Zeigt beim Öffnen den aktuell gespeicherten Namen im Eingabefeld.
    */
-  setLeaderboard: (state: 'loading' | LeaderboardEntry[], ownEntry?: LeaderboardEntry) => void;
+  setScoreScreen: (visible: boolean, score?: number) => void;
+  /**
+   * Befüllt die globale Top-10-Liste im Score-Screen. `'loading'` während
+   * der Firestore-Abfrage läuft (`app/main.ts`), danach die geladenen
+   * Einträge (leeres Array = "noch keine Einträge"). `ownEntry` hebt die
+   * soeben übermittelte eigene Platzierung hervor, falls sie unter den
+   * Top 10 gelandet ist.
+   */
+  setScoreScreenLeaderboard: (
+    state: 'loading' | LeaderboardEntry[],
+    ownEntry?: LeaderboardEntry,
+  ) => void;
   dispose: () => void;
 }
 
@@ -97,8 +111,8 @@ function renderLevelCompleteBonus(container: HTMLElement, percent: number): void
 }
 
 /**
- * Füllt die Top-10-Liste im Game-Over-Overlay: Ladehinweis, "keine
- * Einträge" oder die Rangliste (Rang, Name, Score) mit der eigenen soeben
+ * Füllt die Top-10-Liste im Score-Screen: Ladehinweis, "keine Einträge"
+ * oder die Rangliste (Rang, Name, Score) mit der eigenen soeben
  * übermittelten Platzierung hervorgehoben (analog zur hervorgehobenen Stufe
  * in `renderLevelCompleteBonus`).
  */
@@ -168,6 +182,124 @@ function buildOverlay(
   return stats;
 }
 
+interface ScoreScreenParts {
+  stats: HTMLParagraphElement;
+  leaderboard: HTMLElement;
+  /** Vor jedem Anzeigen aufrufen: Eingabefeld mit dem aktuellen Namen befüllen, Status löschen. */
+  reset: () => void;
+}
+
+/**
+ * Eigener Score-Screen (Nutzer-Wunsch), der `app/main.ts` nach Game Over
+ * bzw. (beim letzten Level) nach Level Complete zeigt: Endstand, ein
+ * prominentes (nicht nur der kleine 👤-Button im HUD) Namens-Eingabefeld mit
+ * Speichern-Button, und die globale Top 10. Namens-Speichern prüft vorher
+ * per `isNameTaken` auf Dopplungen (Nutzer-Wunsch) – best effort, siehe dort.
+ */
+function buildScoreScreen(el: HTMLElement): ScoreScreenParts {
+  el.replaceChildren();
+
+  const title = document.createElement('p');
+  title.className = 'overlay__title';
+  title.textContent = t('scoreScreenTitle');
+
+  const stats = document.createElement('p');
+  stats.className = 'overlay__stats';
+
+  const nameBlock = document.createElement('div');
+  nameBlock.className = 'scorescreen__name';
+
+  const nameLabel = document.createElement('label');
+  nameLabel.className = 'scorescreen__name-label';
+  nameLabel.textContent = t('yourNameLabel');
+  nameLabel.htmlFor = 'scorescreen-name-input';
+
+  const nameRow = document.createElement('div');
+  nameRow.className = 'scorescreen__name-row';
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.id = 'scorescreen-name-input';
+  nameInput.className = 'scorescreen__name-input';
+  nameInput.maxLength = PLAYER_NAME_MAX_LENGTH;
+  nameInput.autocomplete = 'off';
+
+  const saveButton = document.createElement('button');
+  saveButton.type = 'button';
+  saveButton.className = 'scorescreen__name-save';
+  saveButton.textContent = t('saveNameLabel');
+
+  nameRow.append(nameInput, saveButton);
+
+  const nameStatus = document.createElement('p');
+  nameStatus.className = 'scorescreen__name-status';
+
+  nameBlock.append(nameLabel, nameRow, nameStatus);
+
+  const leaderboard = document.createElement('div');
+  leaderboard.className = 'overlay__bonus overlay__leaderboard';
+
+  const hint = document.createElement('p');
+  hint.className = 'overlay__hint';
+  hint.textContent = t('backToStartHint');
+
+  el.append(title, stats, nameBlock, leaderboard, hint);
+  el.hidden = true;
+
+  const setNameStatus = (text: string, kind: 'ok' | 'error' | null): void => {
+    nameStatus.textContent = text;
+    nameStatus.className =
+      'scorescreen__name-status' + (kind ? ` scorescreen__name-status--${kind}` : '');
+  };
+
+  let saving = false;
+  const save = async (): Promise<void> => {
+    if (saving) return;
+    const candidate = nameInput.value.trim().slice(0, PLAYER_NAME_MAX_LENGTH);
+    if (!candidate) {
+      setNameStatus(t('nameEmptyError'), 'error');
+      return;
+    }
+    if (candidate === getPlayerName()) {
+      setNameStatus(t('nameSavedStatus'), 'ok');
+      return;
+    }
+    saving = true;
+    saveButton.disabled = true;
+    setNameStatus(t('nameCheckingStatus'), null);
+    const taken = await isNameTaken(candidate);
+    saving = false;
+    saveButton.disabled = false;
+    if (taken) {
+      setNameStatus(t('nameTakenError'), 'error');
+      return;
+    }
+    setPlayerName(candidate);
+    nameInput.value = candidate;
+    setNameStatus(t('nameSavedStatus'), 'ok');
+  };
+
+  saveButton.addEventListener('click', () => void save());
+  // `input.ts` ignoriert Tastatur-Events komplett, solange dieses Feld den
+  // Fokus hält (siehe `isTypingIntoField`) – Enter muss deshalb hier lokal
+  // behandelt werden, sonst liesse sich der Name nie per Enter bestätigen.
+  nameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      void save();
+    }
+  });
+
+  return {
+    stats,
+    leaderboard,
+    reset: (): void => {
+      nameInput.value = getPlayerName();
+      setNameStatus('', null);
+    },
+  };
+}
+
 /**
  * HUD als DOM-Elemente unter bzw. über dem Canvas (`#hud`, `#gameover`,
  * `#levelcomplete` aus `index.html`) – nicht ins Canvas gezeichnet, das lässt
@@ -183,8 +315,11 @@ export function createHud(onMuteChange: (muted: boolean) => void): Hud {
   const bar = document.getElementById('hud');
   const gameOverEl = document.getElementById('gameover');
   const levelCompleteEl = document.getElementById('levelcomplete');
-  if (!bar || !gameOverEl || !levelCompleteEl) {
-    throw new Error('HUD-Elemente #hud / #gameover / #levelcomplete nicht gefunden.');
+  const scoreScreenEl = document.getElementById('scorescreen');
+  if (!bar || !gameOverEl || !levelCompleteEl || !scoreScreenEl) {
+    throw new Error(
+      'HUD-Elemente #hud / #gameover / #levelcomplete / #scorescreen nicht gefunden.',
+    );
   }
 
   const scoreEl = document.createElement('span');
@@ -286,17 +421,10 @@ export function createHud(onMuteChange: (muted: boolean) => void): Hud {
 
   bar.append(leftGroup, claimedEl, rightGroup);
 
-  // Game Over führt (per Enter, main.ts) zurück zum Startbildschirm statt
-  // direkt zu einer neuen Partie wie beim Level-Complete-Overlay.
-  const gameOverStats = buildOverlay(gameOverEl, 'gameOver', 'backToStartHint');
-  // Globale Top-10-Liste zwischen Statuszeile und Hinweis, analog zur
-  // Prozent-Bonus-Tabelle im Level-Complete-Overlay unten – befüllt von
-  // `setLeaderboard` (main.ts stösst dort Submit + Abfrage bei echtem Game
-  // Over an, siehe `services/leaderboard.ts`).
-  const leaderboardContainer = document.createElement('div');
-  leaderboardContainer.className = 'overlay__bonus overlay__leaderboard';
-  gameOverStats.after(leaderboardContainer);
-
+  // Game Over führt (per Enter, main.ts) zu einem eigenen Score-Screen statt
+  // direkt zum Startbildschirm (Nutzer-Wunsch) bzw. zur nächsten Partie wie
+  // beim Level-Complete-Overlay.
+  const gameOverStats = buildOverlay(gameOverEl, 'gameOver', 'toScoreScreenHint');
   const levelCompleteStats = buildOverlay(levelCompleteEl, 'levelComplete', 'restartHint');
   // Prozent-Bonus-Tabelle zwischen Statuszeile und Hinweis – nur im
   // Level-Complete-Overlay, befüllt von `setLevelComplete` (braucht `percent`).
@@ -309,6 +437,12 @@ export function createHud(onMuteChange: (muted: boolean) => void): Hud {
   // siehe `iosInstallHint.ts`). NACH `buildOverlay`, da dessen
   // `replaceChildren()` sonst den Hinweis wieder entfernen würde.
   setupIosInstallHint(gameOverEl);
+
+  const {
+    stats: scoreScreenStats,
+    leaderboard: scoreScreenLeaderboard,
+    reset: resetScoreScreenNameEditor,
+  } = buildScoreScreen(scoreScreenEl);
 
   const bind = (el: HTMLElement, format: (v: number) => string) => {
     let last = '';
@@ -346,7 +480,6 @@ export function createHud(onMuteChange: (muted: boolean) => void): Hud {
     setGameOver: (visible: boolean, score?: number): void => {
       if (visible) {
         gameOverStats.textContent = score !== undefined ? formatScore(score) : '';
-        renderLeaderboard(leaderboardContainer, 'loading');
       }
       gameOverEl.hidden = !visible;
     },
@@ -357,8 +490,19 @@ export function createHud(onMuteChange: (muted: boolean) => void): Hud {
       }
       levelCompleteEl.hidden = !visible;
     },
-    setLeaderboard: (state: 'loading' | LeaderboardEntry[], ownEntry?: LeaderboardEntry): void => {
-      renderLeaderboard(leaderboardContainer, state, ownEntry);
+    setScoreScreen: (visible: boolean, score?: number): void => {
+      if (visible) {
+        scoreScreenStats.textContent = score !== undefined ? formatScore(score) : '';
+        resetScoreScreenNameEditor();
+        renderLeaderboard(scoreScreenLeaderboard, 'loading');
+      }
+      scoreScreenEl.hidden = !visible;
+    },
+    setScoreScreenLeaderboard: (
+      state: 'loading' | LeaderboardEntry[],
+      ownEntry?: LeaderboardEntry,
+    ): void => {
+      renderLeaderboard(scoreScreenLeaderboard, state, ownEntry);
     },
     dispose: (): void => {
       clearTimeout(flashTimer);
@@ -370,6 +514,7 @@ export function createHud(onMuteChange: (muted: boolean) => void): Hud {
       }
       gameOverEl.hidden = true;
       levelCompleteEl.hidden = true;
+      scoreScreenEl.hidden = true;
     },
   };
 }

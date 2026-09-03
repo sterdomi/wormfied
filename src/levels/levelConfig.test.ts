@@ -84,6 +84,38 @@ describe('Level-Registry', () => {
     expect(level2.startsWithCannon).toBe(true);
   });
 
+  it('enthält level3 an dritter Stelle', () => {
+    expect(levels.some((l) => l.id === 'level3')).toBe(true);
+    expect(levels[2]?.id).toBe('level3');
+  });
+
+  it('level3 hat eine plausible Aal-Konfiguration', () => {
+    const level3 = levels.find((l) => l.id === 'level3')!;
+
+    expect(level3.name).toBeTruthy();
+    // Eigenes Unterwasser-Artwork (nicht die Level-1/2-Bilder).
+    expect(level3.backgroundSrc).toMatch(/level3\/background\.png$/);
+    expect(level3.foregroundSrc).toMatch(/level3\/foreground\.png$/);
+    // Aal: Kopf head.png, Körpersegmente body.png, Schwanz tail.png (walk-Slot).
+    expect(level3.mainEnemy.assetSrc).toMatch(/level3\/head\.png$/);
+    expect(level3.miniEnemies.config.assetSrc).toMatch(/level3\/body\.png$/);
+    expect(level3.miniEnemies.config.walkAssetSrc).toMatch(/level3\/tail\.png$/);
+    // Mehrere Körpersegmente – je mehr, desto länger der Aal.
+    expect(level3.miniEnemies.count).toBeGreaterThan(3);
+
+    // Nur der Kopf schiesst – Torpedo wie Level 2.
+    expect(level3.mainEnemy.shooting?.enabled).toBe(true);
+    expect(level3.mainEnemy.shooting!.projectileAssetSrc).toMatch(/projectiles\/torpedo\.png$/);
+    expect(level3.mainEnemy.shooting!.soundSrc).toMatch(/sound\/torpedo\.mp3$/);
+    expect(level3.miniEnemies.config.shooting?.enabled ?? false).toBe(false);
+    // Torpedo-Einschlag löst einen Effekt aus (Blasen-Poof), Unterwasser-Look aktiv.
+    expect(typeof level3.onEnemyProjectileImpact).toBe('function');
+    expect(typeof level3.renderDecoration).toBe('function');
+
+    // Wie Level 2: Spieler startet mit Kanone (→ Cyborg-Look).
+    expect(level3.startsWithCannon).toBe(true);
+  });
+
   it('level1: Spieler startet OHNE Kanone (nur per Bonusstein)', () => {
     const level1 = levels.find((l) => l.id === 'level1')!;
     expect(level1.startsWithCannon ?? false).toBe(false);

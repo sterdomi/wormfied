@@ -162,7 +162,8 @@ body {
 
 /* Overlays über dem Spielfeld – gleiche Technik wie das HUD (DOM). */
 #gameover,
-#levelcomplete {
+#levelcomplete,
+#scorescreen {
   position: fixed;
   inset: 0;
   z-index: 10;
@@ -180,7 +181,8 @@ body {
 }
 
 #gameover[hidden],
-#levelcomplete[hidden] {
+#levelcomplete[hidden],
+#scorescreen[hidden] {
   display: none;
 }
 
@@ -190,7 +192,8 @@ body {
   color: #bf616a;
 }
 
-#levelcomplete .overlay__title {
+#levelcomplete .overlay__title,
+#scorescreen .overlay__title {
   color: #a3be8c;
 }
 
@@ -243,11 +246,85 @@ body {
   color: #a3be8c;
 }
 
-/* Globale Top-10-Bestenliste im Game-Over-Overlay (`services/leaderboard.ts`). */
+/* Globale Top-10-Bestenliste im Score-Screen (`services/leaderboard.ts`). */
 .overlay__leaderboard-status {
   margin: 0;
   text-align: center;
   color: #8a93a6;
+}
+
+/* Namens-Editor im Score-Screen (Nutzer-Wunsch): prominenter als der kleine
+ * 👤-Button im HUD – eigenes Eingabefeld + Speichern-Button. */
+.scorescreen__name {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: min(300px, 80vw);
+}
+
+.scorescreen__name-label {
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  color: #d8dee9;
+}
+
+.scorescreen__name-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.scorescreen__name-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background: #14171f;
+  color: #e5e9f0;
+  font: inherit;
+  font-size: 16px;
+}
+
+.scorescreen__name-input:focus {
+  outline: none;
+  border-color: #8fbcff;
+}
+
+.scorescreen__name-save {
+  flex: 0 0 auto;
+  padding: 6px 14px;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background: #14171f;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.scorescreen__name-save:hover {
+  border-color: #555;
+}
+
+.scorescreen__name-save:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.scorescreen__name-status {
+  min-height: 1.2em;
+  margin: 0;
+  font-size: 13px;
+  color: #8a93a6;
+}
+
+.scorescreen__name-status--ok {
+  color: #a3be8c;
+}
+
+.scorescreen__name-status--error {
+  color: #bf616a;
 }
 
 /*
