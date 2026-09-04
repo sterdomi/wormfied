@@ -2,8 +2,10 @@ import type { LevelDecorationState } from '../types';
 import { clamp01, lerp, mulberry32 } from '../rng';
 
 /**
- * Aufsteigende Luftblasen für das Wasser-Level 2 – rein dekorativ, zwischen
- * Foreground und Spiel-Ebene gezeichnet (`LevelConfig.renderDecoration`).
+ * Aufsteigende Luftblasen für den gemeinsamen Unterwasser-Look (ursprünglich
+ * Level 2, jetzt auch von Level 3 genutzt – siehe `water.ts`) – rein
+ * dekorativ, zwischen Foreground und Spiel-Ebene gezeichnet
+ * (`LevelConfig.renderDecoration`).
  *
  * Drei Quellen:
  *  - der **Grundschleier**: 34 kleine + 6 grosse Blasen, die dauerhaft
@@ -204,7 +206,7 @@ function drawBubble(
  * schlängelt per Sinus und blendet an Ober-/Unterkante weich ein/aus; oben
  * angekommen setzt sie unten nahtlos wieder ein (Modulo über den Gesamtweg).
  */
-export function renderLevel2Bubbles(
+export function renderUnderwaterBubbles(
   ctx: CanvasRenderingContext2D,
   { width, height, now, enemyProjectiles }: LevelDecorationState,
 ): void {

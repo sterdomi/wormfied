@@ -2,7 +2,7 @@ import { type Enemy } from '../../game/enemy';
 import { createRandomWalkState, moveEnemies, type RandomWalkState } from '../../game/enemyMovement';
 import { tickEnemyShooting, type Projectile } from '../../game/projectile';
 import { advanceSnakeBody, snakeBodyFor } from '../../game/snakeBody';
-import { spawnTorpedoBubbleBurst } from '../level2/bubbles';
+import { spawnTorpedoBubbleBurst } from '../underwater/bubbles';
 import type { LevelEnemyUpdateContext } from '../types';
 import { updateElectric } from './electric';
 import { classifyLevel3Minis } from './enemySet';

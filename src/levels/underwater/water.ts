@@ -1,18 +1,22 @@
 import type { LevelDecorationRenderer, LevelDecorationState } from '../types';
-import { renderLevel2Bubbles } from './bubbles';
+import { renderUnderwaterBubbles } from './bubbles';
 import { lerp, mulberry32 } from '../rng';
 
 /**
- * Unterwasser-Look von Level 2 – der komplette dekorative Überzug
- * (`LevelConfig.renderDecoration`), zwischen Foreground und Spiel-Ebene:
+ * Gemeinsamer Unterwasser-Look – der komplette dekorative Überzug
+ * (`LevelConfig.renderDecoration`), zwischen Foreground und Spiel-Ebene.
+ * Ursprünglich für Level 2 gebaut, inzwischen auch von Level 3 genutzt
+ * (`level3/decoration.ts` legt darüber noch den Strom-Blitz-Effekt) – seit
+ * Instruktion 22 (Level 2 wandert auf einen eigenen Branch, Level 3 bleibt
+ * aktiv) deshalb hierher verschoben statt level2-lokal zu bleiben:
  *
  *  1. **Tiefen-Grading**: ein vertikaler Blau-Verlauf (unten dunkler/tiefer)
  *     plus ein zarter Sonnenlicht-Schimmer knapp unter der Oberfläche. Statisch.
  *  2. **Godrays**: wenige, sehr weiche, leicht geneigte Lichtschächte von oben,
  *     die langsam driften und „atmen" – additiv (`lighter`), sehr niedrige
- *     Deckkraft. Zustandslos aus `now` (wie der Rest der Level-2-Deko).
- *  3. **Luftblasen**: `renderLevel2Bubbles` (eigene Datei) – zuletzt, damit sie
- *     über Grading und Godrays liegen.
+ *     Deckkraft. Zustandslos aus `now` (wie der Rest der Unterwasser-Deko).
+ *  3. **Luftblasen**: `renderUnderwaterBubbles` (eigene Datei) – zuletzt,
+ *     damit sie über Grading und Godrays liegen.
  */
 
 interface Godray {
@@ -110,11 +114,11 @@ function renderGodrays(
 }
 
 /** Kompletter Unterwasser-Überzug: Grading → Godrays → Luftblasen. */
-export const renderLevel2Water: LevelDecorationRenderer = (
+export const renderUnderwaterDecoration: LevelDecorationRenderer = (
   ctx: CanvasRenderingContext2D,
   state: LevelDecorationState,
 ): void => {
   renderWaterGrade(ctx, state.width, state.height);
   renderGodrays(ctx, state.width, state.height, state.now);
-  renderLevel2Bubbles(ctx, state);
+  renderUnderwaterBubbles(ctx, state);
 };

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
-  renderLevel2Bubbles,
+  renderUnderwaterBubbles,
   spawnTorpedoBubbleBurst,
   _resetTorpedoBubbleBursts,
 } from './bubbles';
@@ -25,28 +25,28 @@ function stubCtx() {
 const W = 960;
 const H = 540;
 
-describe('renderLevel2Bubbles', () => {
+describe('renderUnderwaterBubbles', () => {
   beforeEach(() => _resetTorpedoBubbleBursts());
 
   it('zeichnet Blasen, ohne zu werfen', () => {
     const { ctx, arcs } = stubCtx();
-    expect(() => renderLevel2Bubbles(ctx, { width: W, height: H, now: 1234 })).not.toThrow();
+    expect(() => renderUnderwaterBubbles(ctx, { width: W, height: H, now: 1234 })).not.toThrow();
     expect(arcs.length).toBeGreaterThan(0);
   });
 
   it('ist zustandslos: gleiche now -> identisches Bild', () => {
     const a = stubCtx();
     const b = stubCtx();
-    renderLevel2Bubbles(a.ctx, { width: W, height: H, now: 5000 });
-    renderLevel2Bubbles(b.ctx, { width: W, height: H, now: 5000 });
+    renderUnderwaterBubbles(a.ctx, { width: W, height: H, now: 5000 });
+    renderUnderwaterBubbles(b.ctx, { width: W, height: H, now: 5000 });
     expect(a.arcs).toEqual(b.arcs);
   });
 
   it('die Blasen steigen: der Median der y-Positionen nimmt über die Zeit ab', () => {
     const t0 = stubCtx();
     const t1 = stubCtx();
-    renderLevel2Bubbles(t0.ctx, { width: W, height: H, now: 0 });
-    renderLevel2Bubbles(t1.ctx, { width: W, height: H, now: 500 });
+    renderUnderwaterBubbles(t0.ctx, { width: W, height: H, now: 0 });
+    renderUnderwaterBubbles(t1.ctx, { width: W, height: H, now: 500 });
     // Median statt Mittelwert: robust gegen die eine Blase, die in dem Intervall
     // oben umläuft und unten neu einsetzt.
     const medianY = (arcs: Array<{ y: number }>) => {
@@ -61,11 +61,11 @@ describe('renderLevel2Bubbles', () => {
     const t = performance.now();
 
     const withBurst = stubCtx();
-    renderLevel2Bubbles(withBurst.ctx, { width: W, height: H, now: t + 300 });
+    renderUnderwaterBubbles(withBurst.ctx, { width: W, height: H, now: t + 300 });
 
     _resetTorpedoBubbleBursts();
     const without = stubCtx();
-    renderLevel2Bubbles(without.ctx, { width: W, height: H, now: t + 300 });
+    renderUnderwaterBubbles(without.ctx, { width: W, height: H, now: t + 300 });
 
     expect(withBurst.arcs.length).toBeGreaterThan(without.arcs.length);
     const near = withBurst.arcs.filter((p) => Math.hypot(p.x - 300, p.y - 400) < 130);
@@ -77,22 +77,22 @@ describe('renderLevel2Bubbles', () => {
     const t = performance.now();
 
     const expired = stubCtx();
-    renderLevel2Bubbles(expired.ctx, { width: W, height: H, now: t + 4000 });
+    renderUnderwaterBubbles(expired.ctx, { width: W, height: H, now: t + 4000 });
 
     _resetTorpedoBubbleBursts();
     const none = stubCtx();
-    renderLevel2Bubbles(none.ctx, { width: W, height: H, now: t + 4000 });
+    renderUnderwaterBubbles(none.ctx, { width: W, height: H, now: t + 4000 });
 
     expect(expired.arcs).toEqual(none.arcs);
   });
 
   it('zeichnet eine Bläschen-Spur hinter einem fliegenden Projektil', () => {
     const base = stubCtx();
-    renderLevel2Bubbles(base.ctx, { width: W, height: H, now: 1000 });
+    renderUnderwaterBubbles(base.ctx, { width: W, height: H, now: 1000 });
 
     const proj = { position: { x: 500, y: 270 }, velocity: { x: 500, y: 0 }, size: 18 };
     const withTrail = stubCtx();
-    renderLevel2Bubbles(withTrail.ctx, {
+    renderUnderwaterBubbles(withTrail.ctx, {
       width: W,
       height: H,
       now: 1000,
@@ -114,16 +114,16 @@ describe('renderLevel2Bubbles', () => {
 
   it('ohne Projektile keine Spur', () => {
     const withEmpty = stubCtx();
-    renderLevel2Bubbles(withEmpty.ctx, { width: W, height: H, now: 1000, enemyProjectiles: [] });
+    renderUnderwaterBubbles(withEmpty.ctx, { width: W, height: H, now: 1000, enemyProjectiles: [] });
     const without = stubCtx();
-    renderLevel2Bubbles(without.ctx, { width: W, height: H, now: 1000 });
+    renderUnderwaterBubbles(without.ctx, { width: W, height: H, now: 1000 });
     expect(withEmpty.arcs).toEqual(without.arcs);
   });
 
   it('bleibt vom Zeichenbereich her im Feld (plus Schlängel-Toleranz)', () => {
     for (const now of [0, 250, 800, 3000, 12345]) {
       const { ctx, arcs } = stubCtx();
-      renderLevel2Bubbles(ctx, { width: W, height: H, now });
+      renderUnderwaterBubbles(ctx, { width: W, height: H, now });
       for (const p of arcs) {
         expect(p.x).toBeGreaterThan(-40);
         expect(p.x).toBeLessThan(W + 40);

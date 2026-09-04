@@ -1,14 +1,15 @@
 import type { LevelDecorationRenderer } from '../types';
-import { renderLevel2Water } from '../level2/water';
+import { renderUnderwaterDecoration } from '../underwater/water';
 import { mulberry32 } from '../rng';
 import { electricFieldFlash } from './electric';
 
 /**
- * Deko-Überzug von Level 3: derselbe Unterwasser-Look wie Level 2
- * (`renderLevel2Water`) und darüber – während und kurz nach einem Blitz der
- * Strom-Attacke (`electric.ts`) – ein feldweiter Blitz-Effekt: heller
- * Blau-Weiss-Schleier + ein paar gezackte Entladungen von oben nach unten.
- * Zustandslos: die Helligkeit kommt aus `electricFieldFlash(now)`.
+ * Deko-Überzug von Level 3: der gemeinsame Unterwasser-Look
+ * (`renderUnderwaterDecoration`, `src/levels/underwater/`) und darüber –
+ * während und kurz nach einem Blitz der Strom-Attacke (`electric.ts`) – ein
+ * feldweiter Blitz-Effekt: heller Blau-Weiss-Schleier + ein paar gezackte
+ * Entladungen von oben nach unten. Zustandslos: die Helligkeit kommt aus
+ * `electricFieldFlash(now)`.
  */
 
 function renderFieldFlash(
@@ -50,7 +51,7 @@ function renderFieldFlash(
 }
 
 export const renderLevel3Decoration: LevelDecorationRenderer = (ctx, state): void => {
-  renderLevel2Water(ctx, state);
+  renderUnderwaterDecoration(ctx, state);
   const k = electricFieldFlash(state.now);
   if (k > 0.002) renderFieldFlash(ctx, state.width, state.height, state.now, k);
 };

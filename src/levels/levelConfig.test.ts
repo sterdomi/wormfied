@@ -49,45 +49,10 @@ describe('Level-Registry', () => {
     expect(level1.bonusStones.cannon.projectileSpeed).toBeGreaterThan(playerMaxSpeed);
   });
 
-  it('enthält level2 an zweiter Stelle', () => {
-    expect(levels.some((l) => l.id === 'level2')).toBe(true);
-    expect(levels[1]?.id).toBe('level2');
-  });
-
-  it('level2 hat eine plausible Schlangen-Konfiguration', () => {
-    const level2 = levels.find((l) => l.id === 'level2')!;
-
-    expect(level2.name).toBeTruthy();
-    // Eigenes Background-/Foreground-Artwork (nicht die Level-1-Bilder).
-    expect(level2.backgroundSrc).toMatch(/level2\/background\.png$/);
-    expect(level2.foregroundSrc).toMatch(/level2\/foreground\.png$/);
-    // Kopf = Level-2-Drache, mit zweiter Pose für die Lauf-Animation.
-    expect(level2.mainEnemy.assetSrc).toMatch(/level2\/gegner\.png$/);
-    expect(level2.mainEnemy.walkAssetSrc).toMatch(/level2\/gegner_walk\.png$/);
-    expect(level2.mainEnemy.shootAssetSrc).toMatch(/level2\/gegner_schuss\.png$/);
-    expect(level2.mainEnemy.speed).toBeGreaterThan(0);
-    expect(level2.mainEnemy.size).toBeGreaterThan(0);
-
-    // Kopf + 3 Mini-Körperglieder = Schlange; Glieder tragen dieselbe Grafik.
-    expect(level2.miniEnemies.count).toBe(3);
-    expect(level2.miniEnemies.config.assetSrc).toMatch(/level2\/gegner\.png$/);
-
-    // In Level 2 schiesst nur der Kopf, nicht die Körperglieder.
-    expect(level2.mainEnemy.shooting?.enabled).toBe(true);
-    expect(level2.mainEnemy.shooting!.cooldownSeconds).toBeGreaterThan(0);
-    expect(level2.mainEnemy.shooting!.projectileAssetSrc).toMatch(/projectiles\/torpedo\.png$/);
-    expect(level2.mainEnemy.shooting!.soundSrc).toMatch(/sound\/torpedo\.mp3$/);
-    expect(level2.miniEnemies.config.shooting?.enabled ?? false).toBe(false);
-    // Torpedo-Einschlag löst einen Effekt aus (Blasen-Poof).
-    expect(typeof level2.onEnemyProjectileImpact).toBe('function');
-
-    // Spieler startet Level 2 mit Kanone (→ Cyborg-Look) ausgerüstet.
-    expect(level2.startsWithCannon).toBe(true);
-  });
-
-  it('enthält level3 an dritter Stelle', () => {
+  it('enthält level3 an zweiter Stelle (Level 2 lebt auf dem Branch archive/level2-schlange, nicht auf main)', () => {
+    expect(levels.some((l) => l.id === 'level2')).toBe(false);
     expect(levels.some((l) => l.id === 'level3')).toBe(true);
-    expect(levels[2]?.id).toBe('level3');
+    expect(levels[1]?.id).toBe('level3');
   });
 
   it('level3 hat eine plausible Aal-Konfiguration', () => {
@@ -132,9 +97,9 @@ describe('Level-Registry', () => {
     expect(level1.startsWithCannon ?? false).toBe(false);
   });
 
-  it('enthält level4 an vierter Stelle', () => {
+  it('enthält level4 an dritter Stelle', () => {
     expect(levels.some((l) => l.id === 'level4')).toBe(true);
-    expect(levels[3]?.id).toBe('level4');
+    expect(levels[2]?.id).toBe('level4');
   });
 
   it('level4 – Dschungel: erste Ausbaustufe (trommelnder Gorilla)', () => {

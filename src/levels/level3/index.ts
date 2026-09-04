@@ -1,6 +1,6 @@
 import { SHIELD_DECAY_PER_SECOND } from '../../game/playerState';
 import { defaultBonusStones } from '../defaultBonusStones';
-import { spawnTorpedoBubbleBurst } from '../level2/bubbles';
+import { spawnTorpedoBubbleBurst } from '../underwater/bubbles';
 import type { LevelConfig } from '../types';
 import { updateLevel3Enemies } from './behavior';
 import { renderLevel3Decoration } from './decoration';
@@ -12,8 +12,11 @@ import { renderLevel3Enemies } from './render';
  * Level 3.
  *
  * Wie Level 2 ein Unterwasser-Level – gleicher dekorativer Wasser-Überzug
- * (Tiefen-Grading, Godrays, aufsteigende Luftblasen) und dieselbe Torpedo-
- * Optik. Unterschiede zu Level 2:
+ * (Tiefen-Grading, Godrays, aufsteigende Luftblasen, jetzt gemeinsam in
+ * `src/levels/underwater/`) und dieselbe Torpedo-Optik. Level 2 selbst lebt
+ * seit Instruktion 22 nicht mehr auf `main`, sondern auf dem Branch
+ * `archive/level2-schlange` (wird neu gemacht) – die folgenden Vergleiche
+ * beziehen sich auf den dortigen Stand:
  *
  *  - Der Hauptgegner ist ein **Aal**: Kopf = `head.png`, Körper = `body.png`
  *    (`EEL_BODY_COUNT` Segmente), Schwanz = `tail.png` fürs letzte Segment.
@@ -25,8 +28,8 @@ import { renderLevel3Enemies } from './render';
  *    (`gegner_mini.png` ↔ `gegner_mini_walk.png`), erratische Bewegung wie in
  *    Level 1. Aal-Körper + Minis teilen sich die eine `miniEnemies`-Liste;
  *    `enemySet.ts` teilt sie auf (`count` = `EEL_BODY_COUNT + ROAMER_COUNT`).
- *  - **Kein Loch** (`level2/hole.ts`) und **kein Maul-Spuck**
- *    (`level2/mouthSpit.ts`): die Aal-Segmente hängen dauerhaft am Kopf.
+ *  - **Kein Loch** (dort `hole.ts`) und **kein Maul-Spuck** (dort
+ *    `mouthSpit.ts`): die Aal-Segmente hängen dauerhaft am Kopf.
  *  - **Strom-Attacke** (`electric.ts` / `decoration.ts`): im Muster 1, 3, 5,
  *    3 s (wiederholend) rollt sich der Aal zum Kreis zusammen (≈ 1 s
  *    Vorwarnung), setzt mit einem Blitz das ganze Spielfeld unter Strom
