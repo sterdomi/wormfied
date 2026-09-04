@@ -104,7 +104,12 @@ import { createHud } from '../ui/hud';
 import { setupOrientationWarning } from '../ui/orientationWarning';
 import { isTouchCapable } from '../ui/touchControls';
 import { t } from '../i18n';
-import { fetchTopScores, submitScore, type LeaderboardEntry } from '../services/leaderboard';
+import {
+  fetchTopScores,
+  LEADERBOARD_SIZE,
+  submitScore,
+  type LeaderboardEntry,
+} from '../services/leaderboard';
 import { getPlayerName } from '../services/playerName';
 import '../styles/main.css';
 
@@ -369,28 +374,55 @@ function showLoading(canvas: HTMLCanvasElement): void {
   ctx.fillText(t('loading'), canvas.width / 2, canvas.height / 2);
 }
 
+/** Klickbare Fläche in Canvas-CSS-Pixeln, siehe `renderStartScreenHighscores`. */
+interface ClickBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 /**
- * Zeichnet die globale Top 10 unter dem Steuerungs-Hinweis des
- * Startbildschirms (Nutzer-Wunsch: „Highscores vom Intro-Bildschirm aus
- * anschauen"). `state` ist `'loading'`, solange die Firestore-Abfrage in
+ * Zeichnet den Highscore-Bereich unter dem Steuerungs-Hinweis des
+ * Startbildschirms. Nutzer-Wunsch: die globale Top 10 soll NICHT mehr
+ * automatisch auf dem Startbildschirm stehen, sondern erst auf Wunsch (Taste
+ * H oder Klick/Tap, siehe `showStartScreen`) erscheinen – solange `visible`
+ * `false` ist, zeichnet diese Funktion nur einen entsprechenden Hinweis statt
+ * der Liste. `state` ist `'loading'`, solange die Firestore-Abfrage in
  * `showStartScreen` läuft, danach die Einträge (leeres Array = noch keine).
  * Zeichnet nur so viele Zeilen, wie über der Canvas-Unterkante Platz haben.
+ *
+ * Gibt die klickbare Fläche zurück (bzw. `null` bei zu wenig Platz), über
+ * die `showStartScreen` einen Maus-/Touch-Klick erkennt – bewusst über die
+ * volle (für 10 Zeilen reservierte) Höhe, unabhängig vom sichtbaren Zustand,
+ * damit ein Klick auch bei eingeklapptem Hinweis bzw. ladender/leerer Liste
+ * zuverlässig trifft.
  */
 function renderStartScreenHighscores(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
   top: number,
+  visible: boolean,
   state: 'loading' | LeaderboardEntry[],
-): void {
+): ClickBox | null {
   const bottomMargin = 24;
-  if (top + START_SCREEN_HIGHSCORE_LINE_HEIGHT > height - bottomMargin) return; // kein Platz
+  if (top + START_SCREEN_HIGHSCORE_LINE_HEIGHT > height - bottomMargin) return null; // kein Platz
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = COLOR_START_SCREEN_HINT;
   ctx.font = 'bold 16px system-ui, sans-serif';
-  ctx.fillText(t('globalTop10'), width / 2, top);
+  ctx.fillText(visible ? t('globalTop10') : t('showHighscoresHint'), width / 2, top);
+
+  const columnWidth = Math.min(START_SCREEN_HIGHSCORE_COLUMN_WIDTH, width * 0.8);
+  const clickBox: ClickBox = {
+    x: (width - columnWidth) / 2,
+    y: top - START_SCREEN_HIGHSCORE_LINE_HEIGHT / 2,
+    width: columnWidth,
+    height: START_SCREEN_HIGHSCORE_LINE_HEIGHT * 11 + 8, // Überschrift + 10 Zeilen, wie unten reserviert
+  };
+  if (!visible) return clickBox;
 
   const firstRowY = top + START_SCREEN_HIGHSCORE_LINE_HEIGHT + 8;
 
@@ -401,10 +433,9 @@ function renderStartScreenHighscores(
       width / 2,
       firstRowY,
     );
-    return;
+    return clickBox;
   }
 
-  const columnWidth = Math.min(START_SCREEN_HIGHSCORE_COLUMN_WIDTH, width * 0.8);
   const leftX = (width - columnWidth) / 2;
   const rightX = leftX + columnWidth;
   const fitRows = Math.floor((height - bottomMargin - firstRowY) / START_SCREEN_HIGHSCORE_LINE_HEIGHT);
@@ -419,16 +450,23 @@ function renderStartScreenHighscores(
     ctx.textAlign = 'right';
     ctx.fillText(Math.round(state[i].score).toLocaleString('de-CH'), rightX, y);
   }
+
+  return clickBox;
 }
 
-/** Zeichnet einen Frame des Startbildschirms: grosses Logo + Enter-Hinweis + globale Top 10. */
+/**
+ * Zeichnet einen Frame des Startbildschirms: grosses Logo + Enter-Hinweis +
+ * Highscore-Bereich (Hinweis oder – nach Umschalten – die globale Top 10,
+ * siehe `renderStartScreenHighscores`). Gibt dessen klickbare Fläche zurück.
+ */
 function renderStartScreen(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
   logoImage: HTMLImageElement,
+  showHighscores: boolean,
   leaderboard: 'loading' | LeaderboardEntry[],
-): void {
+): ClickBox | null {
   ctx.fillStyle = COLOR_BACKDROP;
   ctx.fillRect(0, 0, width, height);
 
@@ -461,7 +499,7 @@ function renderStartScreen(
   ctx.fillText(controlsHint, width / 2, enterHintY + START_SCREEN_CONTROLS_GAP);
 
   const highscoreTop = enterHintY + START_SCREEN_CONTROLS_GAP + START_SCREEN_HIGHSCORE_GAP;
-  renderStartScreenHighscores(ctx, width, height, highscoreTop, leaderboard);
+  return renderStartScreenHighscores(ctx, width, height, highscoreTop, showHighscores, leaderboard);
 }
 
 /**
@@ -475,15 +513,54 @@ function showStartScreen(canvas: HTMLCanvasElement, logoImage: HTMLImageElement)
     const input = setupInput();
     const enterTrigger = new EdgeTrigger();
 
-    // Globale Top 10 einmalig beim Öffnen laden und dann anzeigen (Nutzer-
-    // Wunsch). `fetchTopScores` schluckt Fehler und liefert dann `[]`.
-    // `active` verhindert, dass eine spät eintreffende Antwort nach dem
-    // Verlassen des Startbildschirms noch etwas anfasst.
+    // Globale Top 10 wird NICHT mehr automatisch beim Öffnen geladen/
+    // angezeigt (Nutzer-Wunsch) – erst auf Wunsch (Taste H oder Klick/Tap auf
+    // den Highscore-Bereich, siehe `onKeyDown`/`onClick` unten). Geladen wird
+    // dann einmalig beim ersten Einblenden. `fetchTopScores` schluckt Fehler
+    // und liefert dann `[]`. `active` verhindert, dass eine spät eintreffende
+    // Antwort nach dem Verlassen des Startbildschirms noch etwas anfasst.
+    let showHighscores = false;
+    let leaderboardLoaded = false;
     let leaderboard: 'loading' | LeaderboardEntry[] = 'loading';
     let active = true;
-    void fetchTopScores().then((entries) => {
-      if (active) leaderboard = entries;
-    });
+    // Vom letzten `render()` gemeldete klickbare Fläche des Highscore-
+    // Bereichs (siehe `renderStartScreenHighscores`) – `null`, solange kein
+    // Frame gezeichnet wurde bzw. bei zu wenig Platz.
+    let highscoreClickBox: ClickBox | null = null;
+
+    function toggleHighscores(): void {
+      showHighscores = !showHighscores;
+      if (showHighscores && !leaderboardLoaded) {
+        leaderboardLoaded = true;
+        void fetchTopScores().then((entries) => {
+          if (active) leaderboard = entries;
+        });
+      }
+    }
+
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.code === 'KeyH') toggleHighscores();
+    };
+    const onClick = (e: MouseEvent): void => {
+      if (!highscoreClickBox) return;
+      // Canvas-CSS-Grösse == `view.width`/`view.height` (siehe `canvas.ts`),
+      // daher genügt der Offset zur Canvas-Bounding-Box ohne weitere
+      // Skalierung, um `e.clientX/Y` in dieselben Koordinaten wie
+      // `highscoreClickBox` umzurechnen.
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (
+        x >= highscoreClickBox.x &&
+        x <= highscoreClickBox.x + highscoreClickBox.width &&
+        y >= highscoreClickBox.y &&
+        y <= highscoreClickBox.y + highscoreClickBox.height
+      ) {
+        toggleHighscores();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    canvas.addEventListener('click', onClick);
 
     const loop = createGameLoop(view.ctx, {
       update: () => {
@@ -493,10 +570,21 @@ function showStartScreen(canvas: HTMLCanvasElement, logoImage: HTMLImageElement)
           loop.stop();
           input.dispose();
           view.dispose();
+          window.removeEventListener('keydown', onKeyDown);
+          canvas.removeEventListener('click', onClick);
           resolve();
         }
       },
-      render: (ctx) => renderStartScreen(ctx, view.width, view.height, logoImage, leaderboard),
+      render: (ctx) => {
+        highscoreClickBox = renderStartScreen(
+          ctx,
+          view.width,
+          view.height,
+          logoImage,
+          showHighscores,
+          leaderboard,
+        );
+      },
     });
     loop.start();
   });
@@ -797,19 +885,34 @@ function start(
   }
 
   /**
-   * Übermittelt den Score an die globale Bestenliste und lädt danach die
+   * Übermittelt den Score an die globale Bestenliste UND lädt danach die
    * Top 10 – aufgerufen sofort bei Game Over bzw. beim Abschluss des
    * letzten Levels (nicht erst beim Öffnen des Score-Screens), damit die
    * Firestore-Anfrage möglichst schon fertig ist, wenn der Spieler dort
    * ankommt. Aktualisiert den bereits offenen Score-Screen live, falls er
    * schneller geöffnet wird als die Antwort da ist.
+   *
+   * Übermittelt NUR, wenn der Score tatsächlich für die Top 10 reicht
+   * (Nutzer-Wunsch: keine Einträge ausserhalb der Bestenliste erfassen) –
+   * dazu erst die aktuelle Bestenliste laden und mit dem letzten (tiefsten)
+   * Top-10-Platz vergleichen. Reicht er nicht, bleibt die bereits geladene
+   * Liste unverändert stehen (kein zweiter Fetch nötig), und
+   * `pendingOwnLeaderboardEntry` bleibt zwar gesetzt, matcht aber keine
+   * Zeile mehr – die Hervorhebung in `hud.ts` bleibt dadurch automatisch aus.
    */
   function triggerLeaderboardSubmission(score: number): void {
     const playerName = getPlayerName();
-    pendingOwnLeaderboardEntry = { name: playerName, score: Math.round(score) };
+    const roundedScore = Math.round(score);
+    pendingOwnLeaderboardEntry = { name: playerName, score: roundedScore };
     pendingLeaderboardEntries = null;
-    void submitScore(playerName, score)
-      .then(() => fetchTopScores())
+    void fetchTopScores()
+      .then((currentTop) => {
+        const qualifiesForTopTen =
+          currentTop.length < LEADERBOARD_SIZE ||
+          roundedScore > currentTop[currentTop.length - 1].score;
+        if (!qualifiesForTopTen) return currentTop;
+        return submitScore(playerName, score).then(() => fetchTopScores());
+      })
       .then((entries) => {
         pendingLeaderboardEntries = entries;
         if (scoreScreenActive) {

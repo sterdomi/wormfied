@@ -20,6 +20,7 @@ export const de = {
   fullscreenEnterLabel: 'Vollbild',
   fullscreenExitLabel: 'Vollbild verlassen',
   globalTop10: 'Globale Top 10',
+  showHighscoresHint: 'H oder Klick: Bestenliste anzeigen',
   leaderboardLoading: 'Bestenliste lädt …',
   leaderboardEmpty: 'Noch keine Einträge',
   changeNameLabel: 'Spielername ändern',

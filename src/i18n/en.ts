@@ -22,6 +22,7 @@ export const en: Record<TranslationKey, string> = {
   fullscreenEnterLabel: 'Fullscreen',
   fullscreenExitLabel: 'Exit fullscreen',
   globalTop10: 'Global Top 10',
+  showHighscoresHint: 'H or click: show leaderboard',
   leaderboardLoading: 'Loading leaderboard …',
   leaderboardEmpty: 'No entries yet',
   changeNameLabel: 'Change player name',
