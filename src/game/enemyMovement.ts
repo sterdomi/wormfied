@@ -5,7 +5,7 @@ import { isPointInPolygon } from './polygon';
 
 /** Standard-Geschwindigkeit des Hauptgegners (Pixel/Sekunde), = Wert aus
  *  Instruktion 7, seither verdoppelt (Nutzer-Feedback). Level-Konfigurationen
- *  können davon abweichen (level1 setzt eigene, ebenfalls verdoppelte Werte). */
+ *  können davon abweichen (level2 setzt eigene, ebenfalls verdoppelte Werte). */
 export const ENEMY_SPEED = 180;
 
 /** Die vier möglichen Bewegungsrichtungen – dieselbe Menge, aus der auch

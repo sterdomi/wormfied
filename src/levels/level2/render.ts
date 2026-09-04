@@ -71,7 +71,7 @@ function drawEnemySprite(
 }
 
 /**
- * Gegner-Ebene von Level 1: Hauptgegner (sofern nicht beim Levelabschluss
+ * Gegner-Ebene von Level 2: Hauptgegner (sofern nicht beim Levelabschluss
  * ausgeblendet) + alle Mini-Gegner, jeweils mit ihrem SVG-Sprite in
  * konfigurierter Grösse, Bein-Pose im gemeinsamen Takt (`useWalkFrame`) und
  * pulsierendem Augen-Glow. Der Hauptgegner rendert zusätzlich mit
@@ -80,7 +80,7 @@ function drawEnemySprite(
  * Erfüllt `LevelEnemyRenderer` und wird pro Frame aus `render()` in `main.ts`
  * aufgerufen (`level.renderEnemies(...)`).
  */
-export function renderLevel1Enemies(
+export function renderLevel2Enemies(
   ctx: CanvasRenderingContext2D,
   assets: LevelEnemyAssets,
   state: LevelEnemyRenderState,

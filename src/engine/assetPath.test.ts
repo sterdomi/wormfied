@@ -16,8 +16,8 @@ describe('resolveAssetPath', () => {
 
   it('löst root-relative Pfade gegen eine Subpath-base auf (z.B. build:wormfied-subpath)', () => {
     vi.stubEnv('BASE_URL', '/wormfied/');
-    expect(resolveAssetPath('/assets/levels/level1/background.png')).toBe(
-      '/wormfied/assets/levels/level1/background.png',
+    expect(resolveAssetPath('/assets/levels/level2/background.png')).toBe(
+      '/wormfied/assets/levels/level2/background.png',
     );
   });
 });

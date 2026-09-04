@@ -32,8 +32,10 @@ export interface EnemyConfig {
   walkAssetSrc?: string;
   /**
    * Optionale „Schuss"-Pose des Sprites, kurz eingeblendet, wenn der Gegner
-   * feuert. In Level 2 zeigt der Kopf sie, während er ein Körperglied durch
-   * den Mund ausspuckt (siehe `mouthSpit.ts` / `render.ts`). Fehlt sie, bleibt
+   * feuert. Im archivierten Schlangen-Level (`archive/level2-schlange`)
+   * zeigte der Kopf sie, während er ein Körperglied durch den Mund
+   * ausspuckte (siehe dort `mouthSpit.ts` / `render.ts`); Level 3 nutzt es
+   * für die Aal-Schwanz-Pose (`shootAssetSrc: tail.png`). Fehlt sie, bleibt
    * es bei `assetSrc`/`walkAssetSrc`.
    */
   shootAssetSrc?: string;
@@ -201,17 +203,19 @@ export interface LevelEnemyUpdateContext {
    * losfährt (`onEdge` → `drawing`, siehe `tryEnterDrawing` in
    * `drawing.ts`) – NICHT schon beim blossen `isUndocked`-Toggle (Nutzer-
    * Feedback: der Kanone-Schuss vom Rand aus nutzt dieselbe Taste und darf für
-   * sich allein noch nicht auslösen). Level 2 nutzt es, damit der
-   * Schlangenkopf beim Losfahren das vorderste Körperglied durch den Mund
-   * ausspuckt (siehe `level2/mouthSpit.ts`); die übrigen Level ignorieren das
-   * Feld.
+   * sich allein noch nicht auslösen). Das archivierte Schlangen-Level
+   * (`archive/level2-schlange`) nutzte es, damit der Schlangenkopf beim
+   * Losfahren das vorderste Körperglied durch den Mund ausspuckt (siehe dort
+   * `mouthSpit.ts`); aktuell nutzt es kein aktives Level, das Feld bleibt
+   * unbenutzt.
    */
   playerJustUndocked?: boolean;
   /**
    * Fügt zur Laufzeit einen neuen Mini-Gegner an `position` in die
    * `miniEnemies`-Liste ein und liefert ihn zurück. `main.ts` baut ihn aus
-   * `level.miniEnemies.config`. Level 2 nutzt es für den Loch-Spawner
-   * (`level2/hole.ts`); die übrigen Level lassen das Feld weg.
+   * `level.miniEnemies.config`. Das archivierte Schlangen-Level
+   * (`archive/level2-schlange`) nutzte es für den Loch-Spawner (siehe dort
+   * `hole.ts`); aktuell nutzt es kein aktives Level.
    */
   spawnMiniEnemyAt?: (position: Point) => Enemy;
   /**
@@ -261,8 +265,8 @@ export interface LevelDecorationState {
   now: number;
   /**
    * Aktuell fliegende Gegner-Projektile – nur für Deko-Effekte, die daran
-   * hängen (Level 2: Bläschen-Spur hinter dem Torpedo). Fehlt oder leer, wenn
-   * gerade keine unterwegs sind.
+   * hängen (Level 3: Bläschen-Spur hinter dem Torpedo, `underwater/bubbles.ts`).
+   * Fehlt oder leer, wenn gerade keine unterwegs sind.
    */
   enemyProjectiles?: readonly Projectile[];
 }
@@ -270,10 +274,10 @@ export interface LevelDecorationState {
 /**
  * Zeichnet einen rein dekorativen Überzug eines Levels – NACH dem Foreground
  * und VOR der Spiel-Ebene, pro Frame aus `render()` in `main.ts` aufgerufen.
- * Für Ambiente ohne jede Spiellogik (z.B. im Wasser-Level 2 aufsteigende
- * Luftblasen). Sollte zustandslos aus `state.now` zeichnen, wie der
- * Bonusstein-Puls und die Bein-Animation – dann braucht es keinen
- * `update()`-Takt und kein Teardown.
+ * Für Ambiente ohne jede Spiellogik (z.B. Level 2s Regen+Blitz oder im
+ * Wasser-Level 3 aufsteigende Luftblasen). Sollte zustandslos aus `state.now`
+ * zeichnen, wie der Bonusstein-Puls und die Bein-Animation – dann braucht es
+ * keinen `update()`-Takt und kein Teardown.
  */
 export type LevelDecorationRenderer = (
   ctx: CanvasRenderingContext2D,
@@ -337,7 +341,7 @@ export interface LevelConfig {
    * Zeichenlinie oder den Spieler getroffen (nicht: aus dem Feld geflogen).
    * `x`/`y` = Einschlagpunkt. Rein visuell/Sound, KEINE Spiellogik (die läuft
    * unabhängig weiter); `main.ts` ruft ihn beim Verbrauch des Projektils auf.
-   * Level 2 lässt hier Blasen aufsteigen (`spawnTorpedoBubbleBurst`).
+   * Level 3 lässt hier Blasen aufsteigen (`spawnTorpedoBubbleBurst`).
    */
   onEnemyProjectileImpact?: (x: number, y: number) => void;
   scoring?: DefeatScoring;

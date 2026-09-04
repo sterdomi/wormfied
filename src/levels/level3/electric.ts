@@ -22,11 +22,12 @@ import { clamp01, lerp } from '../rng';
  *                   `advanceSnakeBody` zieht sie beim Weiterschwimmen wieder
  *                   zu einer Kette aus.
  *
- * Der Zustand hängt – wie `snakeBodyFor` / `holeStateFor` in Level 2 – in einer
- * `WeakMap` mit dem Kopf-`Enemy` als Key (frischer Kopf bei `rebuildField` →
- * frischer, im `swimming` startender Zustand). Für die zustandslose
- * Feld-Deko (`decoration.ts`, kennt den Kopf nicht) spiegelt das Modul den
- * jeweils aktuellen Zustand zusätzlich in `current`.
+ * Der Zustand hängt – wie `snakeBodyFor` (`game/snakeBody.ts`, auch von
+ * diesem Level genutzt) und wie einst `holeStateFor` im archivierten
+ * Schlangen-Level – in einer `WeakMap` mit dem Kopf-`Enemy` als Key (frischer
+ * Kopf bei `rebuildField` → frischer, im `swimming` startender Zustand). Für
+ * die zustandslose Feld-Deko (`decoration.ts`, kennt den Kopf nicht) spiegelt
+ * das Modul den jeweils aktuellen Zustand zusätzlich in `current`.
  */
 
 export type ElectricPhase = 'swimming' | 'coiling' | 'discharge' | 'uncoiling';

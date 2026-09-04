@@ -21,13 +21,13 @@ function walkStateFor(enemy: Enemy): RandomWalkState {
 }
 
 /**
- * Gegner-Logik von Level 1:
+ * Gegner-Logik von Level 2:
  *  - Bewegung: erratische Achs-Bewegung ALLER Gegner (`moveEnemies` behandelt
  *    Haupt- und Mini-Gegner gleich), begrenzt aufs aktive Feld-Polygon. Der
  *    Pausen-Timer je Gegner liegt in `walkStates` (nicht auf `Enemy`).
  *  - Schiessen: nur der Hauptgegner – ein gezielter Schuss auf die
  *    Spielerposition im konfigurierten Takt (`mainEnemyShooting`). Die
- *    Mini-Gegner schiessen in Level 1 nicht (`miniEnemyShooting` ist
+ *    Mini-Gegner schiessen in Level 2 nicht (`miniEnemyShooting` ist
  *    `undefined`); die Schleife bleibt trotzdem generisch, damit ein späteres
  *    Level sie allein über die Config "scharf schalten" könnte.
  *
@@ -37,7 +37,7 @@ function walkStateFor(enemy: Enemy): RandomWalkState {
  * Erfüllt `LevelEnemyUpdater`; Aufruf pro Frame aus `update()` in `main.ts`
  * (`level.updateEnemies(...)`), solange die Gegner nicht eingefroren sind.
  */
-export function updateLevel1Enemies(context: LevelEnemyUpdateContext): Projectile[] {
+export function updateLevel2Enemies(context: LevelEnemyUpdateContext): Projectile[] {
   const {
     mainEnemy,
     miniEnemies,

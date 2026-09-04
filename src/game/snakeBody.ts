@@ -7,9 +7,10 @@ import { advanceSnakeHead, createSnakeHeadState, type SnakeHeadState } from './s
  * Wiederverwendbarer Schlangenkörper: der Hauptgegner ist der Kopf, die (bis
  * zu) drei Mini-Gegner sind seine Körperglieder – sie laufen NICHT mehr
  * eigenständig umher, sondern werden hier pro Frame auf den Kopf-Trail gesetzt,
- * sodass Kopf + Minis als EIN Körper erscheinen. Ursprünglich für Level 2 (die
- * Schlange) gebaut, level-agnostisch gehalten (hängt nur an `game/*`), damit
- * ein späteres Level mit ähnlichem Bewegungsmuster (z.B. ein Aal) es
+ * sodass Kopf + Minis als EIN Körper erscheinen. Ursprünglich für das
+ * archivierte Schlangen-Level (`archive/level2-schlange`) gebaut,
+ * level-agnostisch gehalten (hängt nur an `game/*`), damit ein späteres Level
+ * mit ähnlichem Bewegungsmuster (z.B. ein Aal, siehe Level 3) es
  * wiederverwenden kann, ohne quer in ein anderes Level-Package zu importieren.
  *
  * Die Minis bleiben dabei ganz normale Einträge in `miniEnemies[]`: Kollision,
@@ -17,7 +18,7 @@ import { advanceSnakeHead, createSnakeHeadState, type SnakeHeadState } from './s
  * wird dann einfach kürzer (die verbleibenden Glieder rücken nach).
  *
  * Der Trail-/Abbiege-Zustand hängt in einer modul-lokalen
- * `WeakMap<Enemy, SnakeBodyState>` mit dem Kopf-`Enemy` als Key – wie Level 1
+ * `WeakMap<Enemy, SnakeBodyState>` mit dem Kopf-`Enemy` als Key – wie Level 2
  * seinen `walkStates` (frischer Kopf bei `rebuildField` → frischer Zustand, der
  * alte wird mitsamt Eintrag vom GC geholt). Das jeweilige Level-`behavior.ts`
  * holt ihn pro Frame über `snakeBodyFor(head)` und schreibt darin die

@@ -1,5 +1,17 @@
 # Instruktion 22: Level 1 – Film-Noir-Redesign
 
+> **Hinweis (nachträglich):** Das hier redesignte Level heisst inzwischen
+> **Level 2** – Ordner (`src/levels/level1/` → `level2/`), `id`, Assets
+> (`public/assets/levels/level1/` → `level2/`) und alle Funktionsnamen
+> (`updateLevel1Enemies` → `updateLevel2Enemies` usw.) wurden umbenannt.
+> Grund: ein neues Bleistift-/Skizzenbuch-Level ist als künftiges Level 1
+> geplant (Split-Fiction-Vorbild, Geisterhand erzählt/zeichnet die
+> Wormfied-Origin-Story und schaltet dabei Spielmechaniken frei), Level 1
+> („ist genial") bleibt inhaltlich unverändert bestehen, rutscht aber auf
+> Platz 2. Der Rest dieses Dokuments beschreibt den Stand von damals
+> (Dateipfade/Funktionsnamen mit „Level1"/„level1" sind daher historisch zu
+> lesen).
+>
 > **Stand:** Punkt 1 (Spinne weiss) und Punkt 2 (weisses Projektil
 > `kugel-weiss.svg`) sind umgesetzt. Finale Palette Spinne:
 > Körperverlauf `#f2f2f2`→`#c7c7cc`→`#5c5c66`, Beine `#c2c2c8`

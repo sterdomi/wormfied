@@ -6,13 +6,13 @@ import { isPointInPolygon } from './polygon';
 
 /**
  * Wiederverwendbare schlangenartige Kopf-Bewegung – bewusst NICHT die
- * achsparallele, erratische Lauf-Bewegung von Level 1 (`moveEnemy` in
+ * achsparallele, erratische Lauf-Bewegung von Level 2 (`moveEnemy` in
  * `enemyMovement.ts`). Der Kopf läuft kontinuierlich in Richtung seines
  * Headings, ändert dieses in einem lockeren Abbiegetakt und kurvt dabei mit
  * begrenzter Drehrate – so entsteht ein weicher Slalom statt harter Knicke.
- * Ursprünglich für Level 2 (die Schlange) gebaut, level-agnostisch gehalten,
- * damit ein späteres Level mit ähnlichem Bewegungsmuster (z.B. ein Aal) es
- * wiederverwenden kann.
+ * Ursprünglich für das archivierte Schlangen-Level (`archive/level2-schlange`)
+ * gebaut, level-agnostisch gehalten, damit ein späteres Level mit ähnlichem
+ * Bewegungsmuster (z.B. ein Aal, siehe Level 3) es wiederverwenden kann.
  *
  * Wichtig für die Optik: das Heading dreht sich IMMER nur mit begrenzter Rate,
  * auch beim Ausweichen vom Rand (kein Springen). Sonst zeigt der Kopf-Sprite

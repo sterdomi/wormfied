@@ -7,7 +7,7 @@ import type { Enemy } from '../../game/enemy';
  *  - die **Aal-Körpersegmente** (`EEL_BODY_COUNT`, gezeichnet mit `body.png` /
  *    `tail.png`, bewegt von `advanceSnakeBody` / `updateElectric`);
  *  - die frei laufenden **Plasma-Minis** (`ROAMER_COUNT`, `gegner_mini.png` /
- *    `gegner_mini_walk.png`, erratische Lauf-Bewegung wie in Level 1).
+ *    `gegner_mini_walk.png`, erratische Lauf-Bewegung wie in Level 2).
  *
  * `count` der Level-Config = `EEL_BODY_COUNT + ROAMER_COUNT`. Beim ersten Sehen
  * jedes Eintrags wird er anhand seiner Spawn-Position in der Liste einer Gruppe

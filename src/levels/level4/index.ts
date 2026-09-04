@@ -22,7 +22,7 @@ import { renderLevel4Enemies } from './render';
  * (`renderLevel4Decoration`).
  *
  * 6 fliegende **Papageien** als Mini-Gegner (erratische Flug-Bewegung wie in
- * Level 1, `behavior.ts`; Zwei-Frame-Flügelschlag `papagei_up` ↔ `papagei_down`).
+ * Level 2, `behavior.ts`; Zwei-Frame-Flügelschlag `papagei_up` ↔ `papagei_down`).
  * Sie **schiessen kleine Kugeln** auf den Spieler – im Grund-Takt der
  * `shooting`-Config, aber je Papagei zufällig verschoben (Anfangsphase +
  * Cooldown-Faktor in `behavior.ts`), damit nie alle sechs gleichzeitig feuern.
@@ -33,7 +33,7 @@ import { renderLevel4Enemies } from './render';
  * Noch NICHT drin: echtes Dschungel-Background (Platzhalter). Foreground:
  * eigenes Dschungel-Laub (`foreground.png`).
  *
- * Bonussteine wie Level 1 (alle vier Typen).
+ * Bonussteine wie Level 2 (alle vier Typen).
  */
 export const level4: LevelConfig = {
   id: 'level4',

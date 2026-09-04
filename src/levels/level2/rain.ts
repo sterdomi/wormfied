@@ -2,12 +2,13 @@ import type { LevelDecorationRenderer } from '../types';
 import { lerp, mulberry32 } from '../rng';
 
 /**
- * Regen + gelegentlicher Blitz für den Film-Noir-Look von Level 1
+ * Regen + gelegentlicher Blitz für den Film-Noir-Look von Level 2
  * (Instruktion 22) – der komplette dekorative Überzug
  * (`LevelConfig.renderDecoration`), zwischen Foreground und Spiel-Ebene.
- * Analog zu Level 2s Wasser-Look (`level2/water.ts`): fest gesäte Parameter
- * einmalig beim Modul-Load, Position/Intensität pro Frame zustandslos aus
- * `now` berechnet – kein `update()`-Takt, kein Teardown.
+ * Analog zum gemeinsamen Unterwasser-Look (`src/levels/underwater/water.ts`):
+ * fest gesäte Parameter einmalig beim Modul-Load, Position/Intensität pro
+ * Frame zustandslos aus `now` berechnet – kein `update()`-Takt, kein
+ * Teardown.
  *
  *  1. **Regen**: viele kurze, leicht geneigte, halbtransparente Striche, die
  *     von oben nach unten fallen und nahtlos per Modulo umlaufen.
@@ -49,7 +50,7 @@ const RAINDROPS: readonly Raindrop[] = (() => {
   }));
 })();
 
-/** Fallende Regenstriche, oben/unten nahtlos umlaufend (Modulo wie Level 2s Blasen). */
+/** Fallende Regenstriche, oben/unten nahtlos umlaufend (Modulo wie die Unterwasser-Blasen). */
 function renderRain(ctx: CanvasRenderingContext2D, width: number, height: number, now: number): void {
   const t = now / 1000;
   const travel = height + 2 * EDGE_OVERFLOW_PX;
@@ -157,7 +158,7 @@ function renderLightningFlash(
 }
 
 /** Kompletter Regen-Überzug: Regen → Blitz (additiv über den bereits gezeichneten Tropfen). */
-export const renderLevel1Rain: LevelDecorationRenderer = (ctx, { width, height, now }) => {
+export const renderLevel2Rain: LevelDecorationRenderer = (ctx, { width, height, now }) => {
   renderRain(ctx, width, height, now);
   renderLightningFlash(ctx, width, height, now);
 };

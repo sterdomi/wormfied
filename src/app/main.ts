@@ -228,7 +228,7 @@ const MIN_MINI_SPACING = 70;
  * neutrale dunkle Fassung, siehe dortige Kommentare) – das eigentliche
  * Blinken zeichnet `render()` als eigener Überzug, analog zum
  * Augen-Glow-Überzug der Gegner (`drawEnemySprite`/`enemyEyeGlowBlur` in
- * `src/levels/level1/render.ts`, Instruktion 17, Punkt 4). Grund für die
+ * `src/levels/level2/render.ts`, Instruktion 17, Punkt 4). Grund für die
  * Auslagerung: der bisherige Ansatz
  * (Lampen fix in zwei Sprite-Varianten "an"/"aus" eingebrannt) war 1:1 an
  * den Bein-Wechsel-Takt gekoppelt (`WALK_FRAME_INTERVAL_MS`, 220ms) – zu
@@ -239,7 +239,7 @@ const MIN_MINI_SPACING = 70;
  * Laufen, sondern friert sie auf einem undefinierten Frame ein (siehe
  * `player-cyborg.svg`). Koordinaten/Radien 1:1 aus den ursprünglich dort
  * eingebrannten `<circle>`-Werten übernommen (viewBox 220, wie die
- * `EyeSpot`s in `src/levels/level1/render.ts`).
+ * `EyeSpot`s in `src/levels/level2/render.ts`).
  */
 interface LampSpot {
   x: number;
@@ -1107,7 +1107,8 @@ function start(
     let carve = session?.hasLeftEdge === true;
     // `true` nur in dem Frame, in dem der Spieler tatsächlich losfährt (Rand
     // verlässt, `onEdge` → `drawing`) – edge-getriggert, geht so an
-    // `level.updateEnemies` (Level 2: Kopf spuckt dann ein Körperglied aus).
+    // `level.updateEnemies` (das archivierte Schlangen-Level, siehe
+    // `archive/level2-schlange`: Kopf spuckt dann ein Körperglied aus).
     // Bewusst NICHT an den `isUndocked`-Toggle gekoppelt (siehe unten): der
     // Kanone-Schuss vom Rand aus (Nutzer-Feedback) nutzt dieselbe Taste und
     // würde sonst schon beim reinen Zielen/Schiessen ohne Losfahren feuern.
@@ -1248,7 +1249,8 @@ function start(
         mainEnemyShooting: level.mainEnemy.shooting,
         miniEnemyShooting: level.miniEnemies.config.shooting,
         playerJustUndocked,
-        // Laufzeit-Spawn eines Mini-Gegners (Level 2: Loch-Spawner). Push in
+        // Laufzeit-Spawn eines Mini-Gegners (das archivierte Schlangen-Level:
+        // Loch-Spawner, siehe `archive/level2-schlange`). Push in
         // die live `miniEnemies`-Liste; spätere `.filter()`-Neuzuweisungen in
         // diesem Frame behalten ihn (er ist dann Teil des gefilterten Arrays).
         spawnMiniEnemyAt: (position: Point): Enemy => {
@@ -1531,9 +1533,10 @@ function start(
       ctx.fillRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
     }
 
-    // Rein dekorativ, ohne Spiellogik (Level 2: aufsteigende Luftblasen im
-    // Wasser + Bläschen-Spur hinter dem Torpedo) – zeichnet zustandslos aus
-    // `now` (+ den aktiven Projektilen), siehe `LevelDecorationRenderer`.
+    // Rein dekorativ, ohne Spiellogik (Level 2: Regen+Blitz; Level 3:
+    // aufsteigende Luftblasen im Wasser + Bläschen-Spur hinter dem Torpedo) –
+    // zeichnet zustandslos aus `now` (+ den aktiven Projektilen), siehe
+    // `LevelDecorationRenderer`.
     level.renderDecoration?.(ctx, {
       width: FIELD_WIDTH,
       height: FIELD_HEIGHT,
@@ -1555,7 +1558,7 @@ function start(
     // eine einfache Zwei-Bild-Lauf-Animation – hier bestimmt (statt im
     // Level-Renderer), damit Spieler UND Gegner synchron "wackeln".
     const useWalkFrame = Math.floor(now / WALK_FRAME_INTERVAL_MS) % 2 === 1;
-    // Gegner-Darstellung liegt im Level-Package (`src/levels/level1/render.ts`):
+    // Gegner-Darstellung liegt im Level-Package (`src/levels/level2/render.ts`):
     // Sprite-Wahl, pulsierender Augen-Glow und der beim Einkesseln schrumpfende
     // Hauptgegner (`mainEnemyScale` aus dem Cache
     // `recomputeMainEnemyEncirclementScale`, NUR der Hauptgegner) werden dort

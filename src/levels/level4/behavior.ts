@@ -13,7 +13,7 @@ import { advanceShockwave, triggerShockwave } from './shockwave';
  *    **Schockwelle** (`shockwave.ts`); erreicht ihr Ring den Spieler und der ist
  *    nicht sicher am Rand angedockt, meldet `reportFieldZap` den Lebensverlust.
  *  - **6 Papageien** als Mini-Gegner – erratische Flug-Bewegung (`moveEnemies`,
- *    wie Level 1), begrenzt aufs Feld und die aktive Zeichenlinie. Sie schiessen
+ *    wie Level 2), begrenzt aufs Feld und die aktive Zeichenlinie. Sie schiessen
  *    kleine Kugeln auf den Spieler, aber **versetzt**: jeder Papagei bekommt
  *    beim ersten Frame eine zufällige Anfangsphase und einen zufälligen
  *    Cooldown-Faktor (`parrotShootSpecFor`), damit nie alle sechs im selben

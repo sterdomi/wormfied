@@ -11,12 +11,11 @@ import { renderLevel3Enemies } from './render';
 /**
  * Level 3.
  *
- * Wie Level 2 ein Unterwasser-Level – gleicher dekorativer Wasser-Überzug
- * (Tiefen-Grading, Godrays, aufsteigende Luftblasen, jetzt gemeinsam in
- * `src/levels/underwater/`) und dieselbe Torpedo-Optik. Level 2 selbst lebt
- * seit Instruktion 22 nicht mehr auf `main`, sondern auf dem Branch
- * `archive/level2-schlange` (wird neu gemacht) – die folgenden Vergleiche
- * beziehen sich auf den dortigen Stand:
+ * Ein Unterwasser-Level – der gemeinsame dekorative Wasser-Überzug
+ * (Tiefen-Grading, Godrays, aufsteigende Luftblasen, `src/levels/underwater/`)
+ * und die Torpedo-Optik stammen ursprünglich vom archivierten Schlangen-Level
+ * (`archive/level2-schlange`, seit Instruktion 22 nicht mehr auf `main` –
+ * wird neu gemacht). Unterschiede zu jenem archivierten Level:
  *
  *  - Der Hauptgegner ist ein **Aal**: Kopf = `head.png`, Körper = `body.png`
  *    (`EEL_BODY_COUNT` Segmente), Schwanz = `tail.png` fürs letzte Segment.
@@ -25,9 +24,10 @@ import { renderLevel3Enemies } from './render';
  *    `mainEnemy`-Slots `walkAssetSrc` = `body.png` und `shootAssetSrc` =
  *    `tail.png` (siehe `render.ts`).
  *  - Zusätzlich `ROAMER_COUNT` frei laufende **Plasma-Minis**
- *    (`gegner_mini.png` ↔ `gegner_mini_walk.png`), erratische Bewegung wie in
- *    Level 1. Aal-Körper + Minis teilen sich die eine `miniEnemies`-Liste;
- *    `enemySet.ts` teilt sie auf (`count` = `EEL_BODY_COUNT + ROAMER_COUNT`).
+ *    (`gegner_mini.png` ↔ `gegner_mini_walk.png`), erratische Bewegung wie
+ *    beim heutigen Level 2 (`moveEnemy`, siehe `enemyMovement.ts`). Aal-Körper
+ *    + Minis teilen sich die eine `miniEnemies`-Liste; `enemySet.ts` teilt sie
+ *    auf (`count` = `EEL_BODY_COUNT + ROAMER_COUNT`).
  *  - **Kein Loch** (dort `hole.ts`) und **kein Maul-Spuck** (dort
  *    `mouthSpit.ts`): die Aal-Segmente hängen dauerhaft am Kopf.
  *  - **Strom-Attacke** (`electric.ts` / `decoration.ts`): im Muster 1, 3, 5,
@@ -37,11 +37,12 @@ import { renderLevel3Enemies } from './render';
  *    ist; `foregroundBlackout` färbt dabei den Foreground schwarz) und rollt
  *    wieder aus. Die Plasma-Minis laufen währenddessen weiter.
  *
- * Schiessen: nur der Aal-Kopf, Torpedo (`torpedo.png` / `torpedo.mp3`) wie in
- * Level 2, inkl. Bläschen-Poof beim Einschlag (`onEnemyProjectileImpact`).
+ * Schiessen: nur der Aal-Kopf, Torpedo (`torpedo.png` / `torpedo.mp3`) wie
+ * beim archivierten Schlangen-Level, inkl. Bläschen-Poof beim Einschlag
+ * (`onEnemyProjectileImpact`).
  *
- * Bonussteine: alle vier Typen wie Level 1 (`defaultBonusStones`). Eigenes
- * Background-/Foreground-Artwork und eigene Musik (`level3.mp3`); der
+ * Bonussteine: alle vier Typen wie beim heutigen Level 2 (`defaultBonusStones`).
+ * Eigenes Background-/Foreground-Artwork und eigene Musik (`level3.mp3`); der
  * Blitz-Sound (`highvoltage.mp3`) liegt in `SOUND_SOURCES` / `main.ts`.
  */
 export const level3: LevelConfig = {
@@ -96,7 +97,7 @@ export const level3: LevelConfig = {
   // Torpedo-Einschlag (Linie/Spieler getroffen): Blasen-Poof am Einschlagpunkt.
   onEnemyProjectileImpact: spawnTorpedoBubbleBurst,
   shieldDecayPerSecond: SHIELD_DECAY_PER_SECOND,
-  // Alle vier Bonustypen wie Level 1.
+  // Alle vier Bonustypen wie Level 2.
   bonusStones: defaultBonusStones,
   musicSrc: '/assets/levels/level3/level3.mp3',
   // Blitz-Sound beim Feld-Zap des eingerollten Aals.

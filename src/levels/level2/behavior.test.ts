@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createEnemy } from '../../game/enemy';
 import { createRectangularField } from '../../game/field';
 import type { ShootingConfig } from '../types';
-import { updateLevel1Enemies } from './behavior';
+import { updateLevel2Enemies } from './behavior';
 
 const SHOOTING: ShootingConfig = {
   enabled: true,
@@ -12,7 +12,7 @@ const SHOOTING: ShootingConfig = {
   projectileAssetSrc: '/x.svg',
 };
 
-function context(overrides: Partial<Parameters<typeof updateLevel1Enemies>[0]> = {}) {
+function context(overrides: Partial<Parameters<typeof updateLevel2Enemies>[0]> = {}) {
   return {
     mainEnemy: createEnemy({ x: 200, y: 200 }, { speed: 100, size: 40 }),
     miniEnemies: [
@@ -26,12 +26,12 @@ function context(overrides: Partial<Parameters<typeof updateLevel1Enemies>[0]> =
   };
 }
 
-describe('updateLevel1Enemies', () => {
+describe('updateLevel2Enemies', () => {
   it('bewegt alle Gegner (Haupt- + Mini) ein Stück', () => {
     const ctx = context();
     const before = [ctx.mainEnemy, ...ctx.miniEnemies].map((e) => ({ ...e.position }));
 
-    updateLevel1Enemies(ctx);
+    updateLevel2Enemies(ctx);
 
     const after = [ctx.mainEnemy, ...ctx.miniEnemies].map((e) => e.position);
     after.forEach((pos, i) => {
@@ -42,18 +42,18 @@ describe('updateLevel1Enemies', () => {
   it('nur der Hauptgegner schiesst, sobald sein Cooldown erreicht ist', () => {
     const ctx = context({ mainEnemyShooting: SHOOTING, dt: SHOOTING.cooldownSeconds });
 
-    const shots = updateLevel1Enemies(ctx);
+    const shots = updateLevel2Enemies(ctx);
 
     expect(shots).toHaveLength(1);
   });
 
   it('ohne Schuss-Konfiguration feuert niemand', () => {
-    const shots = updateLevel1Enemies(context({ dt: 10 }));
+    const shots = updateLevel2Enemies(context({ dt: 10 }));
     expect(shots).toHaveLength(0);
   });
 
   it('Mini-Gegner schiessen auch mit Konfiguration nur, wenn miniEnemyShooting gesetzt ist', () => {
-    const withMiniShooting = updateLevel1Enemies(
+    const withMiniShooting = updateLevel2Enemies(
       context({ miniEnemyShooting: SHOOTING, dt: SHOOTING.cooldownSeconds }),
     );
     // 2 Mini-Gegner, beide über Cooldown -> 2 Schüsse (Hauptgegner ohne Config: 0).

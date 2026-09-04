@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { LIGHTNING_CYCLE_MS, lightningIntensity, renderLevel1Rain } from './rain';
+import { LIGHTNING_CYCLE_MS, lightningIntensity, renderLevel2Rain } from './rain';
 
 /** 2D-Context-Stub: zählt Stroke-/Fill-Aufrufe und schreibt Linien-Punkte mit. */
 function stubCtx() {
@@ -35,26 +35,26 @@ function stubCtx() {
 
 const state = (now: number) => ({ width: 960, height: 540, now });
 
-describe('renderLevel1Rain', () => {
+describe('renderLevel2Rain', () => {
   it('zeichnet Regenstriche (stroke), ohne zu werfen', () => {
     const s = stubCtx();
-    expect(() => renderLevel1Rain(s.ctx, state(1000))).not.toThrow();
+    expect(() => renderLevel2Rain(s.ctx, state(1000))).not.toThrow();
     expect(s.strokes).toBeGreaterThan(0);
   });
 
   it('animiert: die Tropfen-Geometrie ändert sich über die Zeit', () => {
     const a = stubCtx();
     const b = stubCtx();
-    renderLevel1Rain(a.ctx, state(0));
-    renderLevel1Rain(b.ctx, state(3000));
+    renderLevel2Rain(a.ctx, state(0));
+    renderLevel2Rain(b.ctx, state(3000));
     expect(a.points).not.toEqual(b.points);
   });
 
   it('ist bei gleicher now deterministisch', () => {
     const a = stubCtx();
     const b = stubCtx();
-    renderLevel1Rain(a.ctx, state(4200));
-    renderLevel1Rain(b.ctx, state(4200));
+    renderLevel2Rain(a.ctx, state(4200));
+    renderLevel2Rain(b.ctx, state(4200));
     expect(a.points).toEqual(b.points);
   });
 
@@ -62,14 +62,14 @@ describe('renderLevel1Rain', () => {
     // Ein Zeitpunkt ganz am Zyklusanfang liegt sicher vor dem ersten Blitz
     // (frühestens nach 3s, siehe `rain.ts`).
     const ruhig = stubCtx();
-    renderLevel1Rain(ruhig.ctx, state(50));
+    renderLevel2Rain(ruhig.ctx, state(50));
     expect(ruhig.fillRects).toBe(0);
 
     // Irgendwo im Zyklus muss mindestens ein Blitz aktiv sein.
     let sawFlash = false;
     for (let ms = 0; ms < LIGHTNING_CYCLE_MS; ms += 50) {
       const s = stubCtx();
-      renderLevel1Rain(s.ctx, state(ms));
+      renderLevel2Rain(s.ctx, state(ms));
       if (s.fillRects > 0) {
         sawFlash = true;
         break;

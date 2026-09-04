@@ -5,52 +5,52 @@ import { DRAW_SPEED } from '../game/drawing';
 import { EDGE_SPEED } from '../game/playerMovement';
 
 describe('Level-Registry', () => {
-  it('enthält mindestens level1', () => {
+  it('enthält mindestens level2 (spielt zurzeit an erster Stelle – das archivierte Schlangen-Level lebt auf dem Branch archive/level2-schlange, und Level 1 ist noch nicht gebaut, siehe Instruktion 22)', () => {
     expect(levels.length).toBeGreaterThanOrEqual(1);
-    expect(levels.some((l) => l.id === 'level1')).toBe(true);
+    expect(levels.some((l) => l.id === 'level2')).toBe(true);
+    expect(levels[0]?.id).toBe('level2');
   });
 
-  it('level1 hat eine plausible Konfiguration', () => {
-    const level1 = levels.find((l) => l.id === 'level1')!;
+  it('level2 (Film-Noir-Spinne) hat eine plausible Konfiguration', () => {
+    const level2 = levels.find((l) => l.id === 'level2')!;
 
-    expect(level1.name).toBeTruthy();
-    expect(level1.foregroundSrc).toMatch(/\.png$/);
-    expect(level1.backgroundSrc).toMatch(/\.png$/);
-    expect(level1.mainEnemy.assetSrc).toMatch(/\.svg$/);
-    expect(level1.mainEnemy.speed).toBeGreaterThan(0);
-    expect(level1.mainEnemy.size).toBeGreaterThan(0);
+    expect(level2.name).toBeTruthy();
+    expect(level2.foregroundSrc).toMatch(/\.png$/);
+    expect(level2.backgroundSrc).toMatch(/\.png$/);
+    expect(level2.mainEnemy.assetSrc).toMatch(/\.svg$/);
+    expect(level2.mainEnemy.speed).toBeGreaterThan(0);
+    expect(level2.mainEnemy.size).toBeGreaterThan(0);
 
-    expect(level1.miniEnemies.count).toBeGreaterThan(0);
-    expect(level1.miniEnemies.config.assetSrc).toMatch(/\.svg$/);
-    expect(level1.miniEnemies.config.speed).toBeGreaterThan(0);
-    expect(level1.miniEnemies.config.size).toBeGreaterThan(0);
-    // Mini-Gegner sind kleiner als der Hauptgegner (Design-Entscheidung Level 1).
-    expect(level1.miniEnemies.config.size).toBeLessThan(level1.mainEnemy.size);
+    expect(level2.miniEnemies.count).toBeGreaterThan(0);
+    expect(level2.miniEnemies.config.assetSrc).toMatch(/\.svg$/);
+    expect(level2.miniEnemies.config.speed).toBeGreaterThan(0);
+    expect(level2.miniEnemies.config.size).toBeGreaterThan(0);
+    // Mini-Gegner sind kleiner als der Hauptgegner (Design-Entscheidung Level 2).
+    expect(level2.miniEnemies.config.size).toBeLessThan(level2.mainEnemy.size);
   });
 
-  it('level1: nur der Hauptgegner schiesst, mit plausiblen Werten', () => {
-    const level1 = levels.find((l) => l.id === 'level1')!;
+  it('level2: nur der Hauptgegner schiesst, mit plausiblen Werten', () => {
+    const level2 = levels.find((l) => l.id === 'level2')!;
 
-    expect(level1.mainEnemy.shooting?.enabled).toBe(true);
-    expect(level1.mainEnemy.shooting!.cooldownSeconds).toBeGreaterThan(1);
-    expect(level1.mainEnemy.shooting!.projectileSpeed).toBeGreaterThan(0);
-    expect(level1.mainEnemy.shooting!.projectileSize).toBeGreaterThan(0);
-    expect(level1.mainEnemy.shooting!.projectileAssetSrc).toMatch(/\.svg$/);
+    expect(level2.mainEnemy.shooting?.enabled).toBe(true);
+    expect(level2.mainEnemy.shooting!.cooldownSeconds).toBeGreaterThan(1);
+    expect(level2.mainEnemy.shooting!.projectileSpeed).toBeGreaterThan(0);
+    expect(level2.mainEnemy.shooting!.projectileSize).toBeGreaterThan(0);
+    expect(level2.mainEnemy.shooting!.projectileAssetSrc).toMatch(/\.svg$/);
 
-    // Mini-Gegner schiessen in Level 1 nicht.
-    expect(level1.miniEnemies.config.shooting?.enabled ?? false).toBe(false);
+    // Mini-Gegner schiessen in Level 2 nicht.
+    expect(level2.miniEnemies.config.shooting?.enabled ?? false).toBe(false);
   });
 
-  it('level1: Schüsse (Gegner- UND Kanone-Kugel) sind schneller als die Spieler-Höchstgeschwindigkeit (Nutzer-Feedback: "Die Schüsse müssen schneller sein, als man fährt")', () => {
-    const level1 = levels.find((l) => l.id === 'level1')!;
+  it('level2: Schüsse (Gegner- UND Kanone-Kugel) sind schneller als die Spieler-Höchstgeschwindigkeit (Nutzer-Feedback: "Die Schüsse müssen schneller sein, als man fährt")', () => {
+    const level2 = levels.find((l) => l.id === 'level2')!;
     const playerMaxSpeed = Math.max(EDGE_SPEED, DRAW_SPEED);
 
-    expect(level1.mainEnemy.shooting!.projectileSpeed).toBeGreaterThan(playerMaxSpeed);
-    expect(level1.bonusStones.cannon.projectileSpeed).toBeGreaterThan(playerMaxSpeed);
+    expect(level2.mainEnemy.shooting!.projectileSpeed).toBeGreaterThan(playerMaxSpeed);
+    expect(level2.bonusStones.cannon.projectileSpeed).toBeGreaterThan(playerMaxSpeed);
   });
 
-  it('enthält level3 an zweiter Stelle (Level 2 lebt auf dem Branch archive/level2-schlange, nicht auf main)', () => {
-    expect(levels.some((l) => l.id === 'level2')).toBe(false);
+  it('enthält level3 an zweiter Stelle', () => {
     expect(levels.some((l) => l.id === 'level3')).toBe(true);
     expect(levels[1]?.id).toBe('level3');
   });
@@ -59,7 +59,7 @@ describe('Level-Registry', () => {
     const level3 = levels.find((l) => l.id === 'level3')!;
 
     expect(level3.name).toBeTruthy();
-    // Eigenes Unterwasser-Artwork (nicht die Level-1/2-Bilder).
+    // Eigenes Unterwasser-Artwork (nicht die Level-2-Bilder).
     expect(level3.backgroundSrc).toMatch(/level3\/background\.png$/);
     expect(level3.foregroundSrc).toMatch(/level3\/foreground\.png$/);
     // Aal-Kopf = head.png; Körper-/Schwanz-Grafik reist an den freien
@@ -73,7 +73,7 @@ describe('Level-Registry', () => {
     // Aal-Körpersegmente + Plasma-Minis teilen sich die eine Liste.
     expect(level3.miniEnemies.count).toBe(EEL_BODY_COUNT + ROAMER_COUNT);
 
-    // Nur der Kopf schiesst – Torpedo wie Level 2.
+    // Nur der Kopf schiesst – Torpedo wie beim archivierten Schlangen-Level.
     expect(level3.mainEnemy.shooting?.enabled).toBe(true);
     expect(level3.mainEnemy.shooting!.projectileAssetSrc).toMatch(/projectiles\/torpedo\.png$/);
     expect(level3.mainEnemy.shooting!.soundSrc).toMatch(/sound\/torpedo\.mp3$/);
@@ -92,9 +92,9 @@ describe('Level-Registry', () => {
     expect(level3.musicSrc).toMatch(/level3\/level3\.mp3$/);
   });
 
-  it('level1: Spieler startet OHNE Kanone (nur per Bonusstein)', () => {
-    const level1 = levels.find((l) => l.id === 'level1')!;
-    expect(level1.startsWithCannon ?? false).toBe(false);
+  it('level2: Spieler startet OHNE Kanone (nur per Bonusstein)', () => {
+    const level2 = levels.find((l) => l.id === 'level2')!;
+    expect(level2.startsWithCannon ?? false).toBe(false);
   });
 
   it('enthält level4 an dritter Stelle', () => {
@@ -116,7 +116,7 @@ describe('Level-Registry', () => {
     expect(level4.miniEnemies.config.shooting!.projectileAssetSrc).toMatch(/projectiles\/kugel\.svg$/);
     expect(level4.miniEnemies.config.shooting!.projectileSize).toBeLessThan(16);
     expect(level4.mainEnemy.shooting?.enabled ?? false).toBe(false);
-    // Bonussteine wie Level 1, keine Beschränkung.
+    // Bonussteine wie Level 2, keine Beschränkung.
     expect(level4.bonusStones.spawning.allowedTypes).toBeUndefined();
     expect(typeof level4.renderEnemies).toBe('function');
     expect(typeof level4.updateEnemies).toBe('function');

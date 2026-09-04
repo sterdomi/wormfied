@@ -17,7 +17,7 @@ export type Vec = { x: number; y: number };
  *
  * `Enemy` trägt bewusst NUR den bewegungsmuster-UNABHÄNGIGEN Zustand
  * (Position/Richtung/Grösse + Schuss-Timer). Der Zustand eines konkreten
- * Bewegungsmusters (Level 1: Pausen-Timer der erratischen Lauf-Bewegung,
+ * Bewegungsmusters (Level 2: Pausen-Timer der erratischen Lauf-Bewegung,
  * siehe `RandomWalkState` in `enemyMovement.ts`; ein späteres Level: z.B.
  * Snake-Abbiegetakt) lebt neben `Enemy` beim `updateEnemies`-Behavior des
  * jeweiligen Levels – so wächst diese geteilte Struktur nicht mit jedem

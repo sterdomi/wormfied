@@ -15,13 +15,13 @@ import { classifyLevel3Minis } from './enemySet';
  *  - **Aal**: Kopf (`mainEnemy`) + `EEL_BODY_COUNT` Körpersegmente. Normal-
  *    betrieb (`swimming`): `advanceSnakeBody` bewegt den Kopf schlangenartig
  *    und zieht die Segmente als Kette nach; nur der Kopf schiesst (Torpedo wie
- *    Level 2). Strom-Attacke (`electric.ts`): im Muster 1, 3, 5, 3 s rollt sich
- *    der Aal zum Kreis zusammen (~1 s Vorwarnung), setzt mit einem Blitz das
- *    Feld unter Strom (`reportFieldZap` → ein Leben, wenn der Spieler nicht am
- *    Rand angedockt ist; `foregroundBlackout` färbt den Foreground schwarz) und
- *    rollt wieder aus.
+ *    beim archivierten Schlangen-Level). Strom-Attacke (`electric.ts`): im
+ *    Muster 1, 3, 5, 3 s rollt sich der Aal zum Kreis zusammen (~1 s
+ *    Vorwarnung), setzt mit einem Blitz das Feld unter Strom (`reportFieldZap`
+ *    → ein Leben, wenn der Spieler nicht am Rand angedockt ist;
+ *    `foregroundBlackout` färbt den Foreground schwarz) und rollt wieder aus.
  *  - **Plasma-Minis**: `ROAMER_COUNT` frei laufende Gegner mit erratischer
- *    Achs-Bewegung (`moveEnemies`, wie Level 1), begrenzt aufs Feld und die
+ *    Achs-Bewegung (`moveEnemies`, wie Level 2), begrenzt aufs Feld und die
  *    aktive Zeichenlinie. Sie laufen auch während der Strom-Attacke weiter.
  *
  * Erfüllt `LevelEnemyUpdater`; Aufruf pro Frame aus `update()` in `main.ts`,
