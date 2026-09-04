@@ -2,6 +2,7 @@ import { SHIELD_DECAY_PER_SECOND } from '../../game/playerState';
 import { defaultBonusStones } from '../defaultBonusStones';
 import type { LevelConfig } from '../types';
 import { updateLevel1Enemies } from './behavior';
+import { renderLevel1Rain } from './rain';
 import { renderLevel1Enemies } from './render';
 
 /**
@@ -37,7 +38,10 @@ export const level1: LevelConfig = {
       cooldownSeconds: 2.6,
       projectileSpeed: 600,
       projectileSize: 18,
-      projectileAssetSrc: '/assets/projectiles/kugel.svg',
+      // Eigene weisse Variante (gleiche Form wie `kugel.svg`, siehe dort) –
+      // Level 4 und der Kanonen-Bonusstein (`defaultBonusStones.ts`) nutzen
+      // weiter die geteilte `kugel.svg`.
+      projectileAssetSrc: '/assets/projectiles/kugel-weiss.svg',
     },
   },
   miniEnemies: {
@@ -58,6 +62,9 @@ export const level1: LevelConfig = {
   // ebenfalls im Level-Package, siehe `behavior.ts` – Gegenstück zu
   // `renderEnemies`, pro Frame über `level.updateEnemies(...)` aufgerufen.
   updateEnemies: updateLevel1Enemies,
+  // Regen + gelegentlicher Blitz für den Film-Noir-Look (Instruktion 22),
+  // rein dekorativ zwischen Foreground und Spiel-Ebene – siehe `rain.ts`.
+  renderDecoration: renderLevel1Rain,
   // Kein eigenes `scoring` – Level 1 nutzt die Default-Werte aus scoring.ts
   // (siehe Fallback in `awardMiniEnemyDefeated`/`awardMainEnemyDefeated`).
   // Entspricht dem Default aus playerState.ts – Level 1 macht die
@@ -66,5 +73,6 @@ export const level1: LevelConfig = {
   shieldDecayPerSecond: SHIELD_DECAY_PER_SECOND,
   // Bonussteine (Instruktion 14) – Werte siehe `defaultBonusStones.ts`.
   bonusStones: defaultBonusStones,
-  musicSrc: '/assets/levels/level1/arcade-music-loop.wav',
+  // Film-Noir-Redesign (Instruktion 22): löst den alten Arcade-Loop ab.
+  musicSrc: '/assets/levels/level1/film_noire.mp3',
 };

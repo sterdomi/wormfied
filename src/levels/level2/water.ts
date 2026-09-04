@@ -1,6 +1,6 @@
 import type { LevelDecorationRenderer, LevelDecorationState } from '../types';
 import { renderLevel2Bubbles } from './bubbles';
-import { lerp, mulberry32 } from './rng';
+import { lerp, mulberry32 } from '../rng';
 
 /**
  * Unterwasser-Look von Level 2 – der komplette dekorative Überzug

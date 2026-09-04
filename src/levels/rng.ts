@@ -1,7 +1,10 @@
 /**
- * Kleine deterministische Zahlen-Helfer für die Level-2-Deko (`bubbles.ts`,
- * `water.ts`). Ein gesäter PRNG erzeugt die festen Parameter (Blasen, Godrays)
- * EINMAL beim Modul-Load – reproduzierbar, u.a. für Tests.
+ * Kleine deterministische Zahlen-Helfer für levelspezifische Deko-Module
+ * (Level 2: `bubbles.ts`/`water.ts`; Level 3: `electric.ts`/`decoration.ts`;
+ * Level 1: `rain.ts`). Ursprünglich level2-lokal, ab Instruktion 22 (Level-1-
+ * Regen) hierher verschoben, da inzwischen drei Level denselben Helfer
+ * brauchten. Ein gesäter PRNG erzeugt die festen Parameter (Blasen, Godrays,
+ * Regentropfen, …) EINMAL beim Modul-Load – reproduzierbar, u.a. für Tests.
  */
 
 /** mulberry32 – winziger, schneller PRNG. Gleicher Seed → gleiche Folge. */

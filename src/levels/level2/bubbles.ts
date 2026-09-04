@@ -1,5 +1,5 @@
 import type { LevelDecorationState } from '../types';
-import { clamp01, lerp, mulberry32 } from './rng';
+import { clamp01, lerp, mulberry32 } from '../rng';
 
 /**
  * Aufsteigende Luftblasen für das Wasser-Level 2 – rein dekorativ, zwischen

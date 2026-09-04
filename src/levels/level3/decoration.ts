@@ -1,6 +1,6 @@
 import type { LevelDecorationRenderer } from '../types';
 import { renderLevel2Water } from '../level2/water';
-import { mulberry32 } from '../level2/rng';
+import { mulberry32 } from '../rng';
 import { electricFieldFlash } from './electric';
 
 /**

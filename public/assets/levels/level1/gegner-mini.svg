@@ -1,9 +1,9 @@
 <svg viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <radialGradient id="miniBodyGrad" cx="35%" cy="30%" r="75%">
-      <stop offset="0%" stop-color="#5a4030"/>
-      <stop offset="55%" stop-color="#2e1f16"/>
-      <stop offset="100%" stop-color="#120b07"/>
+      <stop offset="0%" stop-color="#f2f2f2"/>
+      <stop offset="55%" stop-color="#c7c7cc"/>
+      <stop offset="100%" stop-color="#5c5c66"/>
     </radialGradient>
     <radialGradient id="miniEyeGlow" cx="50%" cy="50%" r="50%">
       <stop offset="0%" stop-color="#ffe066"/>
@@ -12,7 +12,7 @@
   </defs>
 
   <!-- Beine (6, mit Knick) -->
-  <g stroke="#5a4a3a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+  <g stroke="#c2c2c8" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
     <path d="M36,42 L22,28 L8,22"/>
     <path d="M36,48 L20,50 L4,52"/>
     <path d="M36,56 L22,68 L10,78"/>
@@ -23,23 +23,23 @@
   </g>
 
   <!-- Hinterleib -->
-  <ellipse cx="45" cy="58" rx="19" ry="23" fill="url(#miniBodyGrad)" stroke="#0a0603" stroke-width="1.5"/>
+  <ellipse cx="45" cy="58" rx="19" ry="23" fill="url(#miniBodyGrad)" stroke="#17171d" stroke-width="1.5"/>
 
   <!-- kleine Sanduhr-Zeichnung -->
   <path d="M40,53 L50,53 L43,66 L43,66 L50,79 L40,79 L47,66 Z"
         fill="#c1121f" opacity="0.85"/>
 
   <!-- Kopfbrust -->
-  <ellipse cx="45" cy="34" rx="13" ry="12" fill="url(#miniBodyGrad)" stroke="#0a0603" stroke-width="1.5"/>
+  <ellipse cx="45" cy="34" rx="13" ry="12" fill="url(#miniBodyGrad)" stroke="#17171d" stroke-width="1.5"/>
 
   <!-- Fangzähne -->
-  <path d="M40,43 Q38,49 36,52" fill="none" stroke="#1a1008" stroke-width="2" stroke-linecap="round"/>
-  <path d="M50,43 Q52,49 54,52" fill="none" stroke="#1a1008" stroke-width="2" stroke-linecap="round"/>
+  <path d="M40,43 Q38,49 36,52" fill="none" stroke="#17171d" stroke-width="2" stroke-linecap="round"/>
+  <path d="M50,43 Q52,49 54,52" fill="none" stroke="#17171d" stroke-width="2" stroke-linecap="round"/>
 
   <!-- Augen -->
   <g>
-    <circle cx="40" cy="30" r="3.5" fill="url(#miniEyeGlow)" stroke="#0a0603" stroke-width="0.6"/>
-    <circle cx="50" cy="30" r="3.5" fill="url(#miniEyeGlow)" stroke="#0a0603" stroke-width="0.6"/>
+    <circle cx="40" cy="30" r="3.5" fill="url(#miniEyeGlow)" stroke="#17171d" stroke-width="0.6"/>
+    <circle cx="50" cy="30" r="3.5" fill="url(#miniEyeGlow)" stroke="#17171d" stroke-width="0.6"/>
     <circle cx="40" cy="30" r="1.1" fill="#1b1b1b"/>
     <circle cx="50" cy="30" r="1.1" fill="#1b1b1b"/>
   </g>

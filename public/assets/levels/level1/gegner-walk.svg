@@ -1,9 +1,9 @@
 <svg viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <radialGradient id="bodyGrad" cx="35%" cy="30%" r="75%">
-      <stop offset="0%" stop-color="#5a4030"/>
-      <stop offset="55%" stop-color="#2e1f16"/>
-      <stop offset="100%" stop-color="#120b07"/>
+      <stop offset="0%" stop-color="#f2f2f2"/>
+      <stop offset="55%" stop-color="#c7c7cc"/>
+      <stop offset="100%" stop-color="#5c5c66"/>
     </radialGradient>
     <radialGradient id="eyeGlow" cx="50%" cy="50%" r="50%">
       <stop offset="0%" stop-color="#ffe066"/>
@@ -13,7 +13,7 @@
   </defs>
 
   <!-- Beine (8, mit Knick wie bei echten Spinnen) -->
-  <g stroke="#5a4a3a" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none">
+  <g stroke="#c2c2c8" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none">
     <path d="M90,105 L62.7,77.7 L35.4,66"/>
     <path d="M90,105 L58.8,97.2 L27.6,93.3"/>
     <path d="M90,120 L58.8,131.7 L29.16,139.5"/>
@@ -25,37 +25,37 @@
     <path d="M130,130 L157.3,153.4 L180.7,172.9"/>
   </g>
   <!-- Helle Konturlinie auf den Beinen für Kontrast -->
-  <g stroke="#8a7660" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5">
+  <g stroke="#f5f5f8" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5">
     <path d="M90,105 L62.7,77.7 L35.4,66"/>
     <path d="M130,105 L157.3,77.7 L184.6,66"/>
   </g>
 
   <!-- Hinterleib -->
-  <ellipse cx="110" cy="150" rx="46" ry="56" fill="url(#bodyGrad)" stroke="#0a0603" stroke-width="2"/>
+  <ellipse cx="110" cy="150" rx="46" ry="56" fill="url(#bodyGrad)" stroke="#17171d" stroke-width="2"/>
 
   <!-- Sanduhr-Zeichnung auf dem Hinterleib -->
   <path d="M100,140 L120,140 L104,165 L104,165 L120,190 L100,190 L116,165 Z"
         fill="#c1121f" opacity="0.85"/>
 
   <!-- Kopfbrust (Cephalothorax) -->
-  <ellipse cx="110" cy="88" rx="32" ry="30" fill="url(#bodyGrad)" stroke="#0a0603" stroke-width="2"/>
+  <ellipse cx="110" cy="88" rx="32" ry="30" fill="url(#bodyGrad)" stroke="#17171d" stroke-width="2"/>
 
   <!-- Fangzähne -->
-  <path d="M98,110 Q94,122 90,128" fill="none" stroke="#1a1008" stroke-width="4" stroke-linecap="round"/>
-  <path d="M122,110 Q126,122 130,128" fill="none" stroke="#1a1008" stroke-width="4" stroke-linecap="round"/>
+  <path d="M98,110 Q94,122 90,128" fill="none" stroke="#17171d" stroke-width="4" stroke-linecap="round"/>
+  <path d="M122,110 Q126,122 130,128" fill="none" stroke="#17171d" stroke-width="4" stroke-linecap="round"/>
   <circle cx="90" cy="128" r="2.5" fill="#e63946"/>
   <circle cx="130" cy="128" r="2.5" fill="#e63946"/>
 
   <!-- Augen (Cluster aus mehreren Augen) -->
   <g>
-    <circle cx="98" cy="72" r="8" fill="url(#eyeGlow)" stroke="#0a0603" stroke-width="1"/>
-    <circle cx="122" cy="72" r="8" fill="url(#eyeGlow)" stroke="#0a0603" stroke-width="1"/>
+    <circle cx="98" cy="72" r="8" fill="url(#eyeGlow)" stroke="#17171d" stroke-width="1"/>
+    <circle cx="122" cy="72" r="8" fill="url(#eyeGlow)" stroke="#17171d" stroke-width="1"/>
     <circle cx="98" cy="72" r="2.5" fill="#1b1b1b"/>
     <circle cx="122" cy="72" r="2.5" fill="#1b1b1b"/>
 
-    <circle cx="86" cy="80" r="4" fill="url(#eyeGlow)" stroke="#0a0603" stroke-width="0.8"/>
-    <circle cx="134" cy="80" r="4" fill="url(#eyeGlow)" stroke="#0a0603" stroke-width="0.8"/>
-    <circle cx="94" cy="62" r="3.5" fill="url(#eyeGlow)" stroke="#0a0603" stroke-width="0.7"/>
-    <circle cx="126" cy="62" r="3.5" fill="url(#eyeGlow)" stroke="#0a0603" stroke-width="0.7"/>
+    <circle cx="86" cy="80" r="4" fill="url(#eyeGlow)" stroke="#17171d" stroke-width="0.8"/>
+    <circle cx="134" cy="80" r="4" fill="url(#eyeGlow)" stroke="#17171d" stroke-width="0.8"/>
+    <circle cx="94" cy="62" r="3.5" fill="url(#eyeGlow)" stroke="#17171d" stroke-width="0.7"/>
+    <circle cx="126" cy="62" r="3.5" fill="url(#eyeGlow)" stroke="#17171d" stroke-width="0.7"/>
   </g>
 </svg>

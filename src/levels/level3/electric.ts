@@ -1,6 +1,6 @@
 import type { Enemy } from '../../game/enemy';
 import type { Point } from '../../game/field';
-import { clamp01, lerp } from '../level2/rng';
+import { clamp01, lerp } from '../rng';
 
 /**
  * „Strom-Attacke" von Level 3: In Abständen von **1, 3, 5, 3 Sekunden**
