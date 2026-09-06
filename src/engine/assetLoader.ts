@@ -47,6 +47,9 @@ export interface LevelImages {
   bonusCannon: HTMLImageElement;
   bonusFreeze: HTMLImageElement;
   bonusBomb: HTMLImageElement;
+  /** Quadratischer Stein-Sockel unter JEDEM Bonusstein (Nutzer-Feedback), ein
+   *  einziges Sprite für alle vier Typen – siehe `BonusStonesConfig.stoneBaseAssetSrc`. */
+  bonusStoneBase: HTMLImageElement;
   /** Sprite für Spieler-Projektile (Kanone-Bonus, Instruktion 14). */
   playerProjectile: HTMLImageElement;
 }
@@ -79,6 +82,7 @@ export async function loadLevelImages(level: LevelConfig): Promise<LevelImages> 
     bonusCannon,
     bonusFreeze,
     bonusBomb,
+    bonusStoneBase,
     playerProjectile,
     projectile,
     mainEnemyShoot,
@@ -93,6 +97,7 @@ export async function loadLevelImages(level: LevelConfig): Promise<LevelImages> 
     loadImage(level.bonusStones.cannon.assetSrc),
     loadImage(level.bonusStones.freeze.assetSrc),
     loadImage(level.bonusStones.bomb.assetSrc),
+    loadImage(level.bonusStones.stoneBaseAssetSrc),
     loadImage(level.bonusStones.cannon.projectileAssetSrc),
     loadOptionalImage(projectileSrc),
     loadOptionalImage(level.mainEnemy.shootAssetSrc),
@@ -110,6 +115,7 @@ export async function loadLevelImages(level: LevelConfig): Promise<LevelImages> 
     bonusCannon,
     bonusFreeze,
     bonusBomb,
+    bonusStoneBase,
     playerProjectile,
     projectile,
   };

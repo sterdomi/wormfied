@@ -146,22 +146,19 @@ const COLOR_SPARK_CORE = '#eaf3ff';
 // seit der Spieler als Sprite statt als Kreis gerendert wird).
 const COLOR_ERROR_TEXT = '#bf616a';
 /**
- * Spieler-Sprite (Marienkäfer) – nicht Teil von `LevelConfig`, da er über alle
- * Level hinweg gleich aussieht (Instruktion 13).
+ * Spieler-Sprite (Marienkäfer) – "Cyborg"-Variante (+ Lauf-Pose), nicht Teil
+ * von `LevelConfig`, da sie über alle Level hinweg gleich aussieht
+ * (Instruktion 13). Nutzer-Wunsch: IMMER die Cyborg-Optik statt nur
+ * solange ein Spezialstein-Effekt aktiv ist (Speed-Boost ODER Kanone,
+ * Instruktion 14) – der bisherige Basis-Look (`player.svg`/`player-walk.svg`)
+ * wird deshalb nicht mehr geladen/verwendet, die Dateien liegen aber
+ * unverändert unter `public/assets/`, falls später doch wieder gebraucht.
  */
-const PLAYER_ASSET_SRC = '/assets/player.svg';
+const PLAYER_CYBORG_ASSET_SRC = '/assets/player-cyborg.svg';
 /**
  * Zweite Bein-Pose für dieselbe Zwei-Bild-Lauf-Animation wie bei den Gegnern
  * (Instruktion 16), im gemeinsamen `WALK_FRAME_INTERVAL_MS`-Takt gewechselt.
  */
-const PLAYER_WALK_ASSET_SRC = '/assets/player-walk.svg';
-/**
- * "Cyborg"-Variante des Spieler-Sprites (+ Lauf-Pose), solange ein
- * Spezialstein-Effekt aktiv ist (Speed-Boost ODER Kanone, Instruktion 14) –
- * visuelles Feedback, dass der Spieler gerade "aufgerüstet" ist. Wie
- * `PLAYER_ASSET_SRC`/`PLAYER_WALK_ASSET_SRC` levelübergreifend gleich.
- */
-const PLAYER_CYBORG_ASSET_SRC = '/assets/player-cyborg.svg';
 const PLAYER_WALK_CYBORG_ASSET_SRC = '/assets/player-walk-cyborg.svg';
 /** Rendergrösse (Durchmesser) des Spieler-Sprites in Pixel. */
 const playerSize = 45;
@@ -624,8 +621,6 @@ function start(
   canvas: HTMLCanvasElement,
   level: LevelConfig,
   assets: LevelImages,
-  playerImage: HTMLImageElement,
-  playerWalkImage: HTMLImageElement,
   playerCyborgImage: HTMLImageElement,
   playerWalkCyborgImage: HTMLImageElement,
   logoImage: HTMLImageElement,
@@ -1003,8 +998,7 @@ function start(
   if (level.startsWithCannon) {
     // Level-Startausrüstung (Nutzer-Feedback): Kanone von Anfang an aktiv –
     // `Infinity` fürs ganze Level, genau wie ein eingesammelter Kanone-Bonus
-    // (`applyBonusStoneEffect`). Der Cyborg-Look kommt automatisch mit, da
-    // `cyborgActive` unten an `cannonRemainingSeconds > 0` hängt.
+    // (`applyBonusStoneEffect`).
     playerState.cannonRemainingSeconds = Infinity;
   }
   hud.setScore(scoring.score);
@@ -1574,8 +1568,9 @@ function start(
       now,
     });
 
-    // Bonussteine: mit ihrem typspezifischen Sprite, in der letzten Sekunde
-    // vor Ablauf sanft ausblendend (Instruktion 14, Punkt 4), zusätzlich mit
+    // Bonussteine: mit ihrem typspezifischen Sprite auf einem quadratischen
+    // Stein-Sockel (Nutzer-Feedback, siehe unten), in der letzten Sekunde vor
+    // Ablauf sanft ausblendend (Instruktion 14, Punkt 4), zusätzlich mit
     // kontinuierlich pulsierendem Glow dahinter (Instruktion 17, Punkt 2) –
     // Puls beschleunigt sich in den letzten Sekunden als Warnsignal.
     for (const stone of bonusStones) {
@@ -1611,8 +1606,22 @@ function start(
       ctx.fill();
       ctx.restore();
 
+      // Quadratischer Stein-Sockel UNTER dem Bonus-Sprite (Nutzer-Feedback):
+      // zeigt, dass hier fester Untergrund ist, um den man beim Zeichnen
+      // herumfahren muss (`isBlockedByBonusStone` blockiert die Bewegung dort
+      // längst, bisher nur ohne eigenes visuelles Signal). Bewusst ~50%
+      // grösser als das Icon selbst (Nutzer-Feedback), damit er ringsum
+      // sichtbar hervorschaut statt komplett vom Icon verdeckt zu werden.
+      const stoneBaseDiameter = diameter * 1.5;
       ctx.save();
       ctx.globalAlpha = fadeOpacity;
+      ctx.drawImage(
+        assets.bonusStoneBase,
+        stone.position.x - stoneBaseDiameter / 2,
+        stone.position.y - stoneBaseDiameter / 2,
+        stoneBaseDiameter,
+        stoneBaseDiameter,
+      );
       ctx.drawImage(
         sprite,
         stone.position.x - diameter / 2,
@@ -1709,17 +1718,16 @@ function start(
 
     // Spieler: Marienkäfer-Sprite, in aktuelle Bewegungsrichtung gedreht,
     // Bein-Pose im selben Takt wie bei den Gegnern (Instruktion 16).
-    // "Cyborg"-Variante, solange Speed-Boost oder Kanone aktiv ist
-    // (Instruktion 14) – visuelles Feedback für den Spezialstein-Effekt.
+    // Nutzer-Wunsch: IMMER die Cyborg-Optik, nicht nur solange Speed-Boost
+    // oder Kanone aktiv sind – `playerImage`/`playerWalkImage` (Basis-Look)
+    // bleiben ungenutzt (Parameter/Ladevorgang unverändert, falls später doch
+    // wieder gebraucht).
+    const activePlayerSprite = useWalkFrame ? playerWalkCyborgImage : playerCyborgImage;
+    // `cyborgActive` bleibt an den echten Boost-Status gekoppelt (Instruktion
+    // 14) – steuert weiterhin NUR das Lampen-Blinken unten als Status-
+    // Indikator, nicht mehr die Sprite-Wahl selbst.
     const cyborgActive =
       playerState.speedBoostRemainingSeconds > 0 || playerState.cannonRemainingSeconds > 0;
-    const activePlayerSprite = cyborgActive
-      ? useWalkFrame
-        ? playerWalkCyborgImage
-        : playerCyborgImage
-      : useWalkFrame
-        ? playerWalkImage
-        : playerImage;
     ctx.save();
     ctx.translate(player.position.x, player.position.y);
     ctx.rotate(playerFacingAngle(player.facing));
@@ -1840,18 +1848,16 @@ function start(
 async function boot(): Promise<void> {
   showLoading(gameCanvas);
 
-  // Levelübergreifende Assets einmal laden: Spieler-Sprites (normal + Cyborg-
-  // Variante, je inkl. Lauf-Pose) + Logo (bewusst NICHT Teil von `LevelConfig`,
-  // Instruktion 13) und die globalen SFX (Instruktion 18, Punkt 2).
-  const [playerImage, playerWalkImage, playerCyborgImage, playerWalkCyborgImage, logoImage] =
-    await Promise.all([
-      loadImage(PLAYER_ASSET_SRC),
-      loadImage(PLAYER_WALK_ASSET_SRC),
-      loadImage(PLAYER_CYBORG_ASSET_SRC),
-      loadImage(PLAYER_WALK_CYBORG_ASSET_SRC),
-      loadImage(LOGO_ASSET_SRC),
-      audioManager.loadAll(SOUND_SOURCES),
-    ]);
+  // Levelübergreifende Assets einmal laden: Spieler-Cyborg-Sprite (+ Lauf-
+  // Pose, immer aktiv, siehe Kommentar bei `PLAYER_CYBORG_ASSET_SRC`) + Logo
+  // (bewusst NICHT Teil von `LevelConfig`, Instruktion 13) und die globalen
+  // SFX (Instruktion 18, Punkt 2).
+  const [playerCyborgImage, playerWalkCyborgImage, logoImage] = await Promise.all([
+    loadImage(PLAYER_CYBORG_ASSET_SRC),
+    loadImage(PLAYER_WALK_CYBORG_ASSET_SRC),
+    loadImage(LOGO_ASSET_SRC),
+    audioManager.loadAll(SOUND_SOURCES),
+  ]);
 
   // Levelbilder pro Level nur einmal laden (Wiederholung eines Levels lädt
   // nicht neu). Die levelspezifische Hintergrundmusik (`level.musicSrc`) kommt
@@ -1897,8 +1903,6 @@ async function boot(): Promise<void> {
       gameCanvas,
       level,
       assets,
-      playerImage,
-      playerWalkImage,
       playerCyborgImage,
       playerWalkCyborgImage,
       logoImage,

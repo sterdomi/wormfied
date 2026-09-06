@@ -58,4 +58,5 @@ export const defaultBonusStones: BonusStonesConfig = {
   bomb: {
     assetSrc: '/assets/bonuses/bonus-bomb.svg',
   },
+  stoneBaseAssetSrc: '/assets/bonuses/bonus-stone-base.svg',
 };

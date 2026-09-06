@@ -31,7 +31,7 @@
  * Subpath-Build) – funktioniert dadurch ohne Anpassung in beiden Fällen,
  * genau wie `resolveAssetPath` im App-Code (siehe `src/engine/assetPath.ts`).
  */
-const CACHE_NAME = 'wormfied-v42';
+const CACHE_NAME = 'wormfied-v43';
 
 const CORE_ASSETS = [
   './',
@@ -46,6 +46,7 @@ const CORE_ASSETS = [
   './assets/wormfied-logo.svg',
   './assets/bonuses/bonus-cannon.svg',
   './assets/bonuses/bonus-speed.svg',
+  './assets/bonuses/bonus-stone-base.svg',
   './assets/projectiles/kugel.svg',
   './assets/projectiles/kugel-weiss.svg',
   './assets/projectiles/torpedo.png',

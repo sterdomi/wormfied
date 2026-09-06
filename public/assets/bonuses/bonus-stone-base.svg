@@ -1,0 +1,22 @@
+<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="stoneBaseGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#b7bec7"/>
+      <stop offset="55%" stop-color="#8b93a1"/>
+      <stop offset="100%" stop-color="#5c6472"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Quadratischer Stein-Sockel: zeigt, dass hier fester Untergrund ist,
+       um den man beim Zeichnen herumfahren muss (Nutzer-Wunsch), statt eines
+       runden Bonusstein-Symbols "schwebt" es sichtbar auf einem Block. -->
+  <rect x="7" y="7" width="46" height="46" rx="6"
+        fill="url(#stoneBaseGrad)" stroke="#3a4048" stroke-width="3" stroke-linejoin="round"/>
+
+  <!-- Leichtes Licht von oben links (Konsistenz mit übriger Spiel-Grafik). -->
+  <polygon points="7,13 13,7 47,7 13,41" fill="#ffffff" opacity="0.18"/>
+
+  <!-- Ein paar Riss-/Textur-Linien für den Stein-Look. -->
+  <path d="M18,22 L26,30 L20,40" fill="none" stroke="#3a4048" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+  <path d="M36,16 L34,26" fill="none" stroke="#3a4048" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+</svg>

@@ -117,6 +117,15 @@ export interface BonusStonesConfig {
   cannon: CannonBoostConfig;
   freeze: FreezeBoostConfig;
   bomb: BombBoostConfig;
+  /**
+   * Quadratischer Stein-Sockel, der unter JEDEM Bonusstein-Sprite gezeichnet
+   * wird (Nutzer-Feedback: soll zeigen, dass dort fester Untergrund ist, um
+   * den man beim Zeichnen herumfahren muss – `isBlockedByBonusStone` in
+   * `game/bonusStone.ts` blockiert die Bewegung dort bereits, nur bisher ohne
+   * eigenes visuelles Signal ausser dem rein dekorativen Glow). Ein einziges,
+   * typunabhängiges Sprite für alle vier Bonustypen.
+   */
+  stoneBaseAssetSrc: string;
 }
 
 /**

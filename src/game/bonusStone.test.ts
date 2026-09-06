@@ -34,6 +34,7 @@ const BONUS_CONFIG: BonusStonesConfig = {
   },
   freeze: { assetSrc: 'freeze.svg', effectDurationSeconds: 5 },
   bomb: { assetSrc: 'bomb.svg' },
+  stoneBaseAssetSrc: 'stone-base.svg',
 };
 
 const field = createRectangularField(800, 600);
