@@ -187,6 +187,8 @@ const START_SCREEN_LOGO_GAP = 56;
 const START_SCREEN_CONTROLS_GAP = 28;
 /** Dezentere Farbe für den Steuerungs-Hinweis, damit der "Enter"-CTA oben führend bleibt. */
 const COLOR_START_SCREEN_HINT = '#8a93a6';
+/** Warmes Gold für die Widmung am unteren Bildrand (Nutzer-Wunsch: „goldig und fett"). */
+const COLOR_START_SCREEN_DEDICATION = '#e8c15a';
 /** Abstand vom Steuerungs-Hinweis zur Highscore-Überschrift auf dem Startbildschirm. */
 const START_SCREEN_HIGHSCORE_GAP = 32;
 /** Zeilenhöhe einer Highscore-Zeile auf dem Startbildschirm. */
@@ -546,8 +548,8 @@ function renderStartScreen(
   // Widmung, dezent am unteren Bildrand – bewusst ausserhalb des vertikal
   // zentrierten Logo/Hinweis/Highscore-Blocks, damit sie dessen Layout nicht
   // verschiebt.
-  ctx.fillStyle = COLOR_START_SCREEN_HINT;
-  ctx.font = 'italic 13px system-ui, sans-serif';
+  ctx.fillStyle = COLOR_START_SCREEN_DEDICATION;
+  ctx.font = 'bold 15px system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   ctx.fillText(t('dedication'), width / 2, height - 14);
