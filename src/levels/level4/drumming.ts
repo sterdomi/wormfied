@@ -35,13 +35,16 @@ export const SLAM_WINDUP_SECONDS = 0.34;
 export const SLAM_STRIKE_SECONDS = 0.18;
 
 /**
- * Logische Feldgrösse (wie `FIELD_WIDTH`/`FIELD_HEIGHT` in `main.ts`). Level 4
- * sperrt die unteren 20 % (`blocksDrawingAt`), dort sitzt der Gorilla – fixer
- * Platz, folgt keiner schrumpfenden Fläche.
+ * Logische Feldgrösse (wie `FIELD_WIDTH`/`FIELD_HEIGHT` in `main.ts`). Der
+ * Gorilla sitzt fix unten in der Feldmitte – fixer Platz, folgt keiner
+ * schrumpfenden Fläche. Vom Feldrand aus gesperrt ist nur noch die Unterkante
+ * (`blocksDrawingAt` in `index.ts`).
  */
 export const FIELD_W = 960;
 export const FIELD_H = 540;
-/** Anteil der Höhe, der unten für den Spieler gesperrt ist (Gorilla-Bereich). */
+/** Höhenanteil, den der Gorilla-Bereich unten einnimmt – Bezug für seinen
+ *  Logik-/Kollisionspunkt (`GORILLA_COLLISION_Y`), NICHT mehr eine Spieler-
+ *  Sperre (die ist nur noch die Feld-Unterkante). */
 export const BLOCKED_BOTTOM_FRACTION = 0.2;
 /** Bildschirm-y der Grundlinie des Gorillas (= Feld-Unterkante). */
 export const GORILLA_BASE_Y = FIELD_H;

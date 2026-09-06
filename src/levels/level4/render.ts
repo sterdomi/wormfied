@@ -58,8 +58,8 @@ function drawParrot(
  *    gemeinsamen Takt (`useWalkFrame`), in Flugrichtung ausgerichtet (nativ
  *    nach links, gespiegelt bei Flug nach rechts);
  *  - der **trommelnde Gorilla**, fix unten in der Bildschirmmitte – Grundlinie
- *    an der Feld-Unterkante (`GORILLA_BASE_Y`), Körper grösstenteils im
- *    gesperrten unteren 20 %, Kopf/Schultern über der schwarzen Linie.
+ *    an der Feld-Unterkante (`GORILLA_BASE_Y`), von der aus der Spieler nicht
+ *    reinfahren darf; Kopf/Schultern ragen über die schwarze Linie ins Feld.
  *    Unabhängig von `mainEnemy.position` (nur der Logik-/Kollisionspunkt).
  *
  * `hideMainEnemy` (Levelabschluss) lässt den Gorilla weg.

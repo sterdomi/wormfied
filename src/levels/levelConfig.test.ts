@@ -122,12 +122,16 @@ describe('Level-Registry', () => {
     expect(typeof level4.updateEnemies).toBe('function');
     // Eigene Dschungel-Musik.
     expect(level4.musicSrc).toMatch(/level4\/jungle\.mp3$/);
-    // Unten + Seiten bis 20 %: kein Reinfahren (blocksDrawingAt) + schwarze U-Linie.
+    // Nur von der Feld-Unterkante gesperrt (blocksDrawingAt) + schwarze Linie unten.
     expect(typeof level4.renderDecoration).toBe('function');
     expect(typeof level4.blocksDrawingAt).toBe('function');
-    // Im gesperrten unteren Bereich blockiert, oben nicht.
+    // An der Unterkante blockiert ...
     expect(level4.blocksDrawingAt!({ x: 480, y: 540 }, 960, 540)).toBe(true);
-    expect(level4.blocksDrawingAt!({ x: 0, y: 500 }, 960, 540)).toBe(true);
+    expect(level4.blocksDrawingAt!({ x: 0, y: 540 }, 960, 540)).toBe(true);
+    // ... die seitlichen unteren 20 % sind jetzt frei (Nutzer-Feedback) ...
+    expect(level4.blocksDrawingAt!({ x: 0, y: 500 }, 960, 540)).toBe(false);
+    expect(level4.blocksDrawingAt!({ x: 960, y: 520 }, 960, 540)).toBe(false);
+    // ... und oben sowieso.
     expect(level4.blocksDrawingAt!({ x: 480, y: 100 }, 960, 540)).toBe(false);
   });
 });

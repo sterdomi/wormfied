@@ -3,8 +3,12 @@ import { defaultBonusStones } from '../defaultBonusStones';
 import type { LevelConfig } from '../types';
 import { updateLevel4Enemies } from './behavior';
 import { renderLevel4Decoration } from './decoration';
-import { BLOCKED_BOTTOM_FRACTION } from './drumming';
 import { renderLevel4Enemies } from './render';
+
+/** Toleranz (px), innerhalb der ein Zeichen-Start noch als "von der Feld-
+ *  Unterkante" gilt – der Spieler sitzt beim Losfahren exakt auf dem
+ *  Perimeter, ein, zwei Pixel Luft gegen Rundungsstaub. */
+const BOTTOM_EDGE_TOLERANCE_PX = 2;
 
 /**
  * Level 4 – Dschungel.
@@ -15,11 +19,13 @@ import { renderLevel4Enemies } from './render';
  * ist in jedem der sechs Frames mitgezeichnet (`sprites.ts` lädt sie
  * level-lokal). `render.ts` platziert ihn unten mittig.
  *
- * Der Spieler kann **nicht von unten bzw. von den Seiten bis 20 % Höhe ins Feld
- * reinfahren** (`blocksDrawingAt`) – dort sitzt der Gorilla. Es gibt aber
- * KEINE waagerechte Sperre hinter ihm; die gezeichnete Linie darf durch den
- * unteren Bereich. Eine schwarze U-Linie zeigt die Grenze
- * (`renderLevel4Decoration`).
+ * Der Spieler kann **nur nicht von der Feld-Unterkante ins Feld reinfahren**
+ * (`blocksDrawingAt`) – dort, hinter der schwarzen Linie, sitzt der Gorilla.
+ * Die früher zusätzlich gesperrten seitlichen unteren 20 % sind wieder frei
+ * (Nutzer-Feedback): vom linken/rechten Rand darf auf jeder Höhe reingefahren
+ * werden. Es gibt auch KEINE waagerechte Sperre hinter dem Gorilla; die
+ * gezeichnete Linie darf durch den unteren Bereich. Eine schwarze Linie ganz
+ * unten zeigt die gesperrte Kante (`renderLevel4Decoration`).
  *
  * 6 fliegende **Papageien** als Mini-Gegner (erratische Flug-Bewegung wie in
  * Level 2, `behavior.ts`; Zwei-Frame-Flügelschlag `papagei_up` ↔ `papagei_down`).
@@ -68,10 +74,11 @@ export const level4: LevelConfig = {
   },
   renderEnemies: renderLevel4Enemies,
   updateEnemies: updateLevel4Enemies,
-  // Schwarze U-Linie unten + Seiten bis 20 %.
+  // Schwarze Linie an der Feld-Unterkante.
   renderDecoration: renderLevel4Decoration,
-  // Kein Reinfahren aus dem gesperrten unteren Bereich (unten + Seiten bis 20 %).
-  blocksDrawingAt: (pos, _width, height) => pos.y >= height * (1 - BLOCKED_BOTTOM_FRACTION),
+  // Nur von der Feld-Unterkante aus gesperrt (hinter dem Gorilla) – die Seiten
+  // sind frei, vom linken/rechten Rand darf auf jeder Höhe reingefahren werden.
+  blocksDrawingAt: (pos, _width, height) => pos.y >= height - BOTTOM_EDGE_TOLERANCE_PX,
   shieldDecayPerSecond: SHIELD_DECAY_PER_SECOND,
   bonusStones: defaultBonusStones,
   musicSrc: '/assets/levels/level4/jungle.mp3',
