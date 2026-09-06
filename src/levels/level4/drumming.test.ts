@@ -25,6 +25,14 @@ describe('updateDrumming – trommelnder Gorilla (Level 4)', () => {
     expect(g.position.y).toBeLessThanOrEqual(FIELD_H * 0.8);
   });
 
+  it('startet neutral (`bereit`) ohne Phantom-Schlag im ersten Frame', () => {
+    const g = gorilla();
+    updateDrumming(g, 0); // erster Loop-Frame liefert dt = 0
+    const s = peekDrumming(g)!;
+    expect(s.frame).toBe('bereit');
+    expect(s.hit).toBe(false);
+  });
+
   it('grooved mit Einzelschlägen und schlägt dazwischen doppelt (alle Frames kommen vor)', () => {
     const g = gorilla();
     const frames = new Set<string>();

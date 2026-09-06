@@ -79,7 +79,12 @@ function createState(): DrumState {
   return {
     phase: 'groove',
     phaseT: 0,
-    beatT: BEAT_SECONDS,
+    // Hinter dem Schlag-Fenster starten (`p` beginnt bei `SINGLE_STRIKE_FRAC`),
+    // sonst zeigt der Gorilla schon im ersten Frame `schlag_links` inkl.
+    // Phantom-`hit`/`bongo_split` und schnappt nach ~0,17 s auf `bereit` –
+    // sichtbarer Glitch beim Levelstart. So beginnt er neutral, erster echter
+    // Schlag ~0,33 s später auf der nächsten Beat-Grenze.
+    beatT: BEAT_SECONDS * (1 - SINGLE_STRIKE_FRAC),
     beatSide: 'L',
     slamTimer: SLAM_GAP_PATTERN[0],
     slamIndex: 0,
