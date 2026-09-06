@@ -5,6 +5,8 @@ export const en: Record<TranslationKey, string> = {
   startButton: 'Start game',
   loading: 'Loading …',
   pressEnterToPlay: 'Press Enter to play',
+  // Persönliche Widmung – Namen bleiben, Satz absichtlich unübersetzt.
+  dedication: 'Für Alessa & Urs, ihr seid die Besten',
   gameOver: 'Game Over',
   levelComplete: 'Level complete!',
   bonusHeading: 'Percentage bonus',

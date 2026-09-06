@@ -534,7 +534,25 @@ function renderStartScreen(
   ctx.fillText(controlsHint, width / 2, enterHintY + START_SCREEN_CONTROLS_GAP);
 
   const highscoreTop = enterHintY + START_SCREEN_CONTROLS_GAP + START_SCREEN_HIGHSCORE_GAP;
-  return renderStartScreenHighscores(ctx, width, height, highscoreTop, showHighscores, leaderboard);
+  const clickBox = renderStartScreenHighscores(
+    ctx,
+    width,
+    height,
+    highscoreTop,
+    showHighscores,
+    leaderboard,
+  );
+
+  // Widmung, dezent am unteren Bildrand – bewusst ausserhalb des vertikal
+  // zentrierten Logo/Hinweis/Highscore-Blocks, damit sie dessen Layout nicht
+  // verschiebt.
+  ctx.fillStyle = COLOR_START_SCREEN_HINT;
+  ctx.font = 'italic 13px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(t('dedication'), width / 2, height - 14);
+
+  return clickBox;
 }
 
 /**

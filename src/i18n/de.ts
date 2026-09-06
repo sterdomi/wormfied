@@ -3,6 +3,7 @@ export const de = {
   startButton: 'Spiel starten',
   loading: 'Lädt …',
   pressEnterToPlay: 'Enter drücken zum Spielen',
+  dedication: 'Für Alessa & Urs, ihr seid die Besten',
   gameOver: 'Game Over',
   levelComplete: 'Level geschafft!',
   bonusHeading: 'Prozent-Bonus',
