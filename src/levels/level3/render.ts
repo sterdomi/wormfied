@@ -9,6 +9,14 @@ import { classifyLevel3Minis } from './enemySet';
 const PLASMA_RENDER_SIZE = 30;
 
 /**
+ * Der Schwanz (`tail.png`, letztes Segment) wird grösser gezeichnet als die
+ * Körpersegmente – die Schwanzflosse trägt mehr Silhouette und wirkt bei
+ * gleicher Grösse wie die runden `body.png` zu mickrig (Nutzer-Feedback:
+ * „das Tail ist noch zu klein"). Faktor auf `bodySize`.
+ */
+const TAIL_RENDER_SCALE = 1.6;
+
+/**
  * Lokale „Vorne"-Richtung der Körper-/Schwanz-Sprites (`body.png`, `tail.png`)
  * als Winkel-Offset auf `atan2(dir.y, dir.x)`. Beide zeigen im Bild nach LINKS
  * (−x) – die offene „Anschluss"-Seite, die zum Kopf hin liegt – und sind
@@ -126,7 +134,8 @@ export function renderLevel3Enemies(
     );
   }
 
-  // Aal-Körper von hinten nach vorne; das letzte Segment ist der Schwanz.
+  // Aal-Körper von hinten nach vorne; das letzte Segment ist der Schwanz
+  // (grösser gezeichnet, siehe `TAIL_RENDER_SCALE`).
   for (let i = body.length - 1; i >= 0; i--) {
     const isTail = i === body.length - 1;
     drawSegment(
@@ -134,7 +143,7 @@ export function renderLevel3Enemies(
       isTail ? tailSprite : bodySprite,
       body[i].position,
       body[i].direction,
-      bodySize,
+      isTail ? bodySize * TAIL_RENDER_SCALE : bodySize,
     );
   }
 
