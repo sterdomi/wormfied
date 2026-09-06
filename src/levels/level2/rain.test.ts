@@ -35,6 +35,22 @@ function stubCtx() {
 
 const state = (now: number) => ({ width: 960, height: 540, now });
 
+/** now-Werte (ms) im ersten Zyklus, an denen ein Blitz die Donner-Schwelle (0.2) neu erreicht. */
+function strikeOnsets(): number[] {
+  const onsets: number[] = [];
+  let armed = true;
+  for (let ms = 0; ms < LIGHTNING_CYCLE_MS; ms += 5) {
+    const intensity = lightningIntensity(ms);
+    if (armed && intensity >= 0.2) {
+      onsets.push(ms);
+      armed = false;
+    } else if (!armed && intensity === 0) {
+      armed = true;
+    }
+  }
+  return onsets;
+}
+
 describe('renderLevel2Rain', () => {
   it('zeichnet Regenstriche (stroke), ohne zu werfen', () => {
     const s = stubCtx();
@@ -76,6 +92,36 @@ describe('renderLevel2Rain', () => {
       }
     }
     expect(sawFlash).toBe(true);
+  });
+});
+
+describe('Donner zum Blitz', () => {
+  // Modul-Zustand (`lastThunderAtMs`) bleibt über die Tests bestehen; jeder Test
+  // nutzt darum einen anderen, zeitlich weit auseinanderliegenden Einschlag.
+  const onsets = strikeOnsets();
+
+  it('hat im Zyklus mehrere vertonbare Blitz-Einschläge', () => {
+    expect(onsets.length).toBeGreaterThan(1);
+  });
+
+  it('spielt an einem blitzfreien Zeitpunkt keinen Donner', () => {
+    const playLevelSound = vi.fn();
+    renderLevel2Rain(stubCtx().ctx, { ...state(50), playLevelSound });
+    expect(playLevelSound).not.toHaveBeenCalled();
+  });
+
+  it('löst beim Einschlag genau einen `thunder` aus – auch über das Doppel-Zucken hinweg', () => {
+    const playLevelSound = vi.fn();
+    const onset = onsets[onsets.length - 1];
+    for (let now = onset; now < onset + 700; now += 16) {
+      renderLevel2Rain(stubCtx().ctx, { width: 960, height: 540, now, playLevelSound });
+    }
+    expect(playLevelSound).toHaveBeenCalledTimes(1);
+    expect(playLevelSound).toHaveBeenCalledWith('thunder');
+  });
+
+  it('zeichnet auch ohne `playLevelSound` weiter (Callback ist optional)', () => {
+    expect(() => renderLevel2Rain(stubCtx().ctx, state(onsets[0]))).not.toThrow();
   });
 });
 

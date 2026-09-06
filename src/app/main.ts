@@ -323,6 +323,8 @@ const SOUND_SOURCES: Record<string, string> = {
   // Level-3-Strom-Attacke: der Blitz, wenn der eingerollte Aal das Feld unter
   // Strom setzt (`reportFieldZap`, siehe `updateEnemies`-Auswertung unten).
   highvoltage: '/assets/levels/level3/highvoltage.mp3',
+  // Level 2: Donnerschlag zum Film-Noir-Blitz (`playLevelSound` aus `renderDecoration`, siehe `level2/rain.ts`).
+  thunder: '/assets/levels/level2/thunder.mp3',
   // Level 4: ein Schlag des trommelnden Gorillas (`playLevelSound` aus `updateEnemies`).
   bongo_split: '/assets/levels/level4/bongo-split.mp3',
   // Level 4: der Doppelschlag des Gorillas, der die Schockwelle auslöst.
@@ -1536,6 +1538,9 @@ function start(
       height: FIELD_HEIGHT,
       now,
       enemyProjectiles: projectiles,
+      playLevelSound: (name: string): void => {
+        audioManager.play(name);
+      },
     });
 
     // Spielfeld-Umriss (aktuell ein Rechteck, später ein komplexeres Polygon).

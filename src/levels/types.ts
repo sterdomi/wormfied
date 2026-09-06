@@ -278,6 +278,14 @@ export interface LevelDecorationState {
    * Fehlt oder leer, wenn gerade keine unterwegs sind.
    */
   enemyProjectiles?: readonly Projectile[];
+  /**
+   * Spielt einen in `SOUND_SOURCES` (`main.ts`) registrierten Sound ab – für
+   * Deko-Effekte, die einen *Ton* zu einem visuellen Ereignis brauchen (Level
+   * 2: Donner zum Blitz, `level2/rain.ts`). Der Überzug zeichnet weiter
+   * zustandslos aus `now`; nur der Ton als Ereignis darf minimalen Zustand
+   * (zuletzt ausgelöst) halten. Fehlt der Sound-Key, passiert nichts.
+   */
+  playLevelSound?: (name: string) => void;
 }
 
 /**

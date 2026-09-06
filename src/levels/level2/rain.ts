@@ -1,4 +1,4 @@
-import type { LevelDecorationRenderer } from '../types';
+import type { LevelDecorationRenderer, LevelDecorationState } from '../types';
 import { lerp, mulberry32 } from '../rng';
 
 /**
@@ -16,6 +16,11 @@ import { lerp, mulberry32 } from '../rng';
  *     deterministischen, vorab berechneten Zeitpunkten statt echtem
  *     `Math.random()` pro Frame – reproduzierbar bei jedem Levelstart,
  *     testbar über die ausgelagerte `lightningIntensity(now)`.
+ *  3. **Donner**: `thunder.mp3` beim Beginn jedes Blitzes, über den
+ *     `playLevelSound`-Callback aus dem Deko-Kontext. Der Ton ist ein
+ *     Ereignis (nicht pro Frame): ein Cooldown nach dem Auslösen deckt das
+ *     Doppel-Zucken eines Blitzes ab und ist der einzige veränderliche
+ *     Modul-Zustand hier – gezeichnet wird weiter zustandslos aus `now`.
  */
 
 interface Raindrop {
@@ -157,8 +162,28 @@ function renderLightningFlash(
   ctx.restore();
 }
 
-/** Kompletter Regen-Überzug: Regen → Blitz (additiv über den bereits gezeichneten Tropfen). */
-export const renderLevel2Rain: LevelDecorationRenderer = (ctx, { width, height, now }) => {
+/** Blitz-Intensität, ab der ein Donner ausgelöst wird – deutlich über der
+ *  Zeichen-Sichtbarkeitsschwelle, damit wirklich nur ein einschlagender Blitz
+ *  (nicht ein gerade an-/abklingender) den Ton triggert. */
+const THUNDER_TRIGGER_INTENSITY = 0.2;
+/** Sperrzeit nach einem Donner: länger als ein kompletter Blitz inkl. zweitem,
+ *  schwächerem Zucken (`doubleGapMs` + ~0,7·`durationMs`), aber kürzer als der
+ *  kleinste Abstand zum nächsten Blitz (~6 s) – so genau ein Donner pro Blitz. */
+const THUNDER_COOLDOWN_MS = 1500;
+let lastThunderAtMs = -Infinity;
+
+/** Donner beim Beginn eines Blitzes – einmal pro Blitz, ereignishaft. */
+function maybePlayThunder(now: number, playLevelSound: LevelDecorationState['playLevelSound']): void {
+  if (!playLevelSound) return;
+  if (now - lastThunderAtMs < THUNDER_COOLDOWN_MS) return;
+  if (lightningIntensity(now) < THUNDER_TRIGGER_INTENSITY) return;
+  lastThunderAtMs = now;
+  playLevelSound('thunder');
+}
+
+/** Kompletter Regen-Überzug: Regen → Blitz (additiv über den bereits gezeichneten Tropfen) → Donner zum Blitz. */
+export const renderLevel2Rain: LevelDecorationRenderer = (ctx, { width, height, now, playLevelSound }) => {
   renderRain(ctx, width, height, now);
   renderLightningFlash(ctx, width, height, now);
+  maybePlayThunder(now, playLevelSound);
 };
