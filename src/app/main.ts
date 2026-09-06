@@ -275,6 +275,42 @@ const gameCanvas: HTMLCanvasElement = foundCanvas;
  */
 const audioManager = createAudioManager();
 
+/**
+ * Debug-Unsterblichkeit (Taste „I"): `loseLife()` wird zum No-Op, damit man
+ * ein Level in Ruhe von vorne bis hinten abklopfen kann. Modul-Zustand, weil
+ * es über den Level-/Startbildschirm-Wechsel (`boot`s Schleife, neuer
+ * `start()`-Aufruf pro Level) hinweg gelten soll.
+ * TODO(vor Release): hinter `import.meta.env.DEV` legen oder entfernen –
+ * wie die „N"-Level-Skip-Taste bewusst noch immer aktiv.
+ */
+let debugInvincible = false;
+
+/**
+ * Kleine Ecke-oben-links-Einblendung, solange `debugInvincible` an ist – damit
+ * beim Testen klar ist, dass gerade keine Treffer zählen. Selbst erzeugtes
+ * DOM-Element (kein HUD-Umbau für einen Debug-Helfer), bei `false` versteckt.
+ * TODO(vor Release): mit `debugInvincible` zusammen entfernen.
+ */
+const debugInvincibleBadge = document.createElement('div');
+debugInvincibleBadge.textContent = '∞ UNSTERBLICH (I)';
+Object.assign(debugInvincibleBadge.style, {
+  position: 'fixed',
+  top: '6px',
+  left: '6px',
+  zIndex: '9999',
+  padding: '2px 8px',
+  font: '600 12px/1.4 monospace',
+  color: '#0b0e14',
+  background: '#a3be8c',
+  borderRadius: '4px',
+  pointerEvents: 'none',
+} satisfies Partial<CSSStyleDeclaration>);
+debugInvincibleBadge.hidden = true;
+document.body.append(debugInvincibleBadge);
+function updateDebugInvincibleBadge(): void {
+  debugInvincibleBadge.hidden = !debugInvincible;
+}
+
 // Läuft für die gesamte Seiten-Lebensdauer, unabhängig vom Start-/Game-Over-
 // Zyklus (nichts zu `dispose()`n) – Nutzer-Feedback: Wormfied ist fürs
 // Querformat gedacht.
@@ -942,6 +978,10 @@ function start(
    * abziehen, Schild auffüllen, ggf. Game Over, kurzes visuelles Feedback.
    */
   function loseLife(): void {
+    // Debug-Unsterblichkeit (Taste „I"): Treffer werden komplett ignoriert –
+    // kein Leben weg, kein Zeichen-Abbruch, kein Flash.
+    if (debugInvincible) return;
+
     if (session) {
       // Pfadbasiert ausgeschnittenen Foreground dieses Versuchs wiederherstellen.
       if (foregroundSnapshot) foreground.restore(foregroundSnapshot);
@@ -1792,11 +1832,14 @@ function start(
     }
   }
 
-  // Debug-Taste „N": aktuelles Level sofort überspringen – wie ein bestätigter
-  // Levelabschluss (direkt ins nächste Level, ohne Startbildschirm, Score +
-  // Leben laufen über `carryOver` mit). Wird von `teardown()` wieder abgehängt.
+  // Debug-Tasten (von `teardown()` wieder abgehängt):
+  //  - „N": aktuelles Level sofort überspringen – wie ein bestätigter
+  //    Levelabschluss (direkt ins nächste Level, ohne Startbildschirm, Score +
+  //    Leben laufen über `carryOver` mit).
+  //  - „I": Unsterblichkeit an/aus (`debugInvincible`, Modul-Zustand) – um ein
+  //    Level in Ruhe durchzutesten.
   // TODO(vor Release): hinter `import.meta.env.DEV` legen oder entfernen –
-  // aktuell bewusst immer aktiv, um Level 2 ohne Level-1-Abschluss zu testen.
+  // aktuell bewusst immer aktiv, um Level ohne Vorgänger-Abschluss zu testen.
   let disposeDebugKeys: () => void = () => {};
 
   /** Räumt Loop, Input-Listener, Resize-Listener, HUD-DOM und Musik auf. */
@@ -1816,6 +1859,11 @@ function start(
   {
     let levelSkipped = false;
     const onDebugKey = (e: KeyboardEvent): void => {
+      if (e.code === 'KeyI') {
+        debugInvincible = !debugInvincible;
+        updateDebugInvincibleBadge();
+        return;
+      }
       if (e.code !== 'KeyN' || levelSkipped) return;
       levelSkipped = true;
       teardown();
