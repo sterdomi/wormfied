@@ -70,3 +70,9 @@ public/      Statische Assets
 
 Echte Spiellogik (Fläche einschliessen/berechnen, Kollision), Gegner-KI, finale
 Grafik-Assets, PWA/Mobile-Support, Deployment.
+
+## Credits & Lizenzen
+
+Die verwendeten Fremd-Audios (Freesound, CC BY / CC0) sind in [`CREDITS.md`](./CREDITS.md)
+nachgewiesen. Im Spiel erreichbar über den Link „Credits & Lizenzen" unten
+rechts auf dem Startbildschirm (oder Taste **C**).

@@ -189,6 +189,13 @@ const START_SCREEN_CONTROLS_GAP = 28;
 const COLOR_START_SCREEN_HINT = '#8a93a6';
 /** Warmes Gold für die Widmung am unteren Bildrand (Nutzer-Wunsch: „goldig und fett"). */
 const COLOR_START_SCREEN_DEDICATION = '#e8c15a';
+/**
+ * Ziel des „Credits & Lizenzen"-Links unten rechts auf dem Startbildschirm –
+ * die Attribution der (CC-lizenzierten) Freesound-Audios. Als GitHub-Blob-URL,
+ * damit die deployte Website denselben, stets aktuellen Text zeigt wie das Repo
+ * (`CREDITS.md`).
+ */
+const CREDITS_URL = 'https://github.com/sterdomi/wormfied/blob/main/CREDITS.md';
 /** Abstand vom Steuerungs-Hinweis zur Highscore-Überschrift auf dem Startbildschirm. */
 const START_SCREEN_HIGHSCORE_GAP = 32;
 /** Zeilenhöhe einer Highscore-Zeile auf dem Startbildschirm. */
@@ -419,6 +426,25 @@ interface ClickBox {
   height: number;
 }
 
+/** Vom `renderStartScreen`-Frame gemeldete klickbare Flächen. */
+interface StartScreenHitboxes {
+  /** Highscore-Bereich – `null` bei zu wenig Platz / noch keinem Frame. */
+  highscores: ClickBox | null;
+  /** „Credits & Lizenzen"-Link unten rechts. */
+  credits: ClickBox;
+}
+
+/** Enthält `(px, py)` (Canvas-CSS-Pixel) eine `ClickBox`? */
+function hitsBox(box: ClickBox | null, px: number, py: number): boolean {
+  return (
+    box !== null &&
+    px >= box.x &&
+    px <= box.x + box.width &&
+    py >= box.y &&
+    py <= box.y + box.height
+  );
+}
+
 /**
  * Zeichnet den Highscore-Bereich unter dem Steuerungs-Hinweis des
  * Startbildschirms. Nutzer-Wunsch: die globale Top 10 soll NICHT mehr
@@ -503,7 +529,7 @@ function renderStartScreen(
   logoImage: HTMLImageElement,
   showHighscores: boolean,
   leaderboard: 'loading' | LeaderboardEntry[],
-): ClickBox | null {
+): StartScreenHitboxes {
   ctx.fillStyle = COLOR_BACKDROP;
   ctx.fillRect(0, 0, width, height);
 
@@ -536,7 +562,7 @@ function renderStartScreen(
   ctx.fillText(controlsHint, width / 2, enterHintY + START_SCREEN_CONTROLS_GAP);
 
   const highscoreTop = enterHintY + START_SCREEN_CONTROLS_GAP + START_SCREEN_HIGHSCORE_GAP;
-  const clickBox = renderStartScreenHighscores(
+  const highscoresBox = renderStartScreenHighscores(
     ctx,
     width,
     height,
@@ -554,7 +580,25 @@ function renderStartScreen(
   ctx.textBaseline = 'alphabetic';
   ctx.fillText(t('dedication'), width / 2, height - 14);
 
-  return clickBox;
+  // „Credits & Lizenzen" unten rechts – klickbar (öffnet `CREDITS_URL`), plus
+  // Taste C. Eine Zeile ÜBER der zentrierten Widmung, rechtsbündig, damit die
+  // beiden auch auf schmalen Querformat-Displays nicht kollidieren.
+  const creditsLabel = t('creditsLink');
+  const creditsBaselineY = height - 34;
+  ctx.fillStyle = COLOR_START_SCREEN_HINT;
+  ctx.font = '13px system-ui, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(creditsLabel, width - 14, creditsBaselineY);
+  const creditsWidth = ctx.measureText(creditsLabel).width;
+  const credits: ClickBox = {
+    x: width - 14 - creditsWidth - 10,
+    y: creditsBaselineY - 18,
+    width: creditsWidth + 20,
+    height: 28,
+  };
+
+  return { highscores: highscoresBox, credits };
 }
 
 /**
@@ -578,10 +622,9 @@ function showStartScreen(canvas: HTMLCanvasElement, logoImage: HTMLImageElement)
     let leaderboardLoaded = false;
     let leaderboard: 'loading' | LeaderboardEntry[] = 'loading';
     let active = true;
-    // Vom letzten `render()` gemeldete klickbare Fläche des Highscore-
-    // Bereichs (siehe `renderStartScreenHighscores`) – `null`, solange kein
-    // Frame gezeichnet wurde bzw. bei zu wenig Platz.
-    let highscoreClickBox: ClickBox | null = null;
+    // Vom letzten `render()` gemeldete klickbare Flächen (Highscore-Bereich +
+    // Credits-Link) – `null`, solange noch kein Frame gezeichnet wurde.
+    let hitboxes: StartScreenHitboxes | null = null;
 
     function toggleHighscores(): void {
       showHighscores = !showHighscores;
@@ -593,26 +636,25 @@ function showStartScreen(canvas: HTMLCanvasElement, logoImage: HTMLImageElement)
       }
     }
 
+    function openCredits(): void {
+      window.open(CREDITS_URL, '_blank', 'noopener,noreferrer');
+    }
+
     const onKeyDown = (e: KeyboardEvent): void => {
       if (e.code === 'KeyH') toggleHighscores();
+      else if (e.code === 'KeyC') openCredits();
     };
     const onClick = (e: MouseEvent): void => {
-      if (!highscoreClickBox) return;
+      if (!hitboxes) return;
       // Canvas-CSS-Grösse == `view.width`/`view.height` (siehe `canvas.ts`),
       // daher genügt der Offset zur Canvas-Bounding-Box ohne weitere
-      // Skalierung, um `e.clientX/Y` in dieselben Koordinaten wie
-      // `highscoreClickBox` umzurechnen.
+      // Skalierung, um `e.clientX/Y` in dieselben Koordinaten wie die
+      // `ClickBox`en umzurechnen.
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      if (
-        x >= highscoreClickBox.x &&
-        x <= highscoreClickBox.x + highscoreClickBox.width &&
-        y >= highscoreClickBox.y &&
-        y <= highscoreClickBox.y + highscoreClickBox.height
-      ) {
-        toggleHighscores();
-      }
+      if (hitsBox(hitboxes.credits, x, y)) openCredits();
+      else if (hitsBox(hitboxes.highscores, x, y)) toggleHighscores();
     };
     window.addEventListener('keydown', onKeyDown);
     canvas.addEventListener('click', onClick);
@@ -631,7 +673,7 @@ function showStartScreen(canvas: HTMLCanvasElement, logoImage: HTMLImageElement)
         }
       },
       render: (ctx) => {
-        highscoreClickBox = renderStartScreen(
+        hitboxes = renderStartScreen(
           ctx,
           view.width,
           view.height,

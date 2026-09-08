@@ -22,6 +22,7 @@ export const de = {
   fullscreenExitLabel: 'Vollbild verlassen',
   globalTop10: 'Globale Top 10',
   showHighscoresHint: 'H oder Klick: Bestenliste anzeigen',
+  creditsLink: 'Credits & Lizenzen',
   leaderboardLoading: 'Bestenliste lädt …',
   leaderboardEmpty: 'Noch keine Einträge',
   changeNameLabel: 'Spielername ändern',
