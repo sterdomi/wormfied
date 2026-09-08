@@ -1,6 +1,6 @@
 import type { Point } from './field';
 import { type Enemy, type Vec } from './enemy';
-import { closestPointOnPerimeter, segmentCrossesPolyline } from './geometry';
+import { closestPointOnPerimeter, segmentCrossesPolygon, segmentCrossesPolyline } from './geometry';
 import { isPointInPolygon } from './polygon';
 
 /** Standard-Geschwindigkeit des Hauptgegners (Pixel/Sekunde), = Wert aus
@@ -182,10 +182,15 @@ export function moveEnemy(
     y: enemy.position.y + dir.y * step,
   });
 
-  /** Ziel gültig: im Feld (mit Marge) UND der Schritt kreuzt die aktive Linie nicht. */
+  /**
+   * Ziel gültig: im Feld (mit Marge); der Schritt kreuzt weder die aktive Linie
+   * noch eine Feld-Kante (Letzteres verhindert das „Durchtunneln" durch
+   * eroberten Grund in eine andere Kammer bei nicht-konvexem Feld).
+   */
   const canGo = (dest: Point): boolean =>
     fitsInPolygon(dest, polygon, margin) &&
-    !segmentCrossesPolyline(enemy.position, dest, activeLine);
+    !segmentCrossesPolyline(enemy.position, dest, activeLine) &&
+    !segmentCrossesPolygon(enemy.position, dest, polygon);
 
   const straightAhead = advanced(enemy.direction);
   if (canGo(straightAhead)) {
@@ -217,6 +222,7 @@ export function moveEnemy(
     const point = advanced(dir);
     if (!isPointInPolygon(point, polygon)) continue;
     if (segmentCrossesPolyline(enemy.position, point, activeLine)) continue;
+    if (segmentCrossesPolygon(enemy.position, point, polygon)) continue;
     const distance = closestPointOnPerimeter(polygon, point).distance;
     if (distance > currentDistance && (!best || distance > best.distance)) {
       best = { dir, point, distance };

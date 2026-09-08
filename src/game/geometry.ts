@@ -112,3 +112,26 @@ export function segmentCrossesPolyline(
   }
   return false;
 }
+
+/**
+ * Kreuzt die Strecke `from → to` eine Kante des GESCHLOSSENEN Polygons `polygon`
+ * (inkl. Kante vom letzten zum ersten Punkt)?
+ *
+ * Für „ein Gegner-Schritt darf das aktive Feld nicht verlassen": bei einem
+ * nicht-konvexen Feld (nach mehreren Eroberungen L-/T-/U-förmig) genügt es
+ * nicht, dass Start und Ziel im Feld liegen – die gerade Strecke dazwischen
+ * kann durch bereits eroberten Grund in eine andere „Kammer" führen
+ * (Nutzer-Feedback: „plötzlich im falschen Rechteck, ohne Spielereinwirkung",
+ * z. B. bei einem Frame-Ruckler mit grossem `dt`).
+ */
+export function segmentCrossesPolygon(
+  from: Point,
+  to: Point,
+  polygon: readonly Point[],
+): boolean {
+  const n = polygon.length;
+  for (let i = 0; i < n; i++) {
+    if (segmentIntersection(from, to, polygon[i], polygon[(i + 1) % n])) return true;
+  }
+  return false;
+}

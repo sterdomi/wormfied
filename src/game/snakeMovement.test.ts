@@ -72,6 +72,31 @@ describe('advanceSnakeHead', () => {
     expect(maxDist).toBeGreaterThan(MARGIN + 30);
   });
 
+  it('schneidet bei nicht-konvexem Feld keine einspringende Ecke (Schritt bleibt im Polygon)', () => {
+    // U-förmiges Feld: zwei senkrechte Pfeiler (x 0..120 und x 280..400),
+    // oben durch einen Balken (y 0..120) verbunden. Aussparung: x 120..280, y > 120.
+    const uField = [
+      { x: 0, y: 0 },
+      { x: 400, y: 0 },
+      { x: 400, y: 400 },
+      { x: 280, y: 400 },
+      { x: 280, y: 120 },
+      { x: 120, y: 120 },
+      { x: 120, y: 400 },
+      { x: 0, y: 400 },
+    ];
+    const inNotch = (p: { x: number; y: number }): boolean =>
+      p.x > 120 && p.x < 280 && p.y > 120;
+    const state = createSnakeHeadState({ x: 0, y: -1 }); // hoch, Richtung Balken/Ecke
+    let pos = { x: 90, y: 360 }; // im linken Pfeiler, nahe der einspringenden Ecke (120,120)
+    for (let i = 0; i < 800; i++) {
+      const rng = (): number => ((i * 53) % 100) / 100;
+      pos = advanceSnakeHead(pos, state, uField, 25, SPEED, 1 / 15, rng);
+      expect(isPointInPolygon(pos, uField)).toBe(true);
+      expect(inNotch(pos)).toBe(false);
+    }
+  });
+
   it('begrenzt die Drehrate pro Frame', () => {
     const state = createSnakeHeadState({ x: 1, y: 0 });
     // Abbiege-Impuls sofort erzwingen, mit maximalem Ziel-Winkel (rng ~ 1).

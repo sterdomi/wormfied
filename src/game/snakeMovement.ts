@@ -1,7 +1,12 @@
 import type { Vec } from './enemy';
 import type { Point } from './field';
 import { fitsInPolygon } from './enemyMovement';
-import { closestPointOnPerimeter, closestPointOnPolyline, segmentCrossesPolyline } from './geometry';
+import {
+  closestPointOnPerimeter,
+  closestPointOnPolyline,
+  segmentCrossesPolygon,
+  segmentCrossesPolyline,
+} from './geometry';
 import { isPointInPolygon } from './polygon';
 
 /**
@@ -157,6 +162,7 @@ function mostInwardDirection(
     const probe = { x: position.x + dir.x * step, y: position.y + dir.y * step };
     if (!isPointInPolygon(probe, polygon)) continue;
     if (segmentCrossesPolyline(position, probe, activeLine)) continue;
+    if (segmentCrossesPolygon(position, probe, polygon)) continue;
     const distance = closestPointOnPerimeter(polygon, probe).distance;
     if (!best || distance > best.distance) best = { dir, distance };
   }
@@ -182,9 +188,15 @@ export function advanceSnakeHead(
 ): Point {
   const step = speed * dt;
 
-  /** Ziel gültig: im Feld (mit Marge) UND der Schritt kreuzt die aktive Linie nicht. */
+  /**
+   * Ziel gültig: im Feld (mit Marge), der Schritt kreuzt weder die aktive Linie
+   * noch eine Feld-Kante (Letzteres verhindert das „Durchtunneln" von erobertem
+   * Grund in eine andere Kammer bei nicht-konvexem Feld / Frame-Ruckler).
+   */
   const canReach = (to: Point): boolean =>
-    fitsInPolygon(to, polygon, margin) && !segmentCrossesPolyline(position, to, activeLine);
+    fitsInPolygon(to, polygon, margin) &&
+    !segmentCrossesPolyline(position, to, activeLine) &&
+    !segmentCrossesPolygon(position, to, polygon);
 
   // 1. Abbiegetakt: ab und zu ein neues Ziel-Heading würfeln.
   state.timeUntilTurn -= dt;
@@ -259,6 +271,7 @@ export function advanceSnakeHead(
     if (
       isPointInPolygon(moved, polygon) &&
       !segmentCrossesPolyline(position, moved, activeLine) &&
+      !segmentCrossesPolygon(position, moved, polygon) &&
       closestPointOnPerimeter(polygon, moved).distance >
         closestPointOnPerimeter(polygon, position).distance
     ) {
