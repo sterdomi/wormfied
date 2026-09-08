@@ -837,8 +837,16 @@ function start(
    */
   function handleCompletedLine(linePoints: Point[]): void {
     // Die Seite MIT dem HAUPTgegner bleibt aktives Feld; die andere gilt als
-    // erobert. Mini-Gegner beeinflussen das nicht.
-    const result = applyCompletedLine(field, linePoints, mainEnemy.position);
+    // erobert. Mini-Gegner beeinflussen das nicht. Der Sprite-Radius
+    // (`mainEnemy.size / 2`) macht die Zuordnung robust, wenn der Gegner genau
+    // auf der neuen Linie / am Feldrand sitzt – sonst konnte er in erobertem
+    // Grund „eingesperrt" landen (Nutzer-Feedback).
+    const result = applyCompletedLine(
+      field,
+      linePoints,
+      mainEnemy.position,
+      mainEnemy.size / 2,
+    );
     field = result.active;
     player.segmentIndex = result.playerSegmentIndex;
     player.segmentProgress = result.playerSegmentProgress;

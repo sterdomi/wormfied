@@ -124,25 +124,60 @@ export function splitPolygonByLine(polygon: Point[], line: Point[]): [Point[], P
   return [simplifyPolygon(region1), simplifyPolygon(region2)];
 }
 
+/** Testpunkte auf dem Kreis um die Gegnerposition – so zählt das ganze
+ *  Sprite mit, nicht nur der (auf einer Kante undefinierte) Mittelpunkt. */
+const ENEMY_MEMBERSHIP_SAMPLES = 16;
+
 /**
- * Welches der beiden Teilpolygone gilt als "erobert": das, in dem der Gegner
- * NICHT steht (das Polygon MIT dem Gegner bleibt aktives Spielfeld).
+ * Grobes Mass dafür, wie stark der Gegner in `region` liegt: Mittelpunkt (zählt
+ * doppelt, da verlässlichster Punkt) plus ein Kranz aus `ENEMY_MEMBERSHIP_SAMPLES`
+ * Punkten im Sprite-Radius `radius`. `0` = Gegner ganz ausserhalb.
+ */
+function enemyOverlap(region: Point[], center: Point, radius: number): number {
+  let count = isPointInPolygon(center, region) ? 2 : 0;
+  if (radius > 0) {
+    for (let i = 0; i < ENEMY_MEMBERSHIP_SAMPLES; i++) {
+      const a = (i / ENEMY_MEMBERSHIP_SAMPLES) * Math.PI * 2;
+      const p = { x: center.x + Math.cos(a) * radius, y: center.y + Math.sin(a) * radius };
+      if (isPointInPolygon(p, region)) count++;
+    }
+  }
+  return count;
+}
+
+/**
+ * Welches der beiden Teilpolygone gilt als "erobert". Grundregel wie bisher:
+ * das flächenmässig KLEINERE gewinnt. Aber – wie im Vorbild (Qix / Volfied) –
+ * darf nie die Seite MIT dem Gegner erobert werden: er würde sonst in
+ * erobertem Grund eingesperrt (Nutzer-Feedback), statt eingekesselt zu bleiben.
  *
- * Fallback (Randfall): ist keine Gegnerposition bekannt oder lässt sich der
- * Gegner keinem der beiden Polygone eindeutig zuordnen (auf einer Kante, in
- * beiden oder in keinem), gewinnt wie zuvor das flächenmässig kleinere Polygon.
+ * Deshalb, wenn eine Gegnerposition (+ optional Sprite-`enemyRadius`) bekannt
+ * ist:
+ *  - Liegt der Gegner KLAR in der grösseren Seite (dort mind. doppelt so viel
+ *    Sprite-Überlappung wie in der kleineren) → wie gewohnt die kleinere Seite
+ *    erobern.
+ *  - Ist der Gegner (auch nur teilweise) in der kleineren Seite oder sitzt er
+ *    auf der Trennlinie → die kleinere Seite bleibt aktiv, die grössere wird
+ *    erobert.
+ *  - Gegner in KEINER Seite (bereits besiegt / weit weg) oder keine Position
+ *    bekannt → die kleinere Seite gewinnt.
  */
 export function determineClaimedRegion(
   regionA: Point[],
   regionB: Point[],
   enemyPosition?: Point,
+  enemyRadius = 0,
 ): Point[] {
-  if (enemyPosition) {
-    const inA = isPointInPolygon(enemyPosition, regionA);
-    const inB = isPointInPolygon(enemyPosition, regionB);
-    if (inA !== inB) return inA ? regionB : regionA;
-  }
-  return polygonArea(regionA) <= polygonArea(regionB) ? regionA : regionB;
+  const smaller = polygonArea(regionA) <= polygonArea(regionB) ? regionA : regionB;
+  if (!enemyPosition) return smaller;
+
+  const larger = smaller === regionA ? regionB : regionA;
+  const inSmaller = enemyOverlap(smaller, enemyPosition, enemyRadius);
+  const inLarger = enemyOverlap(larger, enemyPosition, enemyRadius);
+
+  if (inSmaller === 0 && inLarger === 0) return smaller; // Gegner nirgends → Grundregel
+  if (inLarger > inSmaller * 2) return smaller; // Gegner klar in der grösseren Seite
+  return larger; // Gegner (teilweise) in der kleineren Seite / auf der Linie
 }
 
 export interface FieldSplit {
@@ -154,14 +189,18 @@ export interface FieldSplit {
   claimedArea: number;
 }
 
-/** Splittet das Feld an der Linie und wählt die eroberte / aktive Seite. */
+/** Splittet das Feld an der Linie und wählt die eroberte / aktive Seite.
+ *  `enemyRadius` (Sprite-Radius) macht die Seiten-Zuordnung robust, wenn der
+ *  Gegner genau auf der neuen Linie / am Feldrand sitzt (siehe
+ *  `determineClaimedRegion`). */
 export function splitFieldByLine(
   polygon: Point[],
   line: Point[],
   enemyPosition?: Point,
+  enemyRadius = 0,
 ): FieldSplit {
   const [a, b] = splitPolygonByLine(polygon, line);
-  const claimed = determineClaimedRegion(a, b, enemyPosition);
+  const claimed = determineClaimedRegion(a, b, enemyPosition, enemyRadius);
   return { claimed, active: claimed === a ? b : a, claimedArea: polygonArea(claimed) };
 }
 
@@ -182,8 +221,9 @@ export function applyCompletedLine(
   polygon: Point[],
   line: Point[],
   enemyPosition?: Point,
+  enemyRadius = 0,
 ): AppliedLine {
-  const split = splitFieldByLine(polygon, line, enemyPosition);
+  const split = splitFieldByLine(polygon, line, enemyPosition, enemyRadius);
   const proj = closestPointOnPerimeter(split.active, line[line.length - 1]);
   return {
     ...split,

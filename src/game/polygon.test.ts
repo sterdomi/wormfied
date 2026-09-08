@@ -187,6 +187,30 @@ describe('determineClaimedRegion', () => {
   it('Randfall: Gegner in keinem der Polygone → Fallback auf das kleinere', () => {
     expect(determineClaimedRegion(rightBig, leftSmall, { x: 9999, y: 9999 })).toBe(leftSmall);
   });
+
+  it('Gegner genau auf der Schnittlinie (beide Mittelpunkt-Tests false): mit Sprite-Radius bleibt die kleinere (Gegner-)Seite aktiv', () => {
+    // Gemeinsame Kante bei y=300 (waagerecht) – ein Punkt exakt darauf liegt
+    // per Ray-Cast in KEINEM der beiden Polygone.
+    const topThin = [
+      { x: 0, y: 0 },
+      { x: 800, y: 0 },
+      { x: 800, y: 300 },
+      { x: 0, y: 300 },
+    ]; // 240000
+    const bottomBig = [
+      { x: 0, y: 300 },
+      { x: 800, y: 300 },
+      { x: 800, y: 900 },
+      { x: 0, y: 900 },
+    ]; // 480000
+    const onSeam = { x: 400, y: 300 };
+    // Ohne Radius: unentscheidbar → alte Regel (kleinere Seite = topThin).
+    expect(determineClaimedRegion(topThin, bottomBig, onSeam)).toBe(topThin);
+    // Mit Sprite-Radius: Gegner sitzt auf der Naht → grössere Seite (bottomBig)
+    // wird erobert, die kleinere topThin bleibt aktiv – KEIN Gefängnis.
+    expect(determineClaimedRegion(topThin, bottomBig, onSeam, 40)).toBe(bottomBig);
+    expect(determineClaimedRegion(bottomBig, topThin, onSeam, 40)).toBe(bottomBig);
+  });
 });
 
 describe('splitFieldByLine', () => {
