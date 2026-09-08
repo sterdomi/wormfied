@@ -1332,7 +1332,7 @@ function start(
       const enemyShotKey = enemyShotSoundKey(level);
       for (const shot of shots) {
         projectiles.push(shot);
-        audioManager.play(enemyShotKey);
+        audioManager.play(enemyShotKey, { volume: level.enemyShotVolume ?? 1 });
       }
     }
 
@@ -1913,7 +1913,10 @@ function start(
   // `musicSrc` konfiguriert hat (sonst bliebe der Musik-Key ungeladen bzw.
   // trüge die Musik eines anderen Levels).
   if (level.musicSrc) {
-    musicNode = audioManager.play(levelMusicKey(level), { loop: true, volume: MUSIC_VOLUME });
+    musicNode = audioManager.play(levelMusicKey(level), {
+      loop: true,
+      volume: level.musicVolume ?? MUSIC_VOLUME,
+    });
   }
 
   // Vite HMR: laufende Ressourcen beim Hot-Reload sauber abbauen (löst NICHT

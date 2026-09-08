@@ -366,6 +366,18 @@ export interface LevelConfig {
   /** Hintergrundmusik-Loop für dieses Level. Optional – fehlt sie, bleibt es still. */
   musicSrc?: string;
   /**
+   * Lautstärke der Hintergrundmusik (0–1) für DIESES Level. Fehlt sie, gilt der
+   * globale `MUSIC_VOLUME` aus `main.ts`. Level 4 hebt sie an, weil dort die
+   * vielen Papageien-Schüsse sonst die Musik übertönen (Nutzer-Feedback).
+   */
+  musicVolume?: number;
+  /**
+   * Lautstärke (0–1) des Gegner-Schuss-Sounds für DIESES Level. Fehlt sie, wird
+   * er mit voller Lautstärke gespielt. Level 4 senkt sie, weil die sechs
+   * Papageien so oft schiessen, dass der Ton nervt (Nutzer-Feedback).
+   */
+  enemyShotVolume?: number;
+  /**
    * Sound-Key, der beim Auslösen von `reportFieldZap` abgespielt wird (Level 3:
    * `highvoltage`, der Blitz des eingerollten Aals). Fehlt er, spielt der
    * Feld-Zap keinen eigenen Sound – Level 4 z. B. hat mit `boom` (beim

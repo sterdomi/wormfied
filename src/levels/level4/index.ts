@@ -82,4 +82,9 @@ export const level4: LevelConfig = {
   shieldDecayPerSecond: SHIELD_DECAY_PER_SECOND,
   bonusStones: defaultBonusStones,
   musicSrc: '/assets/levels/level4/jungle.mp3',
+  // Die sechs Papageien schiessen sehr oft – ihren Schuss-Sound deutlich
+  // absenken und dafür die Dschungel-Musik lauter, damit der Ton nicht nervt
+  // (Nutzer-Feedback). Basiswerte: Schuss 1.0, Musik `MUSIC_VOLUME` (0.245).
+  enemyShotVolume: 0.32,
+  musicVolume: 0.42,
 };
