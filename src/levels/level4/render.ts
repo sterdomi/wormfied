@@ -2,7 +2,7 @@ import type { Enemy } from '../../game/enemy';
 import type { LevelEnemyAssets, LevelEnemyRenderState } from '../types';
 import { FIELD_W, GORILLA_BASE_Y, peekDrumming } from './drumming';
 import { MAX_RADIUS, peekShockwave, SHOCKWAVE_ORIGIN } from './shockwave';
-import { gorillaSprite } from './sprites';
+import { gorillaSprite, preloadGorillaSprites } from './sprites';
 
 /** Render-Höhe des Gorillas in Pixeln (Breite folgt dem Frame-Seitenverhältnis). */
 const GORILLA_RENDER_HEIGHT = 300;
@@ -31,6 +31,10 @@ const PARROT_FLIP_THRESHOLD = 0.2;
 
 /** Blickrichtung je Papagei – nur bei deutlich waagerechter Bewegung umgeschaltet. */
 const parrotFacesRight = new WeakMap<Enemy, boolean>();
+
+/** Zuletzt fertig geladener Gorilla-Frame – gehalten, solange ein neu
+ *  angeforderter Frame noch lädt, damit der Gorilla nicht kurz verschwindet. */
+let lastReadyGorilla: HTMLImageElement | null = null;
 
 function drawParrot(
   ctx: CanvasRenderingContext2D,
@@ -79,9 +83,19 @@ export function renderLevel4Enemies(
   }
 
   if (hideMainEnemy) return;
+  // Alle Frames vorab laden (Browser-only, idempotent) – sonst lädt jede Pose
+  // erst beim ersten Zeigen und der Gorilla flackert die ersten Sekunden.
+  preloadGorillaSprites();
   const frame = peekDrumming(mainEnemy)?.frame ?? 'bereit';
-  const img = gorillaSprite(frame);
-  if (!img.complete || img.naturalWidth === 0) return;
+  let img = gorillaSprite(frame);
+  if (!img.complete || img.naturalWidth === 0) {
+    // Angeforderter Frame noch nicht da: die letzte fertige Pose halten statt
+    // diesen Frame gar nicht zu zeichnen (das war der sichtbare „Glitch").
+    if (!lastReadyGorilla) return;
+    img = lastReadyGorilla;
+  } else {
+    lastReadyGorilla = img;
+  }
 
   const h = GORILLA_RENDER_HEIGHT * mainEnemyScale;
   const w = h * (img.naturalWidth / img.naturalHeight);

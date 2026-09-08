@@ -31,3 +31,16 @@ export function gorillaSprite(frame: GorillaFrame): HTMLImageElement {
   }
   return el;
 }
+
+const ALL_FRAMES = Object.keys(FRAME_SRC) as GorillaFrame[];
+
+/**
+ * Alle sechs Frames sofort laden anstossen. Ohne das wird jeder Frame erst
+ * geladen, wenn ihn die Trommel-Animation ZUM ERSTEN MAL zeigt – bis dahin
+ * zeichnet `render.ts` nichts, der Gorilla „flackert" in den ersten Sekunden
+ * (Nutzer-Feedback). Idempotent; `render.ts` ruft es beim ersten Frame auf
+ * (Browser-only, wie `gorillaSprite`).
+ */
+export function preloadGorillaSprites(): void {
+  for (const f of ALL_FRAMES) gorillaSprite(f);
+}
