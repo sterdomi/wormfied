@@ -1,5 +1,7 @@
 import type { Enemy } from '../../game/enemy';
 import type { Point } from '../../game/field';
+import { fitsInPolygon } from '../../game/enemyMovement';
+import { BODY_MINI_SCALE } from '../../game/snakeBody';
 import { clamp01, lerp } from '../rng';
 
 /**
@@ -51,6 +53,14 @@ interface ElectricState {
   gapIndex: number;
   /** Eingefrorene Kreismitte während coiling/discharge/uncoiling. */
   center: Point;
+  /**
+   * Eingefrorener Kranzradius (px) für diese Attacke. Bei freiem Aal
+   * `= freeR`; kreist der Spieler ihn ein, schrumpft er so weit, dass kein
+   * Körperglied durch eine (Zeichen-)Linie ragt (`fittingCoilRadius`).
+   */
+  coilR: number;
+  /** Kranzradius bei freiem Aal – Referenz für `electricCoilScale`. */
+  freeR: number;
   /** Segment-Position bei Beginn des Einrollens – Startpunkt der Interpolation. */
   startPos: WeakMap<Enemy, Point>;
   /** `performance.now()` des letzten Blitzes (für das Deko-Nachleuchten). */
@@ -66,6 +76,8 @@ function createState(head: Enemy): ElectricState {
     timer: GAP_PATTERN[0],
     gapIndex: 0,
     center: { ...head.position },
+    coilR: 0,
+    freeR: 0,
     startPos: new WeakMap(),
     lastDischargeMs: Number.NEGATIVE_INFINITY,
   };
@@ -86,9 +98,90 @@ export function _resetElectric(): void {
   current = null;
 }
 
-/** Radius des Spiralkranzes für einen Kopf dieser Grösse. */
+/** Radius des Kranzes für einen Kopf dieser Grösse (freier Aal). */
 function coilRadius(headSize: number): number {
   return headSize * 1.35;
+}
+
+/**
+ * Körperteil-Radius als Vielfaches von `head.size`. Im eingerollten Zustand
+ * zeichnet `render.ts` ALLE Glieder – Schwanz eingeschlossen – gleich gross
+ * (`bodySize` = `head.size × BODY_MINI_SCALE`, kein `TAIL_RENDER_SCALE` mehr,
+ * Nutzer-Feedback „ordne alle Teile gleich an"); dieser Faktor muss dazu
+ * passen, damit kein Glied durch eine Linie ragt.
+ */
+const MAX_SEGMENT_OVERHANG_FACTOR = BODY_MINI_SCALE / 2;
+
+/** Acht Strahlrichtungen (Achsen + Diagonalen) zum Abtasten des freien Raums
+ *  um die Kreismitte. */
+const COIL_PROBE_DIRS: readonly { x: number; y: number }[] = [
+  { x: 1, y: 0 },
+  { x: -1, y: 0 },
+  { x: 0, y: 1 },
+  { x: 0, y: -1 },
+  { x: Math.SQRT1_2, y: Math.SQRT1_2 },
+  { x: -Math.SQRT1_2, y: Math.SQRT1_2 },
+  { x: Math.SQRT1_2, y: -Math.SQRT1_2 },
+  { x: -Math.SQRT1_2, y: -Math.SQRT1_2 },
+];
+const COIL_PROBE_STEP = 4;
+
+/**
+ * Grösster Kranzradius ≤ `desired`, bei dem rund um `center` in allen acht
+ * Richtungen (`COIL_PROBE_DIRS`) noch `margin` Abstand zum Feldrand bleibt.
+ * `field` ist das aktive – bei einer Einkreisung bereits verkleinerte –
+ * Feld-Polygon, die vom Spieler gezogenen Linien sind darin also schon
+ * enthalten. Freier Aal → `desired`; eingekreist → so weit geschrumpft, dass
+ * kein Körperglied durch eine Linie ragt.
+ */
+function fittingCoilRadius(
+  center: Point,
+  field: Point[],
+  desired: number,
+  margin: number,
+): number {
+  if (field.length < 3) return desired;
+  let limit = desired;
+  for (const dir of COIL_PROBE_DIRS) {
+    let reach = 0;
+    while (reach + COIL_PROBE_STEP <= limit) {
+      const next = reach + COIL_PROBE_STEP;
+      if (!fitsInPolygon({ x: center.x + dir.x * next, y: center.y + dir.y * next }, field, margin)) {
+        break;
+      }
+      reach = next;
+    }
+    if (reach < limit) limit = reach;
+    if (limit <= 0) break;
+  }
+  return Math.max(0, limit);
+}
+
+/**
+ * Zieht `p` auf der Strecke zu `toward` so weit ein, bis er mit `margin` ins
+ * Feld passt. `toward` MUSS im Feld liegen (Aufrufer übergibt die
+ * Aal-Schwimm-Position, die dort per `advanceSnakeBody` garantiert passte) –
+ * sonst wird `p` unverändert zurückgegeben, statt evtl. einen Punkt ausserhalb
+ * des (nach mehreren Eroberungen nicht-konvexen) Feldes zu liefern.
+ *
+ * Fängt ab, was `fittingCoilRadius` mit nur acht Strahlen nicht abdeckt
+ * (nicht-rechteckige oder extrem enge Einkreisung) – danach ragt garantiert
+ * kein Körperglied durch eine Linie.
+ */
+function pullInside(p: Point, toward: Point, field: Point[], margin: number): Point {
+  if (field.length < 3 || fitsInPolygon(p, field, margin)) return p;
+  if (!fitsInPolygon(toward, field, 0)) return p;
+  let lo = 0;
+  let hi = 1;
+  for (let k = 0; k < 14; k++) {
+    const mid = (lo + hi) / 2;
+    if (fitsInPolygon({ x: lerp(p.x, toward.x, mid), y: lerp(p.y, toward.y, mid) }, field, margin)) {
+      hi = mid;
+    } else {
+      lo = mid;
+    }
+  }
+  return { x: lerp(p.x, toward.x, hi), y: lerp(p.y, toward.y, hi) };
 }
 
 /** Hält `center` so weit im Feld-Rechteck, dass der Kranz möglichst ganz drin liegt. */
@@ -105,9 +198,14 @@ function clampToField(p: Point, field: Point[], margin: number): Point {
   };
 }
 
-/** Zielwinkel von Segment `i` im Spiralkranz (leicht > 1 Umdrehung → „Rolle"). */
+/**
+ * Zielwinkel von Segment `i` im Kranz: `n` Glieder GLEICHMÄSSIG (je `2π/n`) auf
+ * genau einer Umdrehung verteilt – kein Spiral-Überlappen mehr und der Schwanz
+ * (letzter Index) sitzt wie jedes andere Glied auf dem Kreis (Nutzer-Feedback
+ * „ordne alle Teile gleich an, auch den Schwanz").
+ */
 function ringAngle(i: number, n: number, spin: number): number {
-  return spin + (i / Math.max(1, n)) * Math.PI * 2 * 1.15;
+  return spin + (i / Math.max(1, n)) * Math.PI * 2;
 }
 
 /**
@@ -120,6 +218,7 @@ function arrangeCoil(
   s: ElectricState,
   t: number,
   nowMs: number,
+  field: Point[],
 ): void {
   // Der Kranz rotiert langsam („Aufladen"); der Kopf bleibt in der Mitte und
   // behält seine letzte Schwimm-Blickrichtung (kein wackelndes Umkippen im
@@ -128,27 +227,41 @@ function arrangeCoil(
   head.position = { ...s.center };
 
   const n = segments.length;
-  const R = coilRadius(head.size);
+  const R = s.coilR;
+  const segMargin = head.size * MAX_SEGMENT_OVERHANG_FACTOR;
   segments.forEach((seg, i) => {
     const ang = ringAngle(i, n, spin);
-    const r = R * (1 - 0.28 * (i / Math.max(1, n)));
-    const target = { x: s.center.x + Math.cos(ang) * r, y: s.center.y + Math.sin(ang) * r };
+    // Alle Glieder auf demselben Radius (kein i-abhängiges Einrücken) – der
+    // Schwanz sitzt dadurch bündig im Kranz statt weiter aussen/unten.
+    const target = { x: s.center.x + Math.cos(ang) * R, y: s.center.y + Math.sin(ang) * R };
     const from = s.startPos.get(seg) ?? seg.position;
-    seg.position = { x: lerp(from.x, target.x, t), y: lerp(from.y, target.y, t) };
+    const pos = { x: lerp(from.x, target.x, t), y: lerp(from.y, target.y, t) };
+    // Sicherheitsnetz: nie durch eine Linie (Nutzer-Feedback) – zur Kreismitte
+    // hin einziehen, falls die interpolierte Position aus dem (verkleinerten)
+    // Feld ragt.
+    seg.position = pullInside(pos, s.center, field, segMargin);
     // Tangential zur Kreisbahn ausrichten.
     seg.direction = { x: Math.cos(ang + Math.PI / 2), y: Math.sin(ang + Math.PI / 2) };
   });
 }
 
 /** Kollabiert die Segmente Richtung Kopf (Ausroll-Phase). */
-function collapseCoil(head: Enemy, segments: readonly Enemy[], s: ElectricState, t: number): void {
+function collapseCoil(
+  head: Enemy,
+  segments: readonly Enemy[],
+  s: ElectricState,
+  t: number,
+  field: Point[],
+): void {
   head.position = { ...s.center };
-  const R = coilRadius(head.size);
+  const R = s.coilR;
   const n = segments.length;
+  const segMargin = head.size * MAX_SEGMENT_OVERHANG_FACTOR;
   segments.forEach((seg, i) => {
     const ang = ringAngle(i, n, 0);
-    const r = R * (1 - 0.28 * (i / Math.max(1, n))) * t; // t: 1 → 0
-    seg.position = { x: s.center.x + Math.cos(ang) * r, y: s.center.y + Math.sin(ang) * r };
+    const r = R * t; // t: 1 → 0, alle Glieder auf demselben Radius
+    const pos = { x: s.center.x + Math.cos(ang) * r, y: s.center.y + Math.sin(ang) * r };
+    seg.position = pullInside(pos, s.center, field, segMargin);
     seg.direction = { x: Math.cos(ang + Math.PI / 2), y: Math.sin(ang + Math.PI / 2) };
   });
 }
@@ -176,20 +289,35 @@ export function updateElectric(
   if (s.phase === 'swimming') {
     s.timer -= dt;
     if (s.timer > 0) return { swimming: true, discharged: false };
-    // Attacke beginnt: Kreismitte an der aktuellen Kopf-Position einfrieren.
+    // Attacke beginnt: Kreismitte + Kranzradius einfrieren. Kreist der Spieler
+    // den Aal ein, ist `field` bereits das kleine Pocket-Polygon – der Kranz
+    // schrumpft dann so weit, dass kein Körperglied durch eine Linie ragt
+    // (Nutzer-Feedback), statt weiter in voller Grösse zu kreisen.
     s.phase = 'coiling';
     s.timer = COIL_SECONDS;
-    s.center = clampToField(head.position, field, coilRadius(head.size) + head.size * 0.3);
+    s.freeR = coilRadius(head.size);
+    const segMargin = head.size * MAX_SEGMENT_OVERHANG_FACTOR;
+    // Anker für `pullInside` ist die Schwimm-Position des Kopfes – die lag per
+    // `advanceSnakeBody` garantiert im (evtl. nicht-konvexen) Feld; der
+    // Ecken-Schwerpunkt könnte dagegen ausserhalb liegen.
+    const center = pullInside(
+      clampToField(head.position, field, s.freeR + head.size * 0.3),
+      head.position,
+      field,
+      segMargin,
+    );
+    s.center = center;
+    s.coilR = fittingCoilRadius(center, field, s.freeR, segMargin);
     s.startPos = new WeakMap();
     for (const seg of segments) s.startPos.set(seg, { ...seg.position });
-    arrangeCoil(head, segments, s, 0, nowMs);
+    arrangeCoil(head, segments, s, 0, nowMs, field);
     return { swimming: false, discharged: false };
   }
 
   if (s.phase === 'coiling') {
     s.timer -= dt;
     const t = clamp01(1 - Math.max(0, s.timer) / COIL_SECONDS);
-    arrangeCoil(head, segments, s, t, nowMs);
+    arrangeCoil(head, segments, s, t, nowMs, field);
     if (s.timer <= 0) {
       s.phase = 'discharge';
       s.timer = DISCHARGE_SECONDS;
@@ -201,7 +329,7 @@ export function updateElectric(
 
   if (s.phase === 'discharge') {
     s.timer -= dt;
-    arrangeCoil(head, segments, s, 1, nowMs);
+    arrangeCoil(head, segments, s, 1, nowMs, field);
     if (s.timer <= 0) {
       s.phase = 'uncoiling';
       s.timer = UNCOIL_SECONDS;
@@ -212,13 +340,34 @@ export function updateElectric(
   // uncoiling
   s.timer -= dt;
   const t = clamp01(Math.max(0, s.timer) / UNCOIL_SECONDS); // 1 → 0
-  collapseCoil(head, segments, s, t);
+  collapseCoil(head, segments, s, t, field);
   if (s.timer <= 0) {
     s.phase = 'swimming';
     s.gapIndex = (s.gapIndex + 1) % GAP_PATTERN.length;
     s.timer = GAP_PATTERN[s.gapIndex];
   }
   return { swimming: false, discharged: false };
+}
+
+/**
+ * Verhältnis des (bei einer Einkreisung geschrumpften) Kranzradius zum freien
+ * Radius, 0..1. `render.ts` skaliert damit das Ladeglühen mit, sodass auch der
+ * Lichtschein kleiner wird, wenn der eingekreiste Aal wenig Platz hat. `1` =
+ * freier Aal bzw. keine laufende Attacke.
+ */
+export function electricCoilScale(): number {
+  const s = current;
+  if (!s || s.phase === 'swimming' || s.freeR <= 0) return 1;
+  return clamp01(s.coilR / s.freeR);
+}
+
+/**
+ * `true`, solange der Aal eingerollt ist (Einrollen/Blitz/Ausrollen). `render.ts`
+ * zeichnet dann alle Körperglieder gleich gross – auch den Schwanz, der sonst
+ * (1.6×) aus dem Kranz ragen würde (Nutzer-Feedback „ordne alle Teile gleich an").
+ */
+export function electricIsCoiling(): boolean {
+  return current !== null && current.phase !== 'swimming';
 }
 
 /**

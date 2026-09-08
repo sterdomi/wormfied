@@ -18,8 +18,12 @@ import type { Enemy } from '../../game/enemy';
  * `classifyLevel3Minis` (idempotent) und arbeiten dann auf ihrer Teilliste.
  */
 
-/** Aal-Körpersegmente (inkl. Schwanz = letztes Segment). */
-export const EEL_BODY_COUNT = 9;
+/** Aal-Körpersegmente (inkl. Schwanz = letztes Segment). Von 9 auf 7 reduziert
+ *  (Nutzer-Feedback zum eingerollten Kreis: „entferne eines der Körperteile …
+ *  wenn es hilft kann auch noch ein Body Element weg") – so sitzen die
+ *  gleichmässig verteilten Glieder inkl. Schwanz sauber getrennt im Kranz
+ *  (`ringAngle` / `arrangeCoil` in `electric.ts`). */
+export const EEL_BODY_COUNT = 7;
 /** Frei laufende Plasma-Minis. */
 export const ROAMER_COUNT = 5;
 

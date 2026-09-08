@@ -2,7 +2,7 @@ import type { Enemy, Vec } from '../../game/enemy';
 import type { Point } from '../../game/field';
 import { BODY_MINI_SCALE } from '../../game/snakeBody';
 import type { LevelEnemyAssets, LevelEnemyRenderState } from '../types';
-import { electricChargeIntensity } from './electric';
+import { electricChargeIntensity, electricCoilScale, electricIsCoiling } from './electric';
 import { classifyLevel3Minis } from './enemySet';
 
 /** Rendergrösse einer frei laufenden Plasma-Mini (kreisrund, keine Rotation). */
@@ -13,6 +13,10 @@ const PLASMA_RENDER_SIZE = 30;
  * Körpersegmente – die Schwanzflosse trägt mehr Silhouette und wirkt bei
  * gleicher Grösse wie die runden `body.png` zu mickrig (Nutzer-Feedback:
  * „das Tail ist noch zu klein"). Faktor auf `bodySize`.
+ *
+ * Gilt nur beim Schwimmen: im eingerollten Kranz (`electricIsCoiling()`) wird
+ * der Schwanz gleich gross wie die Body-Glieder gezeichnet, damit er bündig im
+ * Kreis sitzt (Nutzer-Feedback „ordne alle Teile gleich an").
  */
 const TAIL_RENDER_SCALE = 1.6;
 
@@ -134,17 +138,16 @@ export function renderLevel3Enemies(
     );
   }
 
-  // Aal-Körper von hinten nach vorne; das letzte Segment ist der Schwanz
-  // (grösser gezeichnet, siehe `TAIL_RENDER_SCALE`).
+  // Aal-Körper von hinten nach vorne; das letzte Segment ist der Schwanz.
+  // Beim Schwimmen grösser gezeichnet (`TAIL_RENDER_SCALE`); im eingerollten
+  // Kranz dagegen gleich gross wie die Body-Glieder (Nutzer-Feedback „ordne
+  // alle Teile gleich an, auch den Schwanz"), sonst ragt die Flosse aus dem
+  // Kreis.
+  const coiling = electricIsCoiling();
   for (let i = body.length - 1; i >= 0; i--) {
     const isTail = i === body.length - 1;
-    drawSegment(
-      ctx,
-      isTail ? tailSprite : bodySprite,
-      body[i].position,
-      body[i].direction,
-      isTail ? bodySize * TAIL_RENDER_SCALE : bodySize,
-    );
+    const size = isTail && !coiling ? bodySize * TAIL_RENDER_SCALE : bodySize;
+    drawSegment(ctx, isTail ? tailSprite : bodySprite, body[i].position, body[i].direction, size);
   }
 
   if (!hideMainEnemy) {
@@ -155,9 +158,12 @@ export function renderLevel3Enemies(
   // Einrollen bis kurz nach dem Blitz.
   const charge = electricChargeIntensity();
   if (charge > 0.001) {
+    // Bei eingekreistem Aal ist der Kranz geschrumpft (`electric.ts`) – das
+    // Glühen schrumpft mit, sonst leuchtete es über die Linien hinaus.
+    const coilScale = electricCoilScale();
     const { x, y } = mainEnemy.position;
-    const radius = mainEnemy.size * (1.7 + 0.7 * charge);
-    const glow = ctx.createRadialGradient(x, y, mainEnemy.size * 0.25, x, y, radius);
+    const radius = mainEnemy.size * (1.7 + 0.7 * charge) * coilScale;
+    const glow = ctx.createRadialGradient(x, y, mainEnemy.size * 0.25 * coilScale, x, y, radius);
     glow.addColorStop(0, `rgba(205, 242, 255, ${0.4 * charge})`);
     glow.addColorStop(0.55, `rgba(130, 205, 255, ${0.22 * charge})`);
     glow.addColorStop(1, 'rgba(130, 205, 255, 0)');
