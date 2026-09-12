@@ -295,6 +295,16 @@ const audioManager = createAudioManager();
 let debugInvincible = false;
 
 /**
+ * Einmal pro Partie auf `true` gesetzt, sobald `debugInvincible` zum ersten Mal
+ * aktiviert wird (Nutzer-Feedback: ein Score, der mit Unsterblichkeit erzielt
+ * wurde, darf nicht auf der globalen Bestenliste landen) – bleibt auch nach
+ * erneutem Ausschalten der Taste „I" gesetzt, siehe `triggerLeaderboardSubmission`.
+ * Wird erst mit der nächsten frischen Partie (`carryOver === null` in `start()`)
+ * wieder zurückgesetzt.
+ */
+let debugInvincibleUsedThisGame = false;
+
+/**
  * Kleine Ecke-oben-links-Einblendung, solange `debugInvincible` an ist – damit
  * beim Testen klar ist, dass gerade keine Treffer zählen. Selbst erzeugtes
  * DOM-Element (kein HUD-Umbau für einen Debug-Helfer), bei `false` versteckt.
@@ -727,6 +737,14 @@ function start(
   carryOver: LevelCarryOver | null,
   isLastLevel: boolean,
 ): Promise<StartOutcome> {
+  // Frische Partie (kein Levelübergang) – Unsterblichkeit-Disqualifikation der
+  // vorigen Partie darf hier nicht mehr nachwirken, siehe
+  // `debugInvincibleUsedThisGame`. Übernimmt dabei bewusst den AKTUELLEN
+  // `debugInvincible`-Stand (statt hart auf `false` zu setzen): läuft
+  // Unsterblichkeit über den Partie-Wechsel hinweg weiter (Taste „I" nicht
+  // ausgeschaltet), ist auch die neue Partie von Anfang an disqualifiziert.
+  if (carryOver === null) debugInvincibleUsedThisGame = debugInvincible;
+
   // Wird synchron im Promise-Executor unten zugewiesen (läuft vor jedem
   // anderen Code in dieser Funktion) – die Definite-Assignment-Assertion ist
   // hier sicher, TypeScript kennt das Ausführungsverhalten des
@@ -1002,8 +1020,13 @@ function start(
    * Liste unverändert stehen (kein zweiter Fetch nötig), und
    * `pendingOwnLeaderboardEntry` bleibt zwar gesetzt, matcht aber keine
    * Zeile mehr – die Hervorhebung in `hud.ts` bleibt dadurch automatisch aus.
+   *
+   * Übermittelt AUSSERDEM nicht, wenn in dieser Partie je Debug-Unsterblichkeit
+   * (Taste „I") aktiviert war (`debugInvincibleUsedThisGame`) – ein damit
+   * erzielter Score darf nicht auf der globalen Bestenliste landen.
    */
   function triggerLeaderboardSubmission(score: number): void {
+    if (debugInvincibleUsedThisGame) return;
     const playerName = getPlayerName();
     const roundedScore = Math.round(score);
     pendingOwnLeaderboardEntry = { name: playerName, score: roundedScore };
@@ -1931,6 +1954,7 @@ function start(
     const onDebugKey = (e: KeyboardEvent): void => {
       if (e.code === 'KeyI') {
         debugInvincible = !debugInvincible;
+        if (debugInvincible) debugInvincibleUsedThisGame = true;
         updateDebugInvincibleBadge();
         return;
       }
